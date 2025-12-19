@@ -4,7 +4,6 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { NocoDBModule } from './nocodb/nocodb.module';
 import { AuthModule } from './auth/auth.module';
-import { ExamplesModule } from './examples/examples.module';
 import { HealthModule } from './health/health.module';
 import { PermissionsModule } from './permissions/permissions.module';
 
@@ -15,7 +14,6 @@ import { PermissionsModule } from './permissions/permissions.module';
     }),
     NocoDBModule,
     AuthModule,
-    ExamplesModule,
     HealthModule,
     PermissionsModule,
   ],
