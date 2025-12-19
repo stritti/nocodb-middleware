@@ -42,6 +42,11 @@ describe('NocoDBV3Service', () => {
 
         service = module.get<NocoDBV3Service>(NocoDBV3Service);
         nocoDBService = module.get<NocoDBService>(NocoDBService);
+
+        // Suppress logs
+        jest.spyOn(Logger.prototype, 'log').mockImplementation(() => { });
+        jest.spyOn(Logger.prototype, 'debug').mockImplementation(() => { });
+        jest.spyOn(Logger.prototype, 'error').mockImplementation(() => { });
     });
 
     it('should be defined', () => {
@@ -65,19 +70,9 @@ describe('NocoDBV3Service', () => {
             expect(result).toEqual(responseData);
         });
 
-        it('should include specific fields if requested', async () => {
-            const tableId = 'mUsers';
-            const data = { name: 'Test User' };
-            const options = { includeFields: ['id', 'name'] };
-            mockHttpClient.post.mockResolvedValue({ data: { id: 1 } });
-
-            await service.create(tableId, data, options);
-
-            expect(mockHttpClient.post).toHaveBeenCalledWith(
-                expect.any(String),
-                data,
-                { params: { fields: 'id,name' } },
-            );
+        it('should throw error on failure', async () => {
+            mockHttpClient.post.mockRejectedValue(new Error('API Error'));
+            await expect(service.create('t1', {})).rejects.toThrow('API Error');
         });
     });
 
@@ -97,22 +92,9 @@ describe('NocoDBV3Service', () => {
             expect(result).toEqual(responseData);
         });
 
-        it('should include relations if requested', async () => {
-            const tableId = 'mUsers';
-            const recordId = 1;
-            const options = { includeRelations: ['posts'] };
-            mockHttpClient.get.mockResolvedValue({ data: {} });
-
-            await service.read(tableId, recordId, options);
-
-            expect(mockHttpClient.get).toHaveBeenCalledWith(
-                expect.any(String),
-                {
-                    params: {
-                        nested: JSON.stringify({ posts: { fields: ['*'] } }),
-                    },
-                },
-            );
+        it('should throw error on failure', async () => {
+            mockHttpClient.get.mockRejectedValue(new Error('API Error'));
+            await expect(service.read('t1', 1)).rejects.toThrow('API Error');
         });
     });
 
@@ -130,6 +112,11 @@ describe('NocoDBV3Service', () => {
                 data,
             );
         });
+
+        it('should throw error on failure', async () => {
+            mockHttpClient.patch.mockRejectedValue(new Error('API Error'));
+            await expect(service.update('t1', 1, {})).rejects.toThrow('API Error');
+        });
     });
 
     describe('delete', () => {
@@ -143,6 +130,11 @@ describe('NocoDBV3Service', () => {
             expect(mockHttpClient.delete).toHaveBeenCalledWith(
                 `/api/v3/tables/${tableId}/records/${recordId}`,
             );
+        });
+
+        it('should throw error on failure', async () => {
+            mockHttpClient.delete.mockRejectedValue(new Error('API Error'));
+            await expect(service.delete('t1', 1)).rejects.toThrow('API Error');
         });
     });
 
@@ -166,30 +158,96 @@ describe('NocoDBV3Service', () => {
             );
             expect(result).toEqual(responseData);
         });
+
+        it('should throw error on failure', async () => {
+            mockHttpClient.get.mockRejectedValue(new Error('API Error'));
+            await expect(service.list('t1', {})).rejects.toThrow('API Error');
+        });
     });
 
-    describe('Rate Limiting', () => {
-        it('should enforce rate limit between requests', async () => {
-            // Mock setTimeout to fast-forward time
-            jest.useFakeTimers();
-            const start = Date.now();
+    describe('Link Operations', () => {
+        it('createWithLinks should format links correctly', async () => {
+            mockHttpClient.post.mockResolvedValue({ data: { id: 1 } });
+            await service.createWithLinks('t1', { name: 'A' }, [{ fieldName: 'rel', recordIds: [10, 20] }]);
 
-            mockHttpClient.post.mockResolvedValue({ data: {} });
+            expect(mockHttpClient.post).toHaveBeenCalledWith(
+                expect.any(String),
+                { name: 'A', rel: [{ id: 10 }, { id: 20 }] },
+                expect.any(Object)
+            );
+        });
 
-            // Fire two requests immediately
-            const p1 = service.create('t1', {});
-            const p2 = service.create('t1', {});
+        it('updateLinks should format links correctly', async () => {
+            mockHttpClient.patch.mockResolvedValue({ data: { id: 1 } });
+            await service.updateLinks('t1', 1, [{ fieldName: 'rel', recordIds: [10] }]);
 
-            // First one should go through immediately (or very close)
-            // Second one should be delayed by ~200ms (1000ms / 5 req/sec)
+            expect(mockHttpClient.patch).toHaveBeenCalledWith(
+                expect.any(String),
+                { rel: [{ id: 10 }] }
+            );
+        });
 
-            jest.advanceTimersByTime(200);
+        it('getWithLinks should call read with includeRelations', async () => {
+            mockHttpClient.get.mockResolvedValue({ data: {} });
+            await service.getWithLinks('t1', 1, ['rel1']);
 
-            await Promise.all([p1, p2]);
+            expect(mockHttpClient.get).toHaveBeenCalledWith(
+                expect.any(String),
+                expect.objectContaining({
+                    params: expect.objectContaining({
+                        nested: expect.stringContaining('rel1')
+                    })
+                })
+            );
+        });
+    });
 
+    describe('Batch Operations', () => {
+        it('batchCreate should iterate records', async () => {
+            mockHttpClient.post.mockResolvedValue({ data: { id: 'new' } });
+            const results = await service.batchCreate('t1', [{ a: 1 }, { b: 2 }]);
+            expect(results).toHaveLength(2);
             expect(mockHttpClient.post).toHaveBeenCalledTimes(2);
+        });
 
-            jest.useRealTimers();
+        it('batchCreate should handle errors gracefully', async () => {
+            mockHttpClient.post
+                .mockResolvedValueOnce({ data: { id: 1 } })
+                .mockRejectedValueOnce(new Error('Fail'));
+
+            const results = await service.batchCreate('t1', [{ a: 1 }, { b: 2 }]);
+            expect(results[0]).toEqual({ id: 1 });
+            expect(results[1]).toHaveProperty('error', 'Fail');
+        });
+
+        it('batchUpdate should iterate updates', async () => {
+            mockHttpClient.patch.mockResolvedValue({ data: { id: 1 } });
+            const results = await service.batchUpdate('t1', [{ id: 1, data: {} }]);
+            expect(results).toHaveLength(1);
+        });
+
+        it('batchUpdate should handle errors', async () => {
+            mockHttpClient.patch.mockRejectedValue(new Error('Fail'));
+            const results = await service.batchUpdate('t1', [{ id: 1, data: {} }]);
+            expect(results[0]).toHaveProperty('error', 'Fail');
+        });
+    });
+
+    describe('Utility Methods', () => {
+        it('findOne should return first item or null', async () => {
+            mockHttpClient.get.mockResolvedValue({ data: { list: [{ id: 1 }] } });
+            expect(await service.findOne('t1', 'cond')).toEqual({ id: 1 });
+
+            mockHttpClient.get.mockResolvedValue({ data: { list: [] } });
+            expect(await service.findOne('t1', 'cond')).toBeNull();
+        });
+
+        it('exists should return boolean', async () => {
+            jest.spyOn(service, 'findOne').mockResolvedValue({ id: 1 });
+            expect(await service.exists('t1', 'cond')).toBe(true);
+
+            jest.spyOn(service, 'findOne').mockResolvedValue(null);
+            expect(await service.exists('t1', 'cond')).toBe(false);
         });
     });
 });

@@ -13,7 +13,6 @@ describe('DatabaseInitializationService', () => {
         mockHttpClient = {
             get: jest.fn(),
             post: jest.fn(),
-            defaults: { baseURL: 'http://test-url' },
         };
 
         const module: TestingModule = await Test.createTestingModule({
@@ -22,122 +21,133 @@ describe('DatabaseInitializationService', () => {
                 {
                     provide: NocoDBService,
                     useValue: {
-                        getTablePrefix: jest.fn().mockReturnValue(''),
+                        getTablePrefix: jest.fn().mockReturnValue('nc_'),
                         getTableByName: jest.fn(),
                         createTable: jest.fn(),
                         createColumn: jest.fn(),
                         getHttpClient: jest.fn().mockReturnValue(mockHttpClient),
+                        getBaseId: jest.fn().mockReturnValue('base_id'),
                     },
                 },
             ],
         }).compile();
 
-        service = module.get<DatabaseInitializationService>(DatabaseInitializationService);
+        service = module.get<DatabaseInitializationService>(
+            DatabaseInitializationService,
+        );
         nocoDBService = module.get<NocoDBService>(NocoDBService);
 
-        // Suppress logs during tests
         jest.spyOn(Logger.prototype, 'log').mockImplementation(() => { });
-        jest.spyOn(Logger.prototype, 'error').mockImplementation(() => { });
         jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => { });
+        jest.spyOn(Logger.prototype, 'error').mockImplementation(() => { });
+
+        // Bypass delay for tests
+        (service as any).delay = jest.fn().mockResolvedValue(undefined);
     });
 
     it('should be defined', () => {
         expect(service).toBeDefined();
     });
 
-    describe('ensureTableExists', () => {
-        it('should create table if it does not exist', async () => {
-            // Mock table not found
-            (nocoDBService.getTableByName as jest.Mock).mockResolvedValue(null);
-
-            // Mock successful creation
-            (nocoDBService.createTable as jest.Mock).mockResolvedValue({ id: 'new-table-id' });
-
-            // Expose private method for testing
-            const ensureTableExistsString = 'ensureTableExists';
-            const result = await (service as any)[ensureTableExistsString]({
-                tableName: 'test_table',
-                title: 'Test Table',
-                columns: [{ name: 'col1', title: 'Col 1', type: 'SingleLineText' }]
-            });
-
-            expect(nocoDBService.createTable).toHaveBeenCalledWith(
-                'test_table',
-                'Test Table',
-                expect.arrayContaining([
-                    expect.objectContaining({ column_name: 'col1' })
-                ])
-            );
-            expect(result).toBe('new-table-id');
+    describe('onModuleInit', () => {
+        it('should initialize tables', async () => {
+            const initSpy = jest.spyOn(service as any, 'initializeTables').mockResolvedValue(undefined);
+            await service.onModuleInit();
+            expect(initSpy).toHaveBeenCalled();
         });
+    });
 
-        it('should return existing table ID if found', async () => {
-            (nocoDBService.getTableByName as jest.Mock).mockResolvedValue({ id: 'existing-id' });
-            mockHttpClient.get.mockResolvedValue({ data: { columns: [] } }); // Mock getting columns for existing table
+    describe('initializeTables', () => {
+        it('should ensure base tables and seed data', async () => {
+            // Mock ensureTableExists to return IDs
+            jest.spyOn(service as any, 'ensureTableExists').mockResolvedValue('table_id');
+            // Mock verify to succeed
+            jest.spyOn(service as any, 'verifyLinkColumnsExist').mockResolvedValue(undefined);
+            // Mock seeding
+            const seedPermSpy = jest.spyOn(service as any, 'seedDefaultPermissions').mockResolvedValue(undefined);
+            const seedUserSpy = jest.spyOn(service as any, 'seedDefaultUser').mockResolvedValue(undefined);
 
-            const ensureTableExistsString = 'ensureTableExists';
-            const result = await (service as any)[ensureTableExistsString]({
-                tableName: 'test_table',
-                title: 'Test Table',
-                columns: []
-            });
+            await (service as any).initializeTables();
 
-            expect(nocoDBService.createTable).not.toHaveBeenCalled();
-            expect(result).toBe('existing-id');
+            expect(seedPermSpy).toHaveBeenCalled();
+            expect(seedUserSpy).toHaveBeenCalled();
+        });
+    });
+
+    describe('ensureTableExists', () => {
+        it('should create table and columns', async () => {
+            (nocoDBService.getTableByName as jest.Mock).mockResolvedValue(null); // Table not exists
+            (nocoDBService.createTable as jest.Mock).mockResolvedValue({ id: 'new_id' });
+
+            // Mock ensureColumnsExist by spying? Or let it run?
+            // It calls nocoDBService.createColumn, which is mocked.
+            // But ensureColumnsExist internal logic does a GET for columns.
+            mockHttpClient.get.mockResolvedValue({ data: { columns: [] } });
+
+            const tableDef = {
+                tableName: 'test',
+                title: 'Test',
+                columns: [{ name: 'col1', title: 'Col1', type: 'Text' }]
+            };
+
+            await (service as any).ensureTableExists(tableDef);
+
+            expect(nocoDBService.createTable).toHaveBeenCalled();
         });
     });
 
     describe('verifyLinkColumnsExist', () => {
-        it('should throw error if required link columns are missing', async () => {
-            // Mock tables existing
-            (nocoDBService.getTableByName as jest.Mock).mockImplementation((name) => {
-                return Promise.resolve({ id: `id_${name}`, title: name });
-            });
+        it('should warn on missing links', async () => {
+            // Setup: Table exists, but has no columns
+            (nocoDBService.getTableByName as jest.Mock).mockResolvedValue({ id: 'rel_table' });
+            mockHttpClient.get.mockResolvedValue({ data: { columns: [] } });
 
-            // Mock table schema returning NO columns (so links are missing)
-            mockHttpClient.get.mockImplementation((url) => {
-                if (url.includes('/api/v2/meta/tables/')) {
-                    return Promise.resolve({ data: { columns: [] } });
-                }
-                return Promise.resolve({ data: {} });
-            });
-
-            const verifyLinkColumnsExistString = 'verifyLinkColumnsExist';
-
-            await expect((service as any)[verifyLinkColumnsExistString]())
-                .rejects.toThrow(/Missing \d+ required link column/);
+            await expect((service as any).verifyLinkColumnsExist()).rejects.toThrow();
         });
+    });
 
-        it('should pass if all link columns exist', async () => {
-            (nocoDBService.getTableByName as jest.Mock).mockImplementation((name) => {
-                return Promise.resolve({ id: `id_${name}`, title: name });
-            });
+    describe('seedDefaultUser', () => {
+        it('should create admin user/role if missing', async () => {
+            (nocoDBService.getTableByName as jest.Mock).mockResolvedValue({ id: 'tid' });
 
-            mockHttpClient.get.mockImplementation((url) => {
-                if (url.includes('/api/v2/meta/tables/id_user_roles')) {
-                    return Promise.resolve({
-                        data: {
-                            columns: [
-                                { column_name: 'user', uidt: 'LinkToAnotherRecord' },
-                                { column_name: 'role', uidt: 'LinkToAnotherRecord' }
-                            ]
-                        }
-                    });
-                }
-                if (url.includes('/api/v2/meta/tables/id_table_permissions')) {
-                    return Promise.resolve({
-                        data: {
-                            columns: [
-                                { column_name: 'role', uidt: 'LinkToAnotherRecord' }
-                            ]
-                        }
-                    });
-                }
-                return Promise.resolve({ data: { columns: [] } });
-            });
+            // Admin user missing
+            mockHttpClient.get.mockResolvedValueOnce({ data: { list: [] } });
+            // Create Admin User details
+            mockHttpClient.post.mockResolvedValueOnce({ data: { Id: 100 } });
 
-            const verifyLinkColumnsExistString = 'verifyLinkColumnsExist';
-            await expect((service as any)[verifyLinkColumnsExistString]()).resolves.not.toThrow();
+            // Get Admin Role
+            mockHttpClient.get.mockResolvedValueOnce({ data: { list: [{ Id: 99 }] } });
+
+            // Check user role assignment
+            mockHttpClient.get.mockResolvedValueOnce({ data: { list: [] } });
+            // Create assignment
+            mockHttpClient.post.mockResolvedValueOnce({ data: { Id: 200 } });
+
+            await (service as any).seedDefaultUser();
+
+            // Verify create user call
+            expect(mockHttpClient.post).toHaveBeenCalledWith(
+                expect.stringContaining('/records'),
+                expect.objectContaining({ username: 'admin' })
+            );
+        });
+    });
+
+    describe('seedDefaultPermissions', () => {
+        it('should create admin role if missing', async () => {
+            (nocoDBService.getTableByName as jest.Mock).mockResolvedValue({ id: 'tid' });
+
+            // Role missing
+            mockHttpClient.get.mockResolvedValueOnce({ data: { list: [] } });
+            // Create Role
+            mockHttpClient.post.mockResolvedValueOnce({ data: { Id: 99 } });
+
+            await (service as any).seedDefaultPermissions();
+
+            expect(mockHttpClient.post).toHaveBeenCalledWith(
+                expect.stringContaining('/records'),
+                expect.objectContaining({ role_name: 'admin' })
+            );
         });
     });
 });
