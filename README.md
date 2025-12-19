@@ -9,7 +9,7 @@ A robust NestJS middleware for NocoDB with comprehensive authentication, caching
 ✅ **Role-Based Access Control** - Guards for authorization  
 ✅ **Request Context Middleware** - User context enrichment  
 ✅ **Rate Limiting** - Protection against abuse (100 requests per 15 minutes)  
-✅ **Logging Middleware** - Request/response logging  
+✅ **Logging** - Request/response logging to console and files (`/logs` directory)
 ✅ **Caching Layer** - In-memory caching for read-heavy operations  
 ✅ **Error Handling** - Structured error responses with custom exceptions  
 ✅ **OpenAPI/Swagger** - Interactive API documentation  
@@ -34,6 +34,7 @@ NOCODB_PROJECT_ID=optional_project_id
 JWT_SECRET=your_jwt_secret_here
 JWT_EXPIRES_IN=1d
 PORT=3000
+LOG_DIR=logs
 ```
 
 See `.env.example` for the template.
@@ -62,6 +63,13 @@ npm run test:e2e
 # Test coverage
 npm run test:cov
 ```
+
+> **Note**: The project maintains >80% test coverage on critical business logic services.
+
+### CI/CD
+
+Automated testing is configured via GitHub Actions.
+
 
 ## API Documentation
 

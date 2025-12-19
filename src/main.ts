@@ -3,9 +3,49 @@ import { AppModule } from './app.module';
 import { NocoDBExceptionFilter } from './nocodb/filters/nocodb-exception.filter';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { WinstonModule, utilities as nestWinstonModuleUtilities } from 'nest-winston';
+import * as winston from 'winston';
+import * as path from 'path';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const logDir = process.env.LOG_DIR || path.join(process.cwd(), 'logs');
+
+  // Create logger with Console and File transports
+  const logger = WinstonModule.createLogger({
+    transports: [
+      new winston.transports.Console({
+        format: winston.format.combine(
+          winston.format.timestamp(),
+          winston.format.ms(),
+          nestWinstonModuleUtilities.format.nestLike('NocoDBMiddleware', {
+            colors: true,
+            prettyPrint: true,
+          }),
+        ),
+      }),
+      new winston.transports.File({
+        dirname: logDir,
+        filename: 'error.log',
+        level: 'error',
+        format: winston.format.combine(
+          winston.format.timestamp(),
+          winston.format.json(),
+        ),
+      }),
+      new winston.transports.File({
+        dirname: logDir,
+        filename: 'combined.log',
+        format: winston.format.combine(
+          winston.format.timestamp(),
+          winston.format.json(),
+        ),
+      }),
+    ],
+  });
+
+  const app = await NestFactory.create(AppModule, {
+    logger: logger,
+  });
 
   // Global filters
   app.useGlobalFilters(new NocoDBExceptionFilter());
@@ -34,5 +74,6 @@ async function bootstrap() {
   app.enableShutdownHooks();
 
   await app.listen(process.env.PORT ?? 3000);
+  logger.log(`Application is running on: ${await app.getUrl()}`);
 }
 bootstrap();
