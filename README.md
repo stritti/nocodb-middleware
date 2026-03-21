@@ -30,7 +30,7 @@ Create a `.env` file in the root directory:
 ```env
 NOCODB_API_URL=http://localhost:8080
 NOCODB_API_TOKEN=your_api_token_here
-NOCODB_PROJECT_ID=optional_project_id
+NOCODB_BASE_ID=your_base_id_here
 JWT_SECRET=your_jwt_secret_here
 JWT_EXPIRES_IN=1d
 PORT=3000

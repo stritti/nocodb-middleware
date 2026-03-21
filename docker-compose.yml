@@ -8,7 +8,7 @@ services:
     environment:
       - NOCODB_API_URL=http://nocodb:8080
       - NOCODB_API_TOKEN=${NOCODB_API_TOKEN}
-      - NOCODB_PROJECT_ID=${NOCODB_PROJECT_ID}
+      - NOCODB_BASE_ID=${NOCODB_BASE_ID}
       - JWT_SECRET=${JWT_SECRET}
       - JWT_EXPIRES_IN=1d
       - PORT=3000
