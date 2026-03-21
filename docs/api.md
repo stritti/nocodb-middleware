@@ -1,52 +1,60 @@
 # API Documentation
 
-This document describes the RESTful API endpoints available in the NocoDB Middleware.
+Diese Dokumentation beschreibt den aktuell vorhandenen API-Stand der NocoDB Middleware.
 
 ## Interactive Documentation
 
-The API is documented using OpenAPI (Swagger). You can explore and test the API interactively at:
-
-**Swagger UI**: [http://localhost:3000/api](http://localhost:3000/api)
+- Swagger UI: `http://localhost:3000/api`
 
 ## Authentication
 
-Most endpoints require JWT authentication. Include your token in the `Authorization` header:
+- Geschützte Endpunkte erwarten JWT im Header:
 
+```http
+Authorization: Bearer <jwt>
 ```
-Authorization: Bearer <your_jwt_token>
-```
 
-## Endpoints
+## Aktuelle Endpunkte
 
-### Examples Resource
+### Health
 
-#### `GET /examples`
-- **Description**: Get all examples with pagination
-- **Auth**: Required
-- **Query Parameters**:
-  - `page` (optional): Page number (default: 1)
-  - `take` (optional): Items per page (default: 10, max: 50)
-  - `order` (optional): Sort order (`ASC` or `DESC`, default: `ASC`)
-- **Response**: Paginated list of examples
+- `GET /health`
+  - Zweck: Liveness/Health-Check
+  - Auth: Nein
 
-#### `POST /examples`
-- **Description**: Create a new example
-- **Auth**: Required
-- **Request Body**:
-  ```json
-  {
-    "title": "My Example"
-  }
-  ```
-- **Response**: Created example object
+### RBAC / Permissions Management
 
-## Global Validation
+Basispfad: ` /admin/permissions `
 
-All endpoints use `ValidationPipe` to ensure:
-- Only whitelisted properties are accepted
-- Data is automatically transformed to the correct types
-- Invalid requests return a `400 Bad Request` error
+- `POST /roles`
+- `GET /roles`
+- `DELETE /roles/:roleId`
+- `POST /table-permissions`
+- `POST /table-permissions/batch`
+- `GET /roles/:roleId/permissions`
+- `DELETE /roles/:roleId/permissions`
+- `POST /roles/:sourceRoleId/copy-to/:targetRoleId`
+- `POST /user-roles/assign`
+- `POST /user-roles/assign-multiple`
+- `DELETE /user-roles/users/:userId/roles/:roleId`
+- `GET /users/:userId/roles`
 
-## Error Handling
+> Hinweis: Zugriff auf diese Endpunkte wird zusätzlich über `PermissionsGuard` und die `@Require*`-Decorators gesteuert.
 
-Errors follow the standard format documented in [error-handling.md](./error-handling.md).
+## Validation
+
+Globale `ValidationPipe` ist aktiv:
+
+- `whitelist: true`
+- `forbidNonWhitelisted: true`
+- `transform: true`
+
+## Error Format
+
+Fehler werden über den globalen `NocoDBExceptionFilter` vereinheitlicht.
+Siehe: `docs/error-handling.md`.
+
+## Geplante Endpunkte (noch nicht implementiert)
+
+- Optionale Tabellenkatalog-API (Name↔ID-Mapping, ohne interne Middleware-Systemtabellen)
+  - Spezifiziert in OpenSpec: `build-nestjs-nocodb-v3-middleware/specs/v3-table-catalog-exposure/spec.md`

@@ -1,97 +1,48 @@
 # Testing Documentation
 
-This document describes the testing strategy and how to run tests for the NocoDB Middleware.
+## Test Commands
 
-## Testing Strategy
-
-The project uses a comprehensive testing approach:
-
-1. **Unit Tests**: Test individual components in isolation
-2. **Integration Tests (E2E)**: Test full request-response cycles
-3. **Coverage Reporting**: Track code coverage to ensure quality
-
-## Running Tests
-
-### Unit Tests
-Run all unit tests:
 ```bash
+# Unit tests
 npm test
-```
 
-Run tests in watch mode:
-```bash
+# Unit tests (watch)
 npm run test:watch
-```
 
-### Integration Tests
-Run E2E tests:
-```bash
+# E2E tests
 npm run test:e2e
-```
 
-### Coverage Report
-Generate and view coverage:
-```bash
+# Coverage
 npm run test:cov
 ```
 
-The report will be generated in the `coverage/` directory.
+## Aktueller Fokus der Tests
 
-## Test Structure
+Der Testbestand deckt primär ab:
 
-### Unit Tests
-Located alongside the source files with `.spec.ts` extension:
-- `src/nocodb/nocodb.service.spec.ts`
-- `src/examples/examples.service.spec.ts`
-- `src/nocodb/cache/nocodb-cache.service.spec.ts`
+- NocoDB-Service-Schicht (`src/nocodb/*.spec.ts`)
+- Cache-Service (`src/nocodb/cache/*.spec.ts`)
+- Permissions/RBAC-Services (`src/permissions/*.spec.ts`)
+- Rollen-/User-Rollen-Services (`src/roles/*.spec.ts`, `src/users/*.spec.ts`)
+- JWT Strategy (`src/auth/strategies/*.spec.ts`)
+- Basis-App (`src/app.controller.spec.ts`)
 
-### E2E Tests
-Located in `test/` directory:
-- `test/app.e2e-spec.ts`
+## Wichtiger Hinweis zum aktuellen Stand
 
-## Writing Tests
+Aktuell sind nicht alle Tests grün (bekannte Altlasten außerhalb der Doku-Änderungen):
 
-### Unit Test Example
-```typescript
-describe('MyService', () => {
-  let service: MyService;
+- `src/nocodb/nocodb-v3.service.spec.ts`
+  - Erwartet teils alte URL-/Payload-Formate
+- `src/nocodb/database-initialization.service.spec.ts`
+  - DI-Mocking für `NocoDBV3Service` unvollständig
 
-  beforeEach(async () => {
-    const module = await Test.createTestingModule({
-      providers: [MyService],
-    }).compile();
+## Empfohlene Teststrategie für kommende Changes
 
-    service = module.get<MyService>(MyService);
-  });
+1. Service-spezifische Unit-Tests zuerst
+2. Danach Integrationsnahe Tests für Init/RBAC-Flows
+3. Am Ende vollständiger Lauf mit `npm test -- --runInBand`
+4. Für hängende Handles optional:
 
-  it('should be defined', () => {
-    expect(service).toBeDefined();
-  });
-});
+```bash
+npm test -- --detectOpenHandles --runInBand
 ```
-
-### E2E Test Example
-```typescript
-it('should return 200', () => {
-  return request(app.getHttpServer())
-    .get('/endpoint')
-    .expect(200);
-});
-```
-
-## Mocking
-
-Use Jest mocks for dependencies:
-```typescript
-{
-  provide: Repository,
-  useValue: {
-    findOne: jest.fn(),
-  },
-}
-```
-
-## Coverage Goals
-
-- **Minimum**: 80% code coverage
-- **Focus areas**: Services, Controllers, Middleware
