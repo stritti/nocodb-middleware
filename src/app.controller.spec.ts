@@ -24,8 +24,8 @@ describe('AppController', () => {
         health: '/health',
         documentation: {
           api: '/api',
-          swagger: 'http://localhost:3000/api'
-        }
+          swagger: 'http://localhost:3000/api',
+        },
       });
     });
   });

@@ -7,18 +7,20 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 
 @Module({
-    imports: [
-        PassportModule,
-        JwtModule.registerAsync({
-            imports: [ConfigModule],
-            useFactory: async (configService: ConfigService) => ({
-                secret: configService.get<string>('JWT_SECRET'),
-                signOptions: { expiresIn: configService.get<string>('JWT_EXPIRES_IN') as any },
-            }),
-            inject: [ConfigService],
-        }),
-    ],
-    providers: [JwtStrategy, JwtAuthGuard, RolesGuard],
-    exports: [JwtAuthGuard, RolesGuard, JwtModule],
+  imports: [
+    PassportModule,
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      useFactory: async (configService: ConfigService) => ({
+        secret: configService.get<string>('JWT_SECRET'),
+        signOptions: {
+          expiresIn: configService.get<string>('JWT_EXPIRES_IN') as any,
+        },
+      }),
+      inject: [ConfigService],
+    }),
+  ],
+  providers: [JwtStrategy, JwtAuthGuard, RolesGuard],
+  exports: [JwtAuthGuard, RolesGuard, JwtModule],
 })
-export class AuthModule { }
+export class AuthModule {}

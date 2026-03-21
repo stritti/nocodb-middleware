@@ -3,7 +3,10 @@ import { AppModule } from './app.module';
 import { NocoDBExceptionFilter } from './nocodb/filters/nocodb-exception.filter';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { WinstonModule, utilities as nestWinstonModuleUtilities } from 'nest-winston';
+import {
+  WinstonModule,
+  utilities as nestWinstonModuleUtilities,
+} from 'nest-winston';
 import * as winston from 'winston';
 import * as path from 'path';
 
@@ -51,11 +54,13 @@ async function bootstrap() {
   app.useGlobalFilters(new NocoDBExceptionFilter());
 
   // Global validation pipe
-  app.useGlobalPipes(new ValidationPipe({
-    whitelist: true,
-    forbidNonWhitelisted: true,
-    transform: true,
-  }));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
 
   // Swagger setup
   const config = new DocumentBuilder()

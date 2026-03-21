@@ -8,15 +8,15 @@ import { UserRolesService } from '../users/user-roles.service';
 import { NocoDBModule } from '../nocodb/nocodb.module';
 
 @Module({
-    imports: [NocoDBModule],
-    providers: [
-        PermissionsService,
-        PermissionsManagementService,
-        PermissionsGuard,
-        RolesService,
-        UserRolesService,
-    ],
-    controllers: [PermissionsManagementController],
-    exports: [PermissionsService, PermissionsGuard],
+  imports: [NocoDBModule],
+  providers: [
+    PermissionsService,
+    PermissionsManagementService,
+    PermissionsGuard,
+    RolesService,
+    UserRolesService,
+  ],
+  controllers: [PermissionsManagementController],
+  exports: [PermissionsService, PermissionsGuard],
 })
-export class PermissionsModule { }
+export class PermissionsModule {}
