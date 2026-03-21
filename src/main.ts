@@ -72,8 +72,38 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
 
-  // Enable CORS
-  app.enableCors();
+  // Enable CORS with configurable allowlist
+  const corsOrigins = (process.env.CORS_ORIGINS || '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+  if (corsOrigins.length === 0) {
+    logger.warn('CORS_ORIGINS not set. Applying restrictive CORS policy.');
+    app.enableCors({
+      origin: false,
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      allowedHeaders: [
+        'Content-Type',
+        'Authorization',
+        'X-Requested-With',
+        'x-request-id',
+      ],
+      credentials: false,
+    });
+  } else {
+    app.enableCors({
+      origin: corsOrigins,
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      allowedHeaders: [
+        'Content-Type',
+        'Authorization',
+        'X-Requested-With',
+        'x-request-id',
+      ],
+      credentials: true,
+    });
+  }
 
   // Enable graceful shutdown
   app.enableShutdownHooks();
