@@ -361,7 +361,7 @@ export class NocoDBV3Service {
    * @param tableId - Table ID
    * @param where - Filter condition
    */
-  async findOne(tableId: string, where: string): Promise<any | null> {
+  async findOne(tableId: string, where: string): Promise<any> {
     const result = await this.list(tableId, { where, limit: 1 });
     return result.list && result.list.length > 0 ? result.list[0] : null;
   }

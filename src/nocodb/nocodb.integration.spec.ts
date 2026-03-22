@@ -52,7 +52,7 @@ describe('NocoDB Integration', () => {
     // Or better, we can simply spy on the NocoDBService methods if we want to test V3 -> V2 service interaction without full HTTP
 
     // Inject mock HTTP client into NocoDBService (since it creates it in onModuleInit)
-    await nocodbService.onModuleInit();
+    nocodbService.onModuleInit();
     (nocodbService as any).httpClient = mockHttpClient; // Force injection for test
     (nocodbService as any).client = {}; // Mock SDK client
 

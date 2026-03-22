@@ -32,7 +32,8 @@ export class BootstrapAdminService {
 
     const usersTable = await this.nocoDBService.getTableByName('users');
     const rolesTable = await this.nocoDBService.getTableByName('roles');
-    const userRolesTable = await this.nocoDBService.getTableByName('user_roles');
+    const userRolesTable =
+      await this.nocoDBService.getTableByName('user_roles');
 
     if (!usersTable || !rolesTable || !userRolesTable) {
       throw new NotFoundException(
@@ -55,7 +56,9 @@ export class BootstrapAdminService {
       !existingByUsername &&
       String(existingByEmail.Username || '') !== dto.username
     ) {
-      throw new ConflictException(`User with email "${dto.email}" already exists`);
+      throw new ConflictException(
+        `User with email "${dto.email}" already exists`,
+      );
     }
 
     const adminRole = await this.nocoDBV3Service.findOne(
@@ -70,7 +73,9 @@ export class BootstrapAdminService {
     const adminRoleId = Number(adminRole.id || adminRole.Id);
 
     if (existingByUsername) {
-      const existingUserId = Number(existingByUsername.id || existingByUsername.Id);
+      const existingUserId = Number(
+        existingByUsername.id || existingByUsername.Id,
+      );
       const existingAssignment = await this.nocoDBV3Service.findOne(
         userRolesTable.id,
         `(User Id,eq,${existingUserId})~and(Role Id,eq,${adminRoleId})`,
@@ -118,7 +123,9 @@ export class BootstrapAdminService {
   }
 
   private assertBootstrapAllowed(bootstrapToken: string | undefined): void {
-    const configuredToken = this.configService.get<string>('BOOTSTRAP_ADMIN_TOKEN');
+    const configuredToken = this.configService.get<string>(
+      'BOOTSTRAP_ADMIN_TOKEN',
+    );
 
     if (!configuredToken) {
       throw new ForbiddenException('Bootstrap token is not configured');

@@ -6,7 +6,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Observable, of } from 'rxjs';
-import { tap } from 'rxjs/operators';
+import { mergeMap } from 'rxjs/operators';
 import { NocoDBCacheService } from '../cache/nocodb-cache.service';
 
 @Injectable()
@@ -35,9 +35,10 @@ export class CacheInterceptor implements NestInterceptor {
     }
 
     return next.handle().pipe(
-      tap(async (response) => {
+      mergeMap(async (response) => {
         this.logger.log(`Cache miss for ${key}, caching response`);
         await this.cacheService.set(key, response, 60 * 1000); // Default TTL 60s
+        return response;
       }),
     );
   }

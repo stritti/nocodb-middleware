@@ -15,7 +15,7 @@ A robust NestJS middleware for NocoDB with comprehensive authentication, caching
 ✅ **OpenAPI/Swagger** - Interactive API documentation  
 ✅ **Global Validation** - Automatic request validation with class-validator  
 ✅ **Health Check** - Service health monitoring  
-✅ **Testing** - Comprehensive unit and E2E tests  
+✅ **Testing** - Comprehensive unit and E2E tests
 
 ## Installation
 
@@ -43,17 +43,20 @@ See `.env.example` for the template.
 ## Running the Application
 
 ### Development
+
 ```bash
 npm run start:dev
 ```
 
 ### Production
+
 ```bash
 npm run build
 npm run start:prod
 ```
 
 ### Testing
+
 ```bash
 # Unit tests
 npm test
@@ -70,7 +73,6 @@ npm run test:cov
 ### CI/CD
 
 Automated testing is configured via GitHub Actions.
-
 
 ## API Documentation
 
@@ -110,11 +112,13 @@ Detailed documentation is available in the `docs/` directory:
 ## Health Check
 
 Check service health:
+
 ```bash
 curl http://localhost:3000/health
 ```
 
 Response:
+
 ```json
 {
   "status": "ok",

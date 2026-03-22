@@ -27,10 +27,11 @@ describe('JwtStrategy', () => {
 
   describe('constructor', () => {
     it('should throw when JWT_SECRET is missing', () => {
-      expect(() =>
-        new JwtStrategy({
-          get: jest.fn().mockReturnValue(undefined),
-        } as unknown as ConfigService),
+      expect(
+        () =>
+          new JwtStrategy({
+            get: jest.fn().mockReturnValue(undefined),
+          } as unknown as ConfigService),
       ).toThrow('JWT_SECRET is required');
     });
   });

@@ -33,7 +33,7 @@ describe('NocoDBService', () => {
     // Mock axios to prevent actual HTTP calls during service initialization if it happens there
     // (Though currently axios.create is used, which is synchronous)
 
-    await service.onModuleInit();
+    service.onModuleInit();
   });
 
   it('should be defined', () => {
