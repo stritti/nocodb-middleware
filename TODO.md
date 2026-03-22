@@ -27,6 +27,7 @@ Diese Checkliste führt dich durch die Implementierung einer robusten Middleware
 - [ ] `.env.example` erstellen mit folgenden Variablen:
   - `NOCODB_API_URL` (z.B. http://localhost:8080)
   - `NOCODB_API_TOKEN` oder `NOCODB_AUTH_TOKEN`
+  - `NOCODB_BOOTSTRAP_ADMIN_USERNAME`
   - `NOCODB_BASE_ID`
   - `JWT_SECRET` (für eigene JWT-Authentifizierung)
   - `JWT_EXPIRES_IN` (z.B. '1d')

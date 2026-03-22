@@ -4,7 +4,6 @@ import { ConfigService } from '@nestjs/config';
 
 describe('JwtStrategy', () => {
   let strategy: JwtStrategy;
-  let configService: ConfigService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -20,11 +19,20 @@ describe('JwtStrategy', () => {
     }).compile();
 
     strategy = module.get<JwtStrategy>(JwtStrategy);
-    configService = module.get<ConfigService>(ConfigService);
   });
 
   it('should be defined', () => {
     expect(strategy).toBeDefined();
+  });
+
+  describe('constructor', () => {
+    it('should throw when JWT_SECRET is missing', () => {
+      expect(() =>
+        new JwtStrategy({
+          get: jest.fn().mockReturnValue(undefined),
+        } as unknown as ConfigService),
+      ).toThrow('JWT_SECRET is required');
+    });
   });
 
   describe('validate', () => {
