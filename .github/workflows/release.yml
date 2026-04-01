@@ -118,18 +118,15 @@ jobs:
           echo "new=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "current=$CURRENT" >> $GITHUB_OUTPUT
 
-      # ── Update package.json ───────────────────────────────────────────────
-      - name: Update package.json Version
+      # ── Update package.json and package-lock.json ─────────────────────────
+      - name: Update Version in package.json and package-lock.json
         if: steps.bump.outputs.type != 'none'
         run: |
           NEW="${{ steps.version.outputs.new }}"
-          node -e "
-            const fs = require('fs');
-            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-            pkg.version = '${NEW}';
-            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
-          "
-          echo "package.json updated to version $NEW"
+          # --no-git-tag-version updates both package.json and package-lock.json
+          # without creating a git commit or tag (we handle those ourselves below).
+          npm version "$NEW" --no-git-tag-version
+          echo "package.json and package-lock.json updated to version $NEW"
 
       # ── Commit and tag ────────────────────────────────────────────────────
       - name: Commit Version Bump and Create Tag
@@ -139,7 +136,7 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add package.json
+          git add package.json package-lock.json
           git commit -m "chore(release): bump version to v${NEW} [skip ci]"
           git tag -a "v${NEW}" -m "Release v${NEW}"
           git push origin HEAD:main --follow-tags

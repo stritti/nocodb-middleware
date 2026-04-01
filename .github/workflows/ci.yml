@@ -139,11 +139,13 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Create or update the badges branch via a git worktree
+          # Create or update the badges branch via a git worktree.
+          # -B always creates or resets the local 'badges' branch so the
+          # subsequent push never ends up on a detached HEAD.
           git fetch origin badges:refs/remotes/origin/badges 2>/dev/null || true
 
           if git show-ref --verify --quiet refs/remotes/origin/badges; then
-            git worktree add /tmp/badges-branch origin/badges
+            git worktree add -B badges /tmp/badges-branch origin/badges
           else
             git worktree add --orphan -b badges /tmp/badges-branch
           fi
@@ -156,5 +158,5 @@ jobs:
             echo "Badge unchanged – nothing to commit."
           else
             git commit -m "chore: update coverage badge [skip ci]"
-            git push origin badges
+            git push origin HEAD:badges
           fi
