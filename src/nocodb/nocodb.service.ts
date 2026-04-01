@@ -323,8 +323,8 @@ export class NocoDBService implements OnModuleInit {
             if (options?.where) params.where = options.where;
             if (options?.sort) params.sort = options.sort;
             if (options?.fields) params.fields = options.fields.join(',');
-            if (options?.limit) params.limit = options.limit;
-            if (options?.offset) params.offset = options.offset;
+            if (options?.limit !== undefined) params.limit = options.limit;
+            if (options?.offset !== undefined) params.offset = options.offset;
             if (options?.includeRelations) {
                 params.nested = JSON.stringify(
                     options.includeRelations.reduce((acc, field) => {
