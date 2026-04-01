@@ -1,0 +1,164 @@
+name: Release
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Semver Release Workflow
+#
+# Versioning Strategy (Conventional Commits):
+#   patch  – fix:, perf:, refactor:, …  (e.g. "fix: handle null token")
+#   minor  – feat:                       (e.g. "feat: add user search")
+#   major  – any commit with "BREAKING CHANGE:" in the footer
+#              OR a "!" suffix on the type  (e.g. "feat!: drop Node 16")
+#
+# Trigger options:
+#   1. Automatic  – push to main; bump type is detected from the latest commit
+#                   message using the rules above.  Commits that do not match
+#                   any conventional-commit prefix are ignored (no release).
+#   2. Manual     – workflow_dispatch with an explicit bump_type input.
+#                   Choose "auto" to fall back to conventional-commit detection.
+#
+# The workflow will:
+#   1. Determine the new SemVer version.
+#   2. Update the version field in package.json.
+#   3. Commit the change with "[skip ci]" so CI is not re-triggered.
+#   4. Create an annotated git tag (vX.Y.Z).
+#   5. Create a GitHub Release with auto-generated release notes.
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      bump_type:
+        description: 'Version bump type'
+        required: true
+        default: 'auto'
+        type: choice
+        options:
+          - auto
+          - patch
+          - minor
+          - major
+
+jobs:
+  release:
+    name: Semantic Version Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # full history for conventional-commit analysis
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      # ── Determine bump type ───────────────────────────────────────────────
+      - name: Determine Bump Type
+        id: bump
+        run: |
+          REQUESTED="${{ github.event.inputs.bump_type || 'auto' }}"
+
+          if [ "$REQUESTED" != "auto" ]; then
+            echo "type=$REQUESTED" >> $GITHUB_OUTPUT
+            echo "Bump type set manually: $REQUESTED"
+            exit 0
+          fi
+
+          # Analyse the latest commit message for conventional-commit prefixes
+          COMMIT_MSG=$(git log -1 --pretty=%B)
+          echo "Latest commit: $COMMIT_MSG"
+
+          if echo "$COMMIT_MSG" | grep -qP '^([a-z]+)(\(.+\))?!:' || \
+             echo "$COMMIT_MSG" | grep -qiP 'BREAKING[ -]CHANGE'; then
+            echo "type=major" >> $GITHUB_OUTPUT
+            echo "Detected: BREAKING CHANGE → major"
+          elif echo "$COMMIT_MSG" | grep -qP '^feat(\(.+\))?:'; then
+            echo "type=minor" >> $GITHUB_OUTPUT
+            echo "Detected: feat → minor"
+          elif echo "$COMMIT_MSG" | grep -qP '^(fix|perf|refactor)(\(.+\))?:'; then
+            echo "type=patch" >> $GITHUB_OUTPUT
+            echo "Detected: fix/perf/refactor → patch"
+          else
+            echo "type=none" >> $GITHUB_OUTPUT
+            echo "No releasable commit prefix found – skipping release."
+          fi
+
+      # ── Skip if nothing to release ────────────────────────────────────────
+      - name: Skip if no releasable change
+        if: steps.bump.outputs.type == 'none'
+        run: |
+          echo "No release needed for this commit. Exiting."
+          exit 0
+
+      # ── Calculate new version ─────────────────────────────────────────────
+      - name: Calculate New Version
+        if: steps.bump.outputs.type != 'none'
+        id: version
+        run: |
+          BUMP="${{ steps.bump.outputs.type }}"
+          CURRENT=$(node -p "require('./package.json').version")
+          echo "Current version: $CURRENT"
+
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+
+          case "$BUMP" in
+            major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
+            minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
+            patch) PATCH=$((PATCH + 1)) ;;
+          esac
+
+          NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+          echo "New version: $NEW_VERSION"
+          echo "new=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "current=$CURRENT" >> $GITHUB_OUTPUT
+
+      # ── Update package.json and package-lock.json ─────────────────────────
+      - name: Update Version in package.json and package-lock.json
+        if: steps.bump.outputs.type != 'none'
+        run: |
+          NEW="${{ steps.version.outputs.new }}"
+          # --no-git-tag-version updates both package.json and package-lock.json
+          # without creating a git commit or tag (we handle those ourselves below).
+          npm version "$NEW" --no-git-tag-version
+          echo "package.json and package-lock.json updated to version $NEW"
+
+      # ── Commit and tag ────────────────────────────────────────────────────
+      - name: Commit Version Bump and Create Tag
+        if: steps.bump.outputs.type != 'none'
+        run: |
+          NEW="${{ steps.version.outputs.new }}"
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add package.json package-lock.json
+          git commit -m "chore(release): bump version to v${NEW} [skip ci]"
+          git tag -a "v${NEW}" -m "Release v${NEW}"
+          git push origin HEAD:main --follow-tags
+
+      # ── Create GitHub Release ─────────────────────────────────────────────
+      - name: Create GitHub Release
+        if: steps.bump.outputs.type != 'none'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const newVersion = '${{ steps.version.outputs.new }}';
+            const bumpType   = '${{ steps.bump.outputs.type }}';
+
+            await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              tag_name:         `v${newVersion}`,
+              name:             `v${newVersion}`,
+              generate_release_notes: true,
+              body: `## Release v${newVersion}\n\nBump type: **${bumpType}**`,
+              draft:      false,
+              prerelease: false,
+            });
+            console.log(`GitHub Release v${newVersion} created.`);
