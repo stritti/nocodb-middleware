@@ -60,7 +60,7 @@ describe('TelemetryService', () => {
     it('should set span status to ERROR and record exception when fn rejects', async () => {
       const err = new Error('boom');
       await expect(
-        service.withSpan('test.op', () => Promise.reject<string>(err)),
+        service.withSpan('test.op', () => Promise.reject(err)),
       ).rejects.toThrow('boom');
 
       expect(setStatusSpy).toHaveBeenCalledWith({
@@ -72,9 +72,7 @@ describe('TelemetryService', () => {
 
     it('should end the span even when fn rejects', async () => {
       await expect(
-        service.withSpan('test.op', () =>
-          Promise.reject<string>(new Error('fail')),
-        ),
+        service.withSpan('test.op', () => Promise.reject(new Error('fail'))),
       ).rejects.toThrow();
 
       expect(endSpy).toHaveBeenCalledTimes(1);
