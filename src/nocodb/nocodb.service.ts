@@ -7,7 +7,6 @@ import axios, { AxiosInstance } from 'axios';
 
 export interface CreateOptions {
     includeFields?: string[];
-    validateOnly?: boolean;
 }
 
 export interface ReadOptions {
