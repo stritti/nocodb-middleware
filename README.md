@@ -111,7 +111,7 @@ This project uses **Semantic Versioning** (SemVer) driven by [Conventional Commi
 |---------------|-------------|
 | `fix:`, `perf:`, `refactor:` | **patch** – `0.0.x` |
 | `feat:` | **minor** – `0.x.0` |
-| `feat!:` / `BREAKING CHANGE:` | **major** – `x.0.0` |
+| `type!:` / `BREAKING CHANGE:` | **major** – `x.0.0` |
 | `docs:`, `chore:`, `ci:` | _(no release)_ |
 
 Releases are created automatically on every push to `main` when a releasable commit is detected, or manually via **Actions → Release → Run workflow**.  
