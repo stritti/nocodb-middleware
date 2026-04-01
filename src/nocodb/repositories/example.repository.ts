@@ -1,5 +1,4 @@
-import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import { BaseRepository } from './base.repository';
 import { NocoDBService } from '../nocodb.service';
 
@@ -9,15 +8,25 @@ export interface ExampleEntity {
 }
 
 @Injectable()
-export class ExampleRepository extends BaseRepository<ExampleEntity> {
-    constructor(
-        nocoDBService: NocoDBService,
-        configService: ConfigService,
-    ) {
-        super(
-            nocoDBService,
-            'Examples', // Table Name
-            configService.get<string>('nocodb.projectId') // Project ID
+export class ExampleRepository extends BaseRepository<ExampleEntity> implements OnModuleInit {
+    private readonly tableName = 'examples';
+
+    constructor(nocoDBService: NocoDBService) {
+        // Pass an empty string initially; the real table ID is resolved in onModuleInit
+        super(nocoDBService, '');
+    }
+
+    async onModuleInit(): Promise<void> {
+        const table = await this.nocoDBService.getTableByName(this.tableName);
+        if (!table) {
+            throw new Error(
+                `ExampleRepository: table '${this.tableName}' not found in NocoDB. ` +
+                `Ensure the table exists before starting the application.`,
+            );
+        }
+        this.tableId = table.id;
+        this.logger.debug(
+            `Resolved table '${this.tableName}' to ID: ${this.tableId}`,
         );
     }
 }

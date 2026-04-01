@@ -38,7 +38,7 @@ async function testPhase2() {
         if (rolesTable) {
             const httpClient = nocoDBService.getHttpClient();
             const response = await httpClient.get(
-                `/api/v2/tables/${rolesTable.id}/records`,
+                `/api/v3/tables/${rolesTable.id}/records`,
                 {
                     params: {
                         where: '(role_name,eq,admin)',

@@ -1,4 +1,4 @@
-import { IsNumber, IsString, IsNotEmpty, IsBoolean } from 'class-validator';
+import { IsNumber, IsString, IsNotEmpty, IsBoolean, Matches } from 'class-validator';
 
 export class SetTablePermissionsDto {
     @IsNumber()
@@ -7,6 +7,7 @@ export class SetTablePermissionsDto {
 
     @IsString()
     @IsNotEmpty({ message: 'Table name is required' })
+    @Matches(/^[a-zA-Z0-9_-]+$/, { message: 'Table name may only contain alphanumeric characters, underscores, and hyphens' })
     tableName: string;
 
     @IsBoolean()

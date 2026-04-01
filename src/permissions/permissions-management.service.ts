@@ -23,20 +23,13 @@ export class PermissionsManagementService {
                 throw new NotFoundException('Table_permissions table not found');
             }
 
-            const httpClient = this.nocoDBService.getHttpClient();
-
-            // Check if entry already exists
-            const existingResponse = await httpClient.get(
-                `/api/v2/tables/${permissionsTable.id}/records`,
-                {
-                    params: {
-                        where: `(role.Id,eq,${dto.roleId})~and(table_name,eq,${dto.tableName})`,
-                    },
-                }
+            const existing = await this.nocoDBService.findOne(
+                permissionsTable.id,
+                `(role.id,eq,${dto.roleId})~and(table_name,eq,${dto.tableName})`,
             );
 
             const permissionData = {
-                role: { Id: dto.roleId },
+                role: [{ id: dto.roleId }],
                 table_name: dto.tableName,
                 can_create: dto.canCreate,
                 can_read: dto.canRead,
@@ -46,22 +39,20 @@ export class PermissionsManagementService {
 
             let result;
 
-            if (existingResponse.data.list.length > 0) {
-                // Update existing entry
-                const existingId = existingResponse.data.list[0].Id;
-                result = await httpClient.patch(
-                    `/api/v2/tables/${permissionsTable.id}/records/${existingId}`,
-                    permissionData
+            if (existing) {
+                result = await this.nocoDBService.update(
+                    permissionsTable.id,
+                    existing.id,
+                    permissionData,
                 );
 
                 this.logger.log(
                     `Permission updated: Role ${dto.roleId} -> Table ${dto.tableName}`
                 );
             } else {
-                // Create new entry
-                result = await httpClient.post(
-                    `/api/v2/tables/${permissionsTable.id}/records`,
-                    permissionData
+                result = await this.nocoDBService.create(
+                    permissionsTable.id,
+                    permissionData,
                 );
 
                 this.logger.log(
@@ -69,10 +60,9 @@ export class PermissionsManagementService {
                 );
             }
 
-            // Invalidate cache
             this.permissionsService.clearCache();
 
-            return result.data;
+            return result;
         } catch (error) {
             this.logger.error('Error setting table permissions:', error);
             throw error;
@@ -119,25 +109,17 @@ export class PermissionsManagementService {
                 throw new NotFoundException('Table_permissions table not found');
             }
 
-            const httpClient = this.nocoDBService.getHttpClient();
-
-            // Get all permissions from source role
-            const response = await httpClient.get(
-                `/api/v2/tables/${permissionsTable.id}/records`,
-                {
-                    params: {
-                        where: `(role.Id,eq,${sourceRoleId})`,
-                    },
-                }
+            const result = await this.nocoDBService.list(
+                permissionsTable.id,
+                { where: `(role.id,eq,${sourceRoleId})` },
             );
 
-            const sourcePermissions = response.data.list || [];
+            const sourcePermissions = result.list || [];
 
             this.logger.log(
                 `Copying ${sourcePermissions.length} permissions from role ${sourceRoleId} to ${targetRoleId}`
             );
 
-            // Create permissions for target role
             for (const perm of sourcePermissions) {
                 await this.setTablePermissions({
                     roleId: targetRoleId,
@@ -169,30 +151,19 @@ export class PermissionsManagementService {
                 throw new NotFoundException('Table_permissions table not found');
             }
 
-            const httpClient = this.nocoDBService.getHttpClient();
-
-            // Get all permissions for the role
-            const response = await httpClient.get(
-                `/api/v2/tables/${permissionsTable.id}/records`,
-                {
-                    params: {
-                        where: `(role.Id,eq,${roleId})`,
-                    },
-                }
+            const result = await this.nocoDBService.list(
+                permissionsTable.id,
+                { where: `(role.id,eq,${roleId})` },
             );
 
-            const permissions = response.data.list || [];
+            const permissions = result.list || [];
 
-            // Delete each entry
             for (const perm of permissions) {
-                await httpClient.delete(
-                    `/api/v2/tables/${permissionsTable.id}/records/${perm.Id}`
-                );
+                await this.nocoDBService.delete(permissionsTable.id, perm.id);
             }
 
             this.logger.log(`${permissions.length} permissions deleted for role ${roleId}`);
 
-            // Invalidate cache
             this.permissionsService.clearCache();
         } catch (error) {
             this.logger.error('Error deleting role permissions:', error);
@@ -210,17 +181,12 @@ export class PermissionsManagementService {
                 return [];
             }
 
-            const httpClient = this.nocoDBService.getHttpClient();
-            const response = await httpClient.get(
-                `/api/v2/tables/${permissionsTable.id}/records`,
-                {
-                    params: {
-                        where: `(role.Id,eq,${roleId})`,
-                    },
-                }
+            const result = await this.nocoDBService.list(
+                permissionsTable.id,
+                { where: `(role.id,eq,${roleId})` },
             );
 
-            return response.data.list || [];
+            return result.list || [];
         } catch (error) {
             this.logger.error('Error fetching role permissions:', error);
             throw error;

@@ -35,7 +35,7 @@ async function testPhase1() {
         // Test 4: List all tables (using HTTP client)
         console.log('\n📋 Test 4: List All Tables');
         const httpClient = nocoDBService.getHttpClient();
-        const response = await httpClient.get(`/api/v2/meta/bases/${baseId}/tables`);
+        const response = await httpClient.get(`/api/v3/meta/bases/${baseId}/tables`);
         const tables = response.data.list || [];
         console.log(`  ✅ Total tables in base: ${tables.length}`);
         tables.forEach((table: any) => {

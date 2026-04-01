@@ -26,7 +26,7 @@ async function bootstrap() {
 
                 logger.log(`Deleting table ${tableName} (ID: ${table.id})...`);
 
-                await httpClient.delete(`/api/v2/meta/tables/${table.id}`);
+                await httpClient.delete(`/api/v3/meta/tables/${table.id}`);
 
                 logger.log(`✓ Table ${tableName} deleted successfully`);
             } catch (error: any) {

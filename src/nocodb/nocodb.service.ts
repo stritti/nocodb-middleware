@@ -3,6 +3,39 @@ import { ConfigService } from '@nestjs/config';
 import { Api } from 'nocodb-sdk';
 import axios, { AxiosInstance } from 'axios';
 
+// ─── Data API option interfaces ─────────────────────────────────────────────
+
+export interface CreateOptions {
+    includeFields?: string[];
+}
+
+export interface ReadOptions {
+    fields?: string[];
+    includeRelations?: string[];
+}
+
+export interface FilterOptions {
+    where?: string;
+    sort?: string;
+    fields?: string[];
+    limit?: number;
+    offset?: number;
+    includeRelations?: string[];
+}
+
+export interface LinkDefinition {
+    fieldName: string;
+    recordIds: number[];
+}
+
+/**
+ * Unified NocoDB service.
+ *
+ * Consolidates the Meta API v3 (table/column schema management) and the Data
+ * API v3 (CRUD + filtering on records) into a single injectable following the
+ * NestJS convention of one service per external system boundary.  Previously
+ * these responsibilities were split between NocoDBService and NocoDBV3Service.
+ */
 @Injectable()
 export class NocoDBService implements OnModuleInit {
     private readonly logger = new Logger(NocoDBService.name);
@@ -11,7 +44,11 @@ export class NocoDBService implements OnModuleInit {
     private readonly baseId: string;
     private readonly tablePrefix: string;
 
-    constructor(private configService: ConfigService) {
+    // Rate limiting for Data API calls
+    private readonly rateLimit = 5; // requests per second
+    private lastRequestTime = 0;
+
+    constructor(private readonly configService: ConfigService) {
         this.baseId = this.configService.get<string>('nocodb.baseId') || '';
         this.tablePrefix = this.configService.get<string>('nocodb.tablePrefix', '');
     }
@@ -32,7 +69,7 @@ export class NocoDBService implements OnModuleInit {
             throw new Error('NocoDB BASE_ID missing');
         }
 
-        // SDK Client for data operations
+        // SDK client (kept for backwards compatibility)
         this.client = new Api({
             baseURL: apiUrl,
             headers: {
@@ -40,7 +77,7 @@ export class NocoDBService implements OnModuleInit {
             },
         });
 
-        // HTTP Client for Meta API v2 operations
+        // Shared HTTP client used by both Meta and Data API calls
         this.httpClient = axios.create({
             baseURL: apiUrl,
             headers: {
@@ -57,83 +94,62 @@ export class NocoDBService implements OnModuleInit {
         this.logger.log(`NocoDB Service initialized with URL: ${apiUrl}`);
     }
 
-    /**
-     * Get the NocoDB SDK client for data operations
-     */
+    // ── Accessor helpers ──────────────────────────────────────────────────────
+
     getClient(): Api<any> {
         return this.client;
     }
 
-    /**
-     * Get the configured base ID
-     */
     getBaseId(): string {
         return this.baseId;
     }
 
-    /**
-     * Get the configured table prefix
-     */
     getTablePrefix(): string {
         return this.tablePrefix;
     }
 
-    /**
-     * Get the HTTP client for direct API calls
-     */
     getHttpClient(): AxiosInstance {
         return this.httpClient;
     }
 
-    /**
-     * Add prefix to table name
-     * @private
-     */
+    // ── Meta API – table management ───────────────────────────────────────────
+
     private getPrefixedTableName(tableName: string): string {
         return `${this.tablePrefix}${tableName}`;
     }
 
     /**
-     * Check if a table exists in the base
+     * Check if a table exists in the base.
      */
     async tableExists(tableName: string): Promise<boolean> {
         const prefixedName = this.getPrefixedTableName(tableName);
-
         try {
             const response = await this.httpClient.get(
-                `/api/v2/meta/bases/${this.baseId}/tables`,
+                `/api/v3/meta/bases/${this.baseId}/tables`,
             );
-
             const tables = response.data.list || [];
             return tables.some((table: any) => table.table_name === prefixedName);
         } catch (error) {
-            this.logger.error(
-                `Error checking if table ${prefixedName} exists:`,
-                error,
-            );
+            this.logger.error(`Error checking if table ${prefixedName} exists:`, error);
             throw error;
         }
     }
 
     /**
-     * Get table details by name
+     * Get table details by name.
      */
     async getTableByName(tableName: string): Promise<any> {
         const prefixedName = this.getPrefixedTableName(tableName);
-
         try {
             const response = await this.httpClient.get(
-                `/api/v2/meta/bases/${this.baseId}/tables`,
+                `/api/v3/meta/bases/${this.baseId}/tables`,
             );
-
             const tables = response.data.list || [];
             const table = tables.find((t: any) => t.table_name === prefixedName);
-
             if (!table) {
                 this.logger.warn(`Table ${prefixedName} not found`);
                 return null;
             }
-
             return table;
         } catch (error) {
             this.logger.error(`Error getting table ${prefixedName}:`, error);
@@ -142,22 +158,20 @@ export class NocoDBService implements OnModuleInit {
     }
 
     /**
-     * Create a new table in the base
+     * Create a new table in the base.
      */
     async createTable(tableName: string, title: string, columns: any[] = []) {
         const prefixedName = this.getPrefixedTableName(tableName);
         const prefixedTitle = this.getPrefixedTableName(title);
-
         try {
             const response = await this.httpClient.post(
-                `/api/v2/meta/bases/${this.baseId}/tables`,
+                `/api/v3/meta/bases/${this.baseId}/tables`,
                 {
                     table_name: prefixedName,
                     title: prefixedTitle,
-                    columns: columns,
+                    columns,
                 },
             );
-
             this.logger.log(`Table ${prefixedName} created successfully`);
             return response.data;
         } catch (error) {
@@ -167,7 +181,7 @@ export class NocoDBService implements OnModuleInit {
     }
 
     /**
-     * Create a new column in a table
+     * Create a new column in a table.
      */
     async createColumn(
         tableId: string,
@@ -180,20 +194,247 @@ export class NocoDBService implements OnModuleInit {
             const payload = {
                 column_name: columnName,
                 title: title || columnName,
-                uidt: columnType, // UI Data Type
+                uidt: columnType,
                 ...additionalOptions,
             };
-
             const response = await this.httpClient.post(
-                `/api/v2/meta/tables/${tableId}/columns`,
+                `/api/v3/meta/tables/${tableId}/columns`,
                 payload,
             );
-
             this.logger.log(`Column ${columnName} created in table ${tableId}`);
             return response.data;
         } catch (error) {
             this.logger.error(`Error creating column ${columnName}:`, error);
             throw error;
         }
+    }
+
+    // ── Data API v3 – rate limiting ───────────────────────────────────────────
+
+    private async enforceRateLimit(): Promise<void> {
+        const now = Date.now();
+        const timeSinceLastRequest = now - this.lastRequestTime;
+        const minInterval = 1000 / this.rateLimit;
+
+        if (timeSinceLastRequest < minInterval) {
+            const delay = minInterval - timeSinceLastRequest;
+            await new Promise((resolve) => setTimeout(resolve, delay));
+        }
+
+        this.lastRequestTime = Date.now();
+    }
+
+    // ── Data API v3 – CRUD ────────────────────────────────────────────────────
+
+    /**
+     * Create a new record.
+     */
+    async create(tableId: string, data: any, options?: CreateOptions): Promise<any> {
+        await this.enforceRateLimit();
+        try {
+            const params: any = {};
+            if (options?.includeFields) {
+                params.fields = options.includeFields.join(',');
+            }
+            const response = await this.httpClient.post(
+                `/api/v3/tables/${tableId}/records`,
+                data,
+                { params },
+            );
+            this.logger.debug(`Created record in ${tableId}: ${response.data.id}`);
+            return response.data;
+        } catch (error) {
+            this.logger.error(`Error creating record in ${tableId}:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * Read a single record.
+     */
+    async read(tableId: string, recordId: number, options?: ReadOptions): Promise<any> {
+        await this.enforceRateLimit();
+        try {
+            const params: any = {};
+            if (options?.fields) {
+                params.fields = options.fields.join(',');
+            }
+            if (options?.includeRelations) {
+                params.nested = JSON.stringify(
+                    options.includeRelations.reduce((acc, field) => {
+                        acc[field] = { fields: ['*'] };
+                        return acc;
+                    }, {} as any),
+                );
+            }
+            const response = await this.httpClient.get(
+                `/api/v3/tables/${tableId}/records/${recordId}`,
+                { params },
+            );
+            this.logger.debug(`Read record ${recordId} from ${tableId}`);
+            return response.data;
+        } catch (error) {
+            this.logger.error(`Error reading record ${recordId} from ${tableId}:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * Update a record.
+     */
+    async update(tableId: string, recordId: number, data: any): Promise<any> {
+        await this.enforceRateLimit();
+        try {
+            const response = await this.httpClient.patch(
+                `/api/v3/tables/${tableId}/records/${recordId}`,
+                data,
+            );
+            this.logger.debug(`Updated record ${recordId} in ${tableId}`);
+            return response.data;
+        } catch (error) {
+            this.logger.error(`Error updating record ${recordId} in ${tableId}:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * Delete a record.
+     */
+    async delete(tableId: string, recordId: number): Promise<void> {
+        await this.enforceRateLimit();
+        try {
+            await this.httpClient.delete(
+                `/api/v3/tables/${tableId}/records/${recordId}`,
+            );
+            this.logger.debug(`Deleted record ${recordId} from ${tableId}`);
+        } catch (error) {
+            this.logger.error(`Error deleting record ${recordId} from ${tableId}:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * List records with filtering, sorting, and pagination.
+     */
+    async list(tableId: string, options?: FilterOptions): Promise<any> {
+        await this.enforceRateLimit();
+        try {
+            const params: any = {};
+            if (options?.where) params.where = options.where;
+            if (options?.sort) params.sort = options.sort;
+            if (options?.fields) params.fields = options.fields.join(',');
+            if (options?.limit !== undefined) params.limit = options.limit;
+            if (options?.offset !== undefined) params.offset = options.offset;
+            if (options?.includeRelations) {
+                params.nested = JSON.stringify(
+                    options.includeRelations.reduce((acc, field) => {
+                        acc[field] = { fields: ['*'] };
+                        return acc;
+                    }, {} as any),
+                );
+            }
+            const response = await this.httpClient.get(
+                `/api/v3/tables/${tableId}/records`,
+                { params },
+            );
+            this.logger.debug(
+                `Listed ${response.data.list?.length || 0} records from ${tableId}`,
+            );
+            return response.data;
+        } catch (error) {
+            this.logger.error(`Error listing records from ${tableId}:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * Find a single record by filter.
+     */
+    async findOne(tableId: string, where: string): Promise<any | null> {
+        const result = await this.list(tableId, { where, limit: 1 });
+        return result.list && result.list.length > 0 ? result.list[0] : null;
+    }
+
+    /**
+     * Check if a record matching the filter exists.
+     */
+    async exists(tableId: string, where: string): Promise<boolean> {
+        return (await this.findOne(tableId, where)) !== null;
+    }
+
+    /**
+     * Create a record with linked relationships in a single call.
+     */
+    async createWithLinks(
+        tableId: string,
+        data: any,
+        links: LinkDefinition[],
+    ): Promise<any> {
+        const payload = { ...data };
+        for (const link of links) {
+            payload[link.fieldName] = link.recordIds.map((id) => ({ id }));
+        }
+        return this.create(tableId, payload);
+    }
+
+    /**
+     * Update relationships for an existing record.
+     */
+    async updateLinks(
+        tableId: string,
+        recordId: number,
+        links: LinkDefinition[],
+    ): Promise<any> {
+        const payload: any = {};
+        for (const link of links) {
+            payload[link.fieldName] = link.recordIds.map((id) => ({ id }));
+        }
+        return this.update(tableId, recordId, payload);
+    }
+
+    /**
+     * Get a record with all specified linked relationships.
+     */
+    async getWithLinks(
+        tableId: string,
+        recordId: number,
+        includeFields: string[],
+    ): Promise<any> {
+        return this.read(tableId, recordId, { includeRelations: includeFields });
+    }
+
+    /**
+     * Batch-create multiple records.
+     */
+    async batchCreate(tableId: string, records: any[]): Promise<any[]> {
+        const results = [];
+        for (const record of records) {
+            try {
+                results.push(await this.create(tableId, record));
+            } catch (error) {
+                this.logger.error('Error in batch create for record:', error);
+                results.push({ error: error.message });
+            }
+        }
+        return results;
+    }
+
+    /**
+     * Batch-update multiple records.
+     */
+    async batchUpdate(
+        tableId: string,
+        updates: Array<{ id: number; data: any }>,
+    ): Promise<any[]> {
+        const results = [];
+        for (const upd of updates) {
+            try {
+                results.push(await this.update(tableId, upd.id, upd.data));
+            } catch (error) {
+                this.logger.error(`Error in batch update for record ${upd.id}:`, error);
+                results.push({ id: upd.id, error: error.message });
+            }
+        }
+        return results;
     }
 }

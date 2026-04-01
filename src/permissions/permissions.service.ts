@@ -19,13 +19,12 @@ export class PermissionsService {
             const httpClient = this.nocoDBService.getHttpClient();
             const baseId = this.nocoDBService.getBaseId();
             const response = await httpClient.get(
-                `/api/v2/meta/bases/${baseId}/tables`
+                `/api/v3/meta/bases/${baseId}/tables`
             );
 
             const tables = response.data.list || [];
             const prefix = this.nocoDBService.getTablePrefix();
 
-            // Filter only tables with the configured prefix
             return tables
                 .map((table: any) => table.table_name)
                 .filter((name: string) =>
@@ -41,97 +40,70 @@ export class PermissionsService {
      * Load all permissions for a user
      */
     async getUserPermissions(userId: number): Promise<UserPermissions> {
-        // Check cache
         const cached = this.permissionsCache.get(userId);
         if (cached) {
             return cached;
         }
 
         try {
-            const httpClient = this.nocoDBService.getHttpClient();
-
-            // 1. Get user data
             const usersTable = await this.nocoDBService.getTableByName('users');
             if (!usersTable) {
                 this.logger.warn('Users table not found');
                 return this.createEmptyPermissions(userId, 'unknown');
             }
 
-            const userResponse = await httpClient.get(
-                `/api/v2/tables/${usersTable.id}/records/${userId}`
-            );
-            const user = userResponse.data;
+            const user = await this.nocoDBService.read(usersTable.id, userId);
 
-            // 2. Get user roles
             const userRolesTable = await this.nocoDBService.getTableByName('user_roles');
             if (!userRolesTable) {
                 this.logger.warn('User_roles table not found');
                 return this.createEmptyPermissions(userId, user.username);
             }
 
-            const userRolesResponse = await httpClient.get(
-                `/api/v2/tables/${userRolesTable.id}/records`,
+            const userRolesResult = await this.nocoDBService.list(
+                userRolesTable.id,
                 {
-                    params: {
-                        where: `(user.Id,eq,${userId})`,
-                        nested: {
-                            role: {
-                                fields: ['Id', 'role_name']
-                            }
-                        }
-                    },
+                    where: `(user.id,eq,${userId})`,
+                    includeRelations: ['role'],
                 }
             );
 
-            // Extract role IDs from nested objects
-            const roleIds = userRolesResponse.data.list
-                .filter((ur: any) => ur.role && ur.role.Id)
-                .map((ur: any) => ur.role.Id);
+            const roleIds = (userRolesResult.list || [])
+                .filter((ur: any) => ur.role && ur.role.length > 0)
+                .map((ur: any) => ur.role[0].id);
 
             if (roleIds.length === 0) {
                 this.logger.warn(`User ${userId} has no assigned roles`);
                 return this.createEmptyPermissions(userId, user.username);
             }
 
-            // 3. Get role information
             const rolesTable = await this.nocoDBService.getTableByName('roles');
             if (!rolesTable) {
                 this.logger.warn('Roles table not found');
                 return this.createEmptyPermissions(userId, user.username);
             }
 
-            const rolesResponse = await httpClient.get(
-                `/api/v2/tables/${rolesTable.id}/records`,
-                {
-                    params: {
-                        where: `(Id,in,${roleIds.join(',')})`,
-                    },
-                }
+            const rolesResult = await this.nocoDBService.list(
+                rolesTable.id,
+                { where: `(id,in,${roleIds.join(',')})` }
             );
 
-            const roles = rolesResponse.data.list;
-            const roleNames = roles.map((r: any) => r.role_name);
+            const roleNames = (rolesResult.list || []).map((r: any) => r.role_name);
 
-            // 4. Get table permissions for all roles
             const permissionsTable = await this.nocoDBService.getTableByName('table_permissions');
             if (!permissionsTable) {
                 this.logger.warn('Table_permissions table not found');
                 return this.createEmptyPermissions(userId, user.username);
             }
 
-            const permissionsResponse = await httpClient.get(
-                `/api/v2/tables/${permissionsTable.id}/records`,
-                {
-                    params: {
-                        where: `(role.Id,in,${roleIds.join(',')})`,
-                    },
-                }
+            const permissionsResult = await this.nocoDBService.list(
+                permissionsTable.id,
+                { where: `(role.id,in,${roleIds.join(',')})` }
             );
 
-            // 5. Aggregate permissions (OR logic: if one role has access, user has access)
             const permissionsMap = new Map<string, Set<CrudAction>>();
 
-            for (const perm of permissionsResponse.data.list) {
+            for (const perm of (permissionsResult.list || [])) {
                 const tableName = perm.table_name;
 
                 if (!permissionsMap.has(tableName)) {
@@ -153,7 +125,6 @@ export class PermissionsService {
                 permissions: permissionsMap,
             };
 
-            // Cache with TTL
             this.permissionsCache.set(userId, userPermissions);
             setTimeout(() => this.permissionsCache.delete(userId), this.CACHE_TTL);
 
@@ -177,7 +148,7 @@ export class PermissionsService {
         const tablePermissions = userPermissions.permissions.get(tableName);
 
         if (!tablePermissions) {
-            return false; // No permissions for this table
+            return false;
         }
 
         return tablePermissions.has(action);
@@ -192,25 +163,19 @@ export class PermissionsService {
         permissions: Partial<Record<CrudAction, boolean>>,
     ): Promise<void> {
         try {
-            const httpClient = this.nocoDBService.getHttpClient();
             const permissionsTable = await this.nocoDBService.getTableByName('table_permissions');
 
             if (!permissionsTable) {
                 throw new Error('Table_permissions table not found');
             }
 
-            // Check if permission entry exists
-            const existingResponse = await httpClient.get(
-                `/api/v2/tables/${permissionsTable.id}/records`,
-                {
-                    params: {
-                        where: `(role.Id,eq,${roleId})~and(table_name,eq,${tableName})`,
-                    },
-                }
+            const existing = await this.nocoDBService.findOne(
+                permissionsTable.id,
+                `(role.id,eq,${roleId})~and(table_name,eq,${tableName})`,
             );
 
             const permissionData = {
-                role: { Id: roleId }, // LinkToAnotherRecord format
+                role: [{ id: roleId }],
                 table_name: tableName,
                 can_create: permissions[CrudAction.CREATE] ?? false,
                 can_read: permissions[CrudAction.READ] ?? false,
@@ -218,24 +183,14 @@ export class PermissionsService {
                 can_delete: permissions[CrudAction.DELETE] ?? false,
             };
 
-            if (existingResponse.data.list.length > 0) {
-                // Update existing
-                const existingId = existingResponse.data.list[0].Id;
-                await httpClient.patch(
-                    `/api/v2/tables/${permissionsTable.id}/records/${existingId}`,
-                    permissionData
-                );
+            if (existing) {
+                await this.nocoDBService.update(permissionsTable.id, existing.id, permissionData);
             } else {
-                // Create new
-                await httpClient.post(
-                    `/api/v2/tables/${permissionsTable.id}/records`,
-                    permissionData
-                );
+                await this.nocoDBService.create(permissionsTable.id, permissionData);
             }
 
             this.logger.log(`Permissions set for role ${roleId} on table ${tableName}`);
 
-            // Invalidate cache for all users with this role
             this.permissionsCache.clear();
         } catch (error) {
             this.logger.error('Error setting table permissions:', error);
