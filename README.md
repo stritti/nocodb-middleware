@@ -1,5 +1,9 @@
 # NocoDB Middleware
 
+[![CI](https://github.com/stritti/nocodb-middleware/actions/workflows/ci.yml/badge.svg)](https://github.com/stritti/nocodb-middleware/actions/workflows/ci.yml)
+[![Coverage](https://raw.githubusercontent.com/stritti/nocodb-middleware/badges/coverage.svg)](https://github.com/stritti/nocodb-middleware/actions/workflows/ci.yml)
+[![Release](https://github.com/stritti/nocodb-middleware/actions/workflows/release.yml/badge.svg)](https://github.com/stritti/nocodb-middleware/actions/workflows/release.yml)
+
 A robust NestJS middleware for NocoDB with comprehensive authentication, caching, error handling, and API documentation.
 
 ## Features
@@ -97,6 +101,21 @@ Detailed documentation is available in the `docs/` directory:
 - [Error Handling](docs/error-handling.md)
 - [Caching](docs/caching.md)
 - [Testing](docs/testing.md)
+- [Versioning Strategy](docs/versioning.md)
+
+## Versioning
+
+This project uses **Semantic Versioning** (SemVer) driven by [Conventional Commits](https://www.conventionalcommits.org/).
+
+| Commit prefix | Release type |
+|---------------|-------------|
+| `fix:`, `perf:`, `refactor:` | **patch** – `0.0.x` |
+| `feat:` | **minor** – `0.x.0` |
+| `feat!:` / `BREAKING CHANGE:` | **major** – `x.0.0` |
+| `docs:`, `chore:`, `ci:` | _(no release)_ |
+
+Releases are created automatically on every push to `main` when a releasable commit is detected, or manually via **Actions → Release → Run workflow**.  
+See [docs/versioning.md](docs/versioning.md) for the full strategy.
 
 ## Health Check
 
