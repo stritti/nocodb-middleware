@@ -1,5 +1,4 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import { BaseRepository } from './base.repository';
 import { NocoDBV3Service } from '../nocodb-v3.service';
 import { NocoDBService } from '../nocodb.service';
@@ -11,30 +10,27 @@ export interface ExampleEntity {
 
 @Injectable()
 export class ExampleRepository extends BaseRepository<ExampleEntity> implements OnModuleInit {
-    private readonly exampleTableName: string;
+    private readonly tableName = 'examples';
 
     constructor(
         nocoDBV3Service: NocoDBV3Service,
         private readonly nocoDBService: NocoDBService,
-        configService: ConfigService,
     ) {
         // Pass an empty string initially; the real table ID is resolved in onModuleInit
         super(nocoDBV3Service, '');
-        this.exampleTableName =
-            configService.get<string>('nocodb.exampleTableName') || 'examples';
     }
 
     async onModuleInit(): Promise<void> {
-        const table = await this.nocoDBService.getTableByName(this.exampleTableName);
+        const table = await this.nocoDBService.getTableByName(this.tableName);
         if (!table) {
             throw new Error(
-                `ExampleRepository: table '${this.exampleTableName}' not found in NocoDB. ` +
-                `Create the table or set NOCODB_EXAMPLE_TABLE_NAME to a valid table name.`,
+                `ExampleRepository: table '${this.tableName}' not found in NocoDB. ` +
+                `Ensure the table exists before starting the application.`,
             );
         }
         this.tableId = table.id;
         this.logger.debug(
-            `Resolved table '${this.exampleTableName}' to ID: ${this.tableId}`,
+            `Resolved table '${this.tableName}' to ID: ${this.tableId}`,
         );
     }
 }

@@ -2,17 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ExampleRepository } from './example.repository';
 import { NocoDBV3Service } from '../nocodb-v3.service';
 import { NocoDBService } from '../nocodb.service';
-import { ConfigService } from '@nestjs/config';
 import { Logger } from '@nestjs/common';
-
-function createMockConfigService(tableName: string = 'examples') {
-    return {
-        get: jest.fn((key: string) => {
-            if (key === 'nocodb.exampleTableName') return tableName;
-            return null;
-        }),
-    };
-}
 
 describe('ExampleRepository', () => {
     let repository: ExampleRepository;
@@ -37,10 +27,6 @@ describe('ExampleRepository', () => {
                     useValue: {
                         getTableByName: jest.fn(),
                     },
-                },
-                {
-                    provide: ConfigService,
-                    useValue: createMockConfigService(),
                 },
             ],
         }).compile();
@@ -79,29 +65,6 @@ describe('ExampleRepository', () => {
             await expect(repository.onModuleInit()).rejects.toThrow(
                 "ExampleRepository: table 'examples' not found in NocoDB",
             );
-        });
-
-        it('should use custom table name from config', async () => {
-            const module: TestingModule = await Test.createTestingModule({
-                providers: [
-                    ExampleRepository,
-                    { provide: NocoDBV3Service, useValue: { list: jest.fn() } },
-                    {
-                        provide: NocoDBService,
-                        useValue: {
-                            getTableByName: jest.fn().mockResolvedValue({ id: 'md_custom_id' }),
-                        },
-                    },
-                    { provide: ConfigService, useValue: createMockConfigService('my_examples') },
-                ],
-            }).compile();
-
-            const repo = module.get<ExampleRepository>(ExampleRepository);
-            const svc = module.get<NocoDBService>(NocoDBService);
-            await repo.onModuleInit();
-
-            expect(svc.getTableByName).toHaveBeenCalledWith('my_examples');
-            expect((repo as any).tableId).toBe('md_custom_id');
         });
     });
 });
