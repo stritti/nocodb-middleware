@@ -20,9 +20,7 @@ interface TableDefinition {
 export class DatabaseInitializationService implements OnModuleInit {
   private readonly logger = new Logger(DatabaseInitializationService.name);
 
-  constructor(
-    private nocoDBService: NocoDBService,
-  ) { }
+  constructor(private nocoDBService: NocoDBService) {}
 
   async onModuleInit() {
     const prefix = this.nocoDBService.getTablePrefix();
@@ -57,7 +55,9 @@ export class DatabaseInitializationService implements OnModuleInit {
     });
 
     if (!usersTableId || !rolesTableId) {
-      this.logger.error('Failed to initialize base tables. Skipping relations.');
+      this.logger.error(
+        'Failed to initialize base tables. Skipping relations.',
+      );
       return;
     }
 
@@ -97,16 +97,26 @@ export class DatabaseInitializationService implements OnModuleInit {
     await this.seedDefaultUser();
   }
 
-  private async ensureTableExists(tableDef: TableDefinition): Promise<string | null> {
+  private async ensureTableExists(
+    tableDef: TableDefinition,
+  ): Promise<string | null> {
     const prefix = this.nocoDBService.getTablePrefix();
     const fullTableName = `${prefix}${tableDef.tableName}`;
 
     // Check if table exists
-    const existingTable = await this.nocoDBService.getTableByName(tableDef.tableName);
+    const existingTable = await this.nocoDBService.getTableByName(
+      tableDef.tableName,
+    );
 
     if (existingTable) {
-      this.logger.log(`Table ${fullTableName} already exists (ID: ${existingTable.id})`);
-      await this.ensureColumnsExist(existingTable.id, tableDef.columns, fullTableName);
+      this.logger.log(
+        `Table ${fullTableName} already exists (ID: ${existingTable.id})`,
+      );
+      await this.ensureColumnsExist(
+        existingTable.id,
+        tableDef.columns,
+        fullTableName,
+      );
       return existingTable.id;
     }
 
@@ -115,25 +125,25 @@ export class DatabaseInitializationService implements OnModuleInit {
     try {
       // Split columns into initial (simple) and delayed (links)
       const initialColumns = tableDef.columns.filter(
-        col => col.type !== 'LinkToAnotherRecord'
+        (col) => col.type !== 'LinkToAnotherRecord',
       );
       const linkColumns = tableDef.columns.filter(
-        col => col.type === 'LinkToAnotherRecord'
+        (col) => col.type === 'LinkToAnotherRecord',
       );
 
       // Prepare initial columns for creation
-      const columnsPayload = initialColumns.map(col => ({
+      const columnsPayload = initialColumns.map((col) => ({
         column_name: col.name,
         title: col.title,
         uidt: col.type,
-        ...col.options
+        ...col.options,
       }));
 
       // Create table WITH initial columns
       const response = await this.nocoDBService.createTable(
         tableDef.tableName,
         tableDef.title,
-        columnsPayload
+        columnsPayload,
       );
 
       const tableId = response.id;
@@ -166,14 +176,26 @@ export class DatabaseInitializationService implements OnModuleInit {
       {
         tableName: 'user_roles',
         linkColumns: [
-          { name: 'user', targetTable: 'users', description: 'Link to Users table' },
-          { name: 'role', targetTable: 'roles', description: 'Link to Roles table' },
+          {
+            name: 'user',
+            targetTable: 'users',
+            description: 'Link to Users table',
+          },
+          {
+            name: 'role',
+            targetTable: 'roles',
+            description: 'Link to Roles table',
+          },
         ],
       },
       {
         tableName: 'table_permissions',
         linkColumns: [
-          { name: 'role', targetTable: 'roles', description: 'Link to Roles table' },
+          {
+            name: 'role',
+            targetTable: 'roles',
+            description: 'Link to Roles table',
+          },
         ],
       },
     ];
@@ -183,7 +205,9 @@ export class DatabaseInitializationService implements OnModuleInit {
 
     for (const tableSpec of requiredLinks) {
       try {
-        const table = await this.nocoDBService.getTableByName(tableSpec.tableName);
+        const table = await this.nocoDBService.getTableByName(
+          tableSpec.tableName,
+        );
         if (!table) {
           this.logger.error(`Table ${tableSpec.tableName} not found`);
           continue;
@@ -250,8 +274,8 @@ For detailed instructions, see: docs/SETUP.md
 
       throw new Error(
         `Missing ${missingLinks.length} required link column(s). ` +
-        `Please create them manually in NocoDB UI and restart the application. ` +
-        `See server logs for detailed instructions.`,
+          `Please create them manually in NocoDB UI and restart the application. ` +
+          `See server logs for detailed instructions.`,
       );
     }
 
@@ -286,7 +310,9 @@ For detailed instructions, see: docs/SETUP.md
         }
 
         if (!existingColumnNames.has(col.name)) {
-          this.logger.log(`Creating missing column ${col.name} in ${tableName}...`);
+          this.logger.log(
+            `Creating missing column ${col.name} in ${tableName}...`,
+          );
           try {
             await this.nocoDBService.createColumn(
               tableId,
@@ -315,18 +341,21 @@ For detailed instructions, see: docs/SETUP.md
 
     try {
       const rolesTable = await this.nocoDBService.getTableByName('roles');
-      const permissionsTable = await this.nocoDBService.getTableByName('table_permissions');
+      const permissionsTable =
+        await this.nocoDBService.getTableByName('table_permissions');
 
       if (!rolesTable || !permissionsTable) {
-        this.logger.warn('Roles or Permissions table not found. Skipping seeding.');
+        this.logger.warn(
+          'Roles or Permissions table not found. Skipping seeding.',
+        );
         return;
       }
 
       // Check if admin role exists using v3 API
-      const rolesResult = await this.nocoDBService.list(
-        rolesTable.id,
-        { where: '(role_name,eq,admin)', limit: 1 },
-      );
+      const rolesResult = await this.nocoDBService.list(rolesTable.id, {
+        where: '(role_name,eq,admin)',
+        limit: 1,
+      });
 
       let adminRoleId;
 
@@ -354,7 +383,8 @@ For detailed instructions, see: docs/SETUP.md
     try {
       const usersTable = await this.nocoDBService.getTableByName('users');
       const rolesTable = await this.nocoDBService.getTableByName('roles');
-      const userRolesTable = await this.nocoDBService.getTableByName('user_roles');
+      const userRolesTable =
+        await this.nocoDBService.getTableByName('user_roles');
 
       if (!usersTable || !rolesTable || !userRolesTable) {
         this.logger.warn('Required tables not found. Skipping user seeding.');
@@ -362,10 +392,10 @@ For detailed instructions, see: docs/SETUP.md
       }
 
       // 1. Check if admin user exists using v3 API
-      const usersResult = await this.nocoDBService.list(
-        usersTable.id,
-        { where: '(username,eq,admin)', limit: 1 },
-      );
+      const usersResult = await this.nocoDBService.list(usersTable.id, {
+        where: '(username,eq,admin)',
+        limit: 1,
+      });
 
       let userId;
 
@@ -373,7 +403,10 @@ For detailed instructions, see: docs/SETUP.md
         this.logger.log('Creating default admin user...');
 
         // Simple SHA256 hash for demo purposes (should use bcrypt in production)
-        const passwordHash = crypto.createHash('sha256').update('password123').digest('hex');
+        const passwordHash = crypto
+          .createHash('sha256')
+          .update('password123')
+          .digest('hex');
 
         const createdUser = await this.nocoDBService.create(usersTable.id, {
           username: 'admin',
@@ -389,10 +422,10 @@ For detailed instructions, see: docs/SETUP.md
       }
 
       // 2. Get Admin Role ID using v3 API
-      const rolesResult = await this.nocoDBService.list(
-        rolesTable.id,
-        { where: '(role_name,eq,admin)', limit: 1 },
-      );
+      const rolesResult = await this.nocoDBService.list(rolesTable.id, {
+        where: '(role_name,eq,admin)',
+        limit: 1,
+      });
 
       if (rolesResult.list.length === 0) {
         this.logger.warn('Admin role not found. Cannot assign role to user.');
@@ -402,10 +435,10 @@ For detailed instructions, see: docs/SETUP.md
       const adminRoleId = rolesResult.list[0].id;
 
       // 3. Check if user has admin role using v3 API
-      const userRolesResult = await this.nocoDBService.list(
-        userRolesTable.id,
-        { where: `(user.id,eq,${userId})~and(role.id,eq,${adminRoleId})`, limit: 1 },
-      );
+      const userRolesResult = await this.nocoDBService.list(userRolesTable.id, {
+        where: `(user.id,eq,${userId})~and(role.id,eq,${adminRoleId})`,
+        limit: 1,
+      });
 
       if (userRolesResult.list.length === 0) {
         this.logger.log('Assigning admin role to admin user...');
@@ -418,7 +451,6 @@ For detailed instructions, see: docs/SETUP.md
       } else {
         this.logger.log('Admin user already has admin role');
       }
-
     } catch (error) {
       this.logger.error('Failed to seed default user', error);
     }

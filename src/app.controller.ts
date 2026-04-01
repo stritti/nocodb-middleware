@@ -5,7 +5,7 @@ import { ApiTags, ApiOperation } from '@nestjs/swagger';
 @ApiTags('info')
 @Controller()
 export class AppController {
-  constructor(private readonly appService: AppService) { }
+  constructor(private readonly appService: AppService) {}
 
   @Get()
   @ApiOperation({ summary: 'API Information' })
@@ -18,8 +18,8 @@ export class AppController {
       health: '/health',
       documentation: {
         api: '/api',
-        swagger: 'http://localhost:3000/api'
-      }
+        swagger: 'http://localhost:3000/api',
+      },
     };
   }
 }

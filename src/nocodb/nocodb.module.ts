@@ -1,4 +1,10 @@
-import { Module, Global, MiddlewareConsumer, NestModule, RequestMethod } from '@nestjs/common';
+import {
+  Module,
+  Global,
+  MiddlewareConsumer,
+  NestModule,
+  RequestMethod,
+} from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { NocoDBService } from './nocodb.service';
 import { DatabaseInitializationService } from './database-initialization.service';
@@ -13,30 +19,21 @@ import { NocoDBCacheService } from './cache/nocodb-cache.service';
 
 @Global()
 @Module({
-    imports: [
-        ConfigModule.forFeature(nocodbConfig),
-        CacheModule.register(),
-    ],
-    providers: [
-        NocoDBService,
-        DatabaseInitializationService,
-        ExampleRepository,
-        NocoDBCacheService
-    ],
-    exports: [NocoDBService, ExampleRepository, NocoDBCacheService],
+  imports: [ConfigModule.forFeature(nocodbConfig), CacheModule.register()],
+  providers: [
+    NocoDBService,
+    DatabaseInitializationService,
+    ExampleRepository,
+    NocoDBCacheService,
+  ],
+  exports: [NocoDBService, ExampleRepository, NocoDBCacheService],
 })
 export class NocoDBModule implements NestModule {
-    configure(consumer: MiddlewareConsumer) {
-        consumer
-            .apply(LoggingMiddleware)
-            .forRoutes('*');
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(LoggingMiddleware).forRoutes('*');
 
-        consumer
-            .apply(RateLimitMiddleware)
-            .forRoutes('*');
+    consumer.apply(RateLimitMiddleware).forRoutes('*');
 
-        consumer
-            .apply(NocoDbContextMiddleware)
-            .forRoutes('*');
-    }
+    consumer.apply(NocoDbContextMiddleware).forRoutes('*');
+  }
 }
