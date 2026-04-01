@@ -6,11 +6,13 @@ import { Logger } from '@nestjs/common';
 
 export abstract class BaseRepository<T> {
     protected readonly logger: Logger;
+    protected tableId: string;
 
     constructor(
         protected readonly nocoDBV3Service: NocoDBV3Service,
-        protected readonly tableId: string,
+        tableId: string,
     ) {
+        this.tableId = tableId;
         this.logger = new Logger(this.constructor.name);
     }
 
