@@ -52,12 +52,16 @@ if (isEnabled) {
 
   sdk.start();
 
-  // Ensure spans are flushed on graceful shutdown.
-  process.on('SIGTERM', () => {
+  // Flush and shut down the SDK on graceful shutdown signals.
+  // Use `process.once` so the handler is not registered multiple times if the
+  // module is re-evaluated in tests or hot-reload scenarios.
+  const shutdown = () => {
     sdk
       ?.shutdown()
-      .catch((err) => console.error('OTel SDK shutdown error', err));
-  });
+      .catch((err: unknown) => console.error('OTel SDK shutdown error', err));
+  };
+  process.once('SIGTERM', shutdown);
+  process.once('SIGINT', shutdown);
 }
 
 export { sdk };

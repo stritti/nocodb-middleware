@@ -81,13 +81,15 @@ describe('TelemetryService', () => {
     });
 
     it('should wrap non-Error rejections in an Error before recording', async () => {
-      const rejection = new Error('string error');
+      // Reject with a plain string (not an Error) to exercise the wrapping branch
+      const nonErrorRejection = 'plain string rejection';
       await expect(
-        service.withSpan('test.op', () => Promise.reject<string>(rejection)),
-      ).rejects.toThrow('string error');
+        // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
+        service.withSpan('test.op', () => Promise.reject(nonErrorRejection)),
+      ).rejects.toBe(nonErrorRejection);
 
       expect(recordExceptionSpy).toHaveBeenCalledWith(
-        expect.objectContaining({ message: 'string error' }),
+        expect.objectContaining({ message: nonErrorRejection }),
       );
     });
 
