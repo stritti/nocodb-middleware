@@ -1,14 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PermissionsManagementService } from './permissions-management.service';
 import { NocoDBService } from '../nocodb/nocodb.service';
-import { NocoDBV3Service } from '../nocodb/nocodb-v3.service';
 import { PermissionsService } from './permissions.service';
 import { Logger } from '@nestjs/common';
 
 describe('PermissionsManagementService', () => {
     let service: PermissionsManagementService;
     let nocoDBService: NocoDBService;
-    let nocoDBV3Service: NocoDBV3Service;
     let permissionsService: PermissionsService;
 
     beforeEach(async () => {
@@ -19,11 +17,6 @@ describe('PermissionsManagementService', () => {
                     provide: NocoDBService,
                     useValue: {
                         getTableByName: jest.fn(),
-                    },
-                },
-                {
-                    provide: NocoDBV3Service,
-                    useValue: {
                         findOne: jest.fn(),
                         create: jest.fn(),
                         update: jest.fn(),
@@ -42,12 +35,14 @@ describe('PermissionsManagementService', () => {
 
         service = module.get<PermissionsManagementService>(PermissionsManagementService);
         nocoDBService = module.get<NocoDBService>(NocoDBService);
-        nocoDBV3Service = module.get<NocoDBV3Service>(NocoDBV3Service);
         permissionsService = module.get<PermissionsService>(PermissionsService);
 
-        // Suppress logs
         jest.spyOn(Logger.prototype, 'log').mockImplementation(() => { });
         jest.spyOn(Logger.prototype, 'error').mockImplementation(() => { });
+    });
+
+    afterEach(() => {
+        jest.restoreAllMocks();
     });
 
     it('should be defined', () => {
@@ -64,18 +59,18 @@ describe('PermissionsManagementService', () => {
             canDelete: false,
         };
 
-        it('should update existing permissions using v3 API', async () => {
+        it('should update existing permissions', async () => {
             (nocoDBService.getTableByName as jest.Mock).mockResolvedValue({ id: 'perm_table_id' });
-            (nocoDBV3Service.findOne as jest.Mock).mockResolvedValue({ id: 123 });
-            (nocoDBV3Service.update as jest.Mock).mockResolvedValue({ id: 123 });
+            (nocoDBService.findOne as jest.Mock).mockResolvedValue({ id: 123 });
+            (nocoDBService.update as jest.Mock).mockResolvedValue({ id: 123 });
 
             await service.setTablePermissions(dto);
 
-            expect(nocoDBV3Service.findOne).toHaveBeenCalledWith(
+            expect(nocoDBService.findOne).toHaveBeenCalledWith(
                 'perm_table_id',
                 `(role.id,eq,${dto.roleId})~and(table_name,eq,${dto.tableName})`
             );
-            expect(nocoDBV3Service.update).toHaveBeenCalledWith(
+            expect(nocoDBService.update).toHaveBeenCalledWith(
                 'perm_table_id',
                 123,
                 expect.objectContaining({
@@ -86,14 +81,14 @@ describe('PermissionsManagementService', () => {
             expect(permissionsService.clearCache).toHaveBeenCalled();
         });
 
-        it('should create new permissions if not found using v3 API', async () => {
+        it('should create new permissions if not found', async () => {
             (nocoDBService.getTableByName as jest.Mock).mockResolvedValue({ id: 'perm_table_id' });
-            (nocoDBV3Service.findOne as jest.Mock).mockResolvedValue(null);
-            (nocoDBV3Service.create as jest.Mock).mockResolvedValue({ id: 'new_id' });
+            (nocoDBService.findOne as jest.Mock).mockResolvedValue(null);
+            (nocoDBService.create as jest.Mock).mockResolvedValue({ id: 'new_id' });
 
             await service.setTablePermissions(dto);
 
-            expect(nocoDBV3Service.create).toHaveBeenCalledWith(
+            expect(nocoDBService.create).toHaveBeenCalledWith(
                 'perm_table_id',
                 expect.objectContaining({
                     role: [{ id: dto.roleId }],
@@ -104,32 +99,32 @@ describe('PermissionsManagementService', () => {
     });
 
     describe('deleteRolePermissions', () => {
-        it('should delete all permissions for a role using v3 API', async () => {
+        it('should delete all permissions for a role', async () => {
             (nocoDBService.getTableByName as jest.Mock).mockResolvedValue({ id: 'perm_table_id' });
-            (nocoDBV3Service.list as jest.Mock).mockResolvedValue({
+            (nocoDBService.list as jest.Mock).mockResolvedValue({
                 list: [{ id: 1 }, { id: 2 }]
             });
-            (nocoDBV3Service.delete as jest.Mock).mockResolvedValue(undefined);
+            (nocoDBService.delete as jest.Mock).mockResolvedValue(undefined);
 
             await service.deleteRolePermissions(99);
 
-            expect(nocoDBV3Service.delete).toHaveBeenCalledTimes(2);
-            expect(nocoDBV3Service.delete).toHaveBeenCalledWith('perm_table_id', 1);
-            expect(nocoDBV3Service.delete).toHaveBeenCalledWith('perm_table_id', 2);
+            expect(nocoDBService.delete).toHaveBeenCalledTimes(2);
+            expect(nocoDBService.delete).toHaveBeenCalledWith('perm_table_id', 1);
+            expect(nocoDBService.delete).toHaveBeenCalledWith('perm_table_id', 2);
             expect(permissionsService.clearCache).toHaveBeenCalled();
         });
     });
 
     describe('getRolePermissions', () => {
-        it('should return permissions for a role using v3 API', async () => {
+        it('should return permissions for a role', async () => {
             (nocoDBService.getTableByName as jest.Mock).mockResolvedValue({ id: 'perm_table_id' });
-            (nocoDBV3Service.list as jest.Mock).mockResolvedValue({
+            (nocoDBService.list as jest.Mock).mockResolvedValue({
                 list: [{ id: 1, table_name: 'users', can_read: true }]
             });
 
             const perms = await service.getRolePermissions(1);
             expect(perms).toHaveLength(1);
-            expect(nocoDBV3Service.list).toHaveBeenCalledWith(
+            expect(nocoDBService.list).toHaveBeenCalledWith(
                 'perm_table_id',
                 expect.objectContaining({ where: '(role.id,eq,1)' })
             );

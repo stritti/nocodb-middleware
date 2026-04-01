@@ -1,6 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ExampleRepository } from './example.repository';
-import { NocoDBV3Service } from '../nocodb-v3.service';
 import { NocoDBService } from '../nocodb.service';
 import { Logger } from '@nestjs/common';
 
@@ -13,19 +12,14 @@ describe('ExampleRepository', () => {
             providers: [
                 ExampleRepository,
                 {
-                    provide: NocoDBV3Service,
+                    provide: NocoDBService,
                     useValue: {
+                        getTableByName: jest.fn(),
                         list: jest.fn(),
                         create: jest.fn(),
                         findOne: jest.fn(),
                         update: jest.fn(),
                         delete: jest.fn(),
-                    },
-                },
-                {
-                    provide: NocoDBService,
-                    useValue: {
-                        getTableByName: jest.fn(),
                     },
                 },
             ],

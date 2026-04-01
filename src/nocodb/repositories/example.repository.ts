@@ -1,6 +1,5 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { BaseRepository } from './base.repository';
-import { NocoDBV3Service } from '../nocodb-v3.service';
 import { NocoDBService } from '../nocodb.service';
 
 export interface ExampleEntity {
@@ -12,12 +11,9 @@ export interface ExampleEntity {
 export class ExampleRepository extends BaseRepository<ExampleEntity> implements OnModuleInit {
     private readonly tableName = 'examples';
 
-    constructor(
-        nocoDBV3Service: NocoDBV3Service,
-        private readonly nocoDBService: NocoDBService,
-    ) {
+    constructor(nocoDBService: NocoDBService) {
         // Pass an empty string initially; the real table ID is resolved in onModuleInit
-        super(nocoDBV3Service, '');
+        super(nocoDBService, '');
     }
 
     async onModuleInit(): Promise<void> {

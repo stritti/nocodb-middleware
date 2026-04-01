@@ -1,14 +1,12 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { UserRolesService } from './user-roles.service';
 import { NocoDBService } from '../nocodb/nocodb.service';
-import { NocoDBV3Service } from '../nocodb/nocodb-v3.service';
 import { PermissionsService } from '../permissions/permissions.service';
 import { Logger } from '@nestjs/common';
 
 describe('UserRolesService', () => {
     let service: UserRolesService;
     let nocoDBService: NocoDBService;
-    let nocoDBV3Service: NocoDBV3Service;
     let permissionsService: PermissionsService;
 
     beforeEach(async () => {
@@ -19,12 +17,6 @@ describe('UserRolesService', () => {
                     provide: NocoDBService,
                     useValue: {
                         getTableByName: jest.fn(),
-                        getHttpClient: jest.fn(),
-                    },
-                },
-                {
-                    provide: NocoDBV3Service,
-                    useValue: {
                         findOne: jest.fn(),
                         create: jest.fn(),
                         list: jest.fn(),
@@ -42,12 +34,14 @@ describe('UserRolesService', () => {
 
         service = module.get<UserRolesService>(UserRolesService);
         nocoDBService = module.get<NocoDBService>(NocoDBService);
-        nocoDBV3Service = module.get<NocoDBV3Service>(NocoDBV3Service);
         permissionsService = module.get<PermissionsService>(PermissionsService);
 
-        // Suppress logs
         jest.spyOn(Logger.prototype, 'log').mockImplementation(() => { });
         jest.spyOn(Logger.prototype, 'error').mockImplementation(() => { });
+    });
+
+    afterEach(() => {
+        jest.restoreAllMocks();
     });
 
     it('should be defined', () => {
@@ -55,19 +49,18 @@ describe('UserRolesService', () => {
     });
 
     describe('assignRole', () => {
-        it('should assign a role using v3 API if not already assigned', async () => {
+        it('should assign a role if not already assigned', async () => {
             (nocoDBService.getTableByName as jest.Mock).mockResolvedValue({ id: 'ur_table_id' });
-
-            (nocoDBV3Service.findOne as jest.Mock).mockResolvedValue(null); // No existing assignment
-            (nocoDBV3Service.create as jest.Mock).mockResolvedValue({ id: 'new_id' });
+            (nocoDBService.findOne as jest.Mock).mockResolvedValue(null);
+            (nocoDBService.create as jest.Mock).mockResolvedValue({ id: 'new_id' });
 
             await service.assignRole({ userId: 1, roleId: 2 });
 
-            expect(nocoDBV3Service.findOne).toHaveBeenCalledWith(
+            expect(nocoDBService.findOne).toHaveBeenCalledWith(
                 'ur_table_id',
                 '(user.id,eq,1)~and(role.id,eq,2)'
             );
-            expect(nocoDBV3Service.create).toHaveBeenCalledWith(
+            expect(nocoDBService.create).toHaveBeenCalledWith(
                 'ur_table_id',
                 expect.objectContaining({
                     user: [{ id: 1 }],
@@ -79,7 +72,7 @@ describe('UserRolesService', () => {
 
         it('should throw ConflictException if role already assigned', async () => {
             (nocoDBService.getTableByName as jest.Mock).mockResolvedValue({ id: 'ur_table_id' });
-            (nocoDBV3Service.findOne as jest.Mock).mockResolvedValue({ id: 'existing_id' });
+            (nocoDBService.findOne as jest.Mock).mockResolvedValue({ id: 'existing_id' });
 
             await expect(service.assignRole({ userId: 1, roleId: 2 })).rejects.toThrow('already has role');
         });
@@ -92,29 +85,29 @@ describe('UserRolesService', () => {
     });
 
     describe('removeRole', () => {
-        it('should remove a role using v3 API', async () => {
+        it('should remove a role', async () => {
             (nocoDBService.getTableByName as jest.Mock).mockResolvedValue({ id: 'ur_table_id' });
-            (nocoDBV3Service.findOne as jest.Mock).mockResolvedValue({ id: 10 });
-            (nocoDBV3Service.delete as jest.Mock).mockResolvedValue(undefined);
+            (nocoDBService.findOne as jest.Mock).mockResolvedValue({ id: 10 });
+            (nocoDBService.delete as jest.Mock).mockResolvedValue(undefined);
 
             await service.removeRole(1, 2);
 
-            expect(nocoDBV3Service.delete).toHaveBeenCalledWith('ur_table_id', 10);
+            expect(nocoDBService.delete).toHaveBeenCalledWith('ur_table_id', 10);
             expect(permissionsService.clearCache).toHaveBeenCalledWith(1);
         });
 
         it('should throw NotFoundException if assignment not found', async () => {
             (nocoDBService.getTableByName as jest.Mock).mockResolvedValue({ id: 'ur_table_id' });
-            (nocoDBV3Service.findOne as jest.Mock).mockResolvedValue(null);
+            (nocoDBService.findOne as jest.Mock).mockResolvedValue(null);
 
             await expect(service.removeRole(1, 2)).rejects.toThrow('not assigned to user');
         });
     });
 
     describe('getUserRoles', () => {
-        it('should return roles for a user using v3 API with nested data', async () => {
+        it('should return roles for a user with nested data', async () => {
             (nocoDBService.getTableByName as jest.Mock).mockResolvedValue({ id: 'ur_table_id' });
-            (nocoDBV3Service.list as jest.Mock).mockResolvedValue({
+            (nocoDBService.list as jest.Mock).mockResolvedValue({
                 list: [
                     { id: 1, role: [{ id: 5, role_name: 'admin' }] },
                     { id: 2, role: [] },
@@ -123,7 +116,7 @@ describe('UserRolesService', () => {
 
             const roles = await service.getUserRoles(1);
 
-            expect(nocoDBV3Service.list).toHaveBeenCalledWith(
+            expect(nocoDBService.list).toHaveBeenCalledWith(
                 'ur_table_id',
                 expect.objectContaining({
                     where: '(user.id,eq,1)',
@@ -145,16 +138,15 @@ describe('UserRolesService', () => {
     describe('assignMultipleRoles', () => {
         it('should assign multiple roles, skipping already-assigned ones', async () => {
             (nocoDBService.getTableByName as jest.Mock).mockResolvedValue({ id: 'ur_table_id' });
-
-            (nocoDBV3Service.findOne as jest.Mock)
-                .mockResolvedValueOnce(null)     // First role: not assigned
-                .mockResolvedValueOnce({ id: 1 }); // Second role: already assigned
-            (nocoDBV3Service.create as jest.Mock).mockResolvedValue({ id: 'new_id' });
+            (nocoDBService.findOne as jest.Mock)
+                .mockResolvedValueOnce(null)
+                .mockResolvedValueOnce({ id: 1 });
+            (nocoDBService.create as jest.Mock).mockResolvedValue({ id: 'new_id' });
 
             const result = await service.assignMultipleRoles({ userId: 1, roleIds: [2, 3] });
 
             expect(result.assignedCount).toBe(1);
-            expect(nocoDBV3Service.create).toHaveBeenCalledTimes(1);
+            expect(nocoDBService.create).toHaveBeenCalledTimes(1);
         });
     });
 });

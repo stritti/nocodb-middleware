@@ -1,7 +1,6 @@
 import { Module, Global, MiddlewareConsumer, NestModule, RequestMethod } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { NocoDBService } from './nocodb.service';
-import { NocoDBV3Service } from './nocodb-v3.service';
 import { DatabaseInitializationService } from './database-initialization.service';
 import nocodbConfig from '../config/nocodb.config';
 import { NocoDbContextMiddleware } from './middleware/nocodb-context.middleware';
@@ -20,12 +19,11 @@ import { NocoDBCacheService } from './cache/nocodb-cache.service';
     ],
     providers: [
         NocoDBService,
-        NocoDBV3Service,
         DatabaseInitializationService,
         ExampleRepository,
         NocoDBCacheService
     ],
-    exports: [NocoDBService, NocoDBV3Service, ExampleRepository, NocoDBCacheService],
+    exports: [NocoDBService, ExampleRepository, NocoDBCacheService],
 })
 export class NocoDBModule implements NestModule {
     configure(consumer: MiddlewareConsumer) {

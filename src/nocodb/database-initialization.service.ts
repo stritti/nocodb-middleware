@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { NocoDBService } from './nocodb.service';
-import { NocoDBV3Service } from './nocodb-v3.service';
+
 import * as crypto from 'crypto';
 
 interface ColumnDefinition {
@@ -22,7 +22,6 @@ export class DatabaseInitializationService implements OnModuleInit {
 
   constructor(
     private nocoDBService: NocoDBService,
-    private nocoDBV3Service: NocoDBV3Service,
   ) { }
 
   async onModuleInit() {
@@ -324,7 +323,7 @@ For detailed instructions, see: docs/SETUP.md
       }
 
       // Check if admin role exists using v3 API
-      const rolesResult = await this.nocoDBV3Service.list(
+      const rolesResult = await this.nocoDBService.list(
         rolesTable.id,
         { where: '(role_name,eq,admin)', limit: 1 },
       );
@@ -333,7 +332,7 @@ For detailed instructions, see: docs/SETUP.md
 
       if (rolesResult.list.length === 0) {
         this.logger.log('Creating default admin role...');
-        const createdRole = await this.nocoDBV3Service.create(rolesTable.id, {
+        const createdRole = await this.nocoDBService.create(rolesTable.id, {
           role_name: 'admin',
           description: 'System Administrator',
           is_system_role: true,
@@ -363,7 +362,7 @@ For detailed instructions, see: docs/SETUP.md
       }
 
       // 1. Check if admin user exists using v3 API
-      const usersResult = await this.nocoDBV3Service.list(
+      const usersResult = await this.nocoDBService.list(
         usersTable.id,
         { where: '(username,eq,admin)', limit: 1 },
       );
@@ -376,7 +375,7 @@ For detailed instructions, see: docs/SETUP.md
         // Simple SHA256 hash for demo purposes (should use bcrypt in production)
         const passwordHash = crypto.createHash('sha256').update('password123').digest('hex');
 
-        const createdUser = await this.nocoDBV3Service.create(usersTable.id, {
+        const createdUser = await this.nocoDBService.create(usersTable.id, {
           username: 'admin',
           email: 'admin@example.com',
           password_hash: passwordHash,
@@ -390,7 +389,7 @@ For detailed instructions, see: docs/SETUP.md
       }
 
       // 2. Get Admin Role ID using v3 API
-      const rolesResult = await this.nocoDBV3Service.list(
+      const rolesResult = await this.nocoDBService.list(
         rolesTable.id,
         { where: '(role_name,eq,admin)', limit: 1 },
       );
@@ -403,14 +402,14 @@ For detailed instructions, see: docs/SETUP.md
       const adminRoleId = rolesResult.list[0].id;
 
       // 3. Check if user has admin role using v3 API
-      const userRolesResult = await this.nocoDBV3Service.list(
+      const userRolesResult = await this.nocoDBService.list(
         userRolesTable.id,
         { where: `(user.id,eq,${userId})~and(role.id,eq,${adminRoleId})`, limit: 1 },
       );
 
       if (userRolesResult.list.length === 0) {
         this.logger.log('Assigning admin role to admin user...');
-        await this.nocoDBV3Service.create(userRolesTable.id, {
+        await this.nocoDBService.create(userRolesTable.id, {
           user: [{ id: userId }],
           role: [{ id: adminRoleId }],
           assigned_at: new Date().toISOString(),

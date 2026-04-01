@@ -1,4 +1,4 @@
-import { NocoDBV3Service, FilterOptions } from '../nocodb-v3.service';
+import { NocoDBService, FilterOptions } from '../nocodb.service';
 import { PageOptionsDto } from '../dto/page-options.dto';
 import { PageDto } from '../dto/page.dto';
 import { PageMetaDto } from '../dto/page-meta.dto';
@@ -9,7 +9,7 @@ export abstract class BaseRepository<T> {
     protected tableId: string;
 
     constructor(
-        protected readonly nocoDBV3Service: NocoDBV3Service,
+        protected readonly nocoDBService: NocoDBService,
         tableId: string,
     ) {
         this.tableId = tableId;
@@ -23,7 +23,7 @@ export abstract class BaseRepository<T> {
                 offset: pageOptionsDto.skip,
             };
 
-            const result = await this.nocoDBV3Service.list(this.tableId, options);
+            const result = await this.nocoDBService.list(this.tableId, options);
 
             const data = (result.list || []) as T[];
             const count = result.pageInfo?.totalRows || 0;
@@ -38,7 +38,7 @@ export abstract class BaseRepository<T> {
 
     async findOne(where: string): Promise<T | null> {
         try {
-            const result = await this.nocoDBV3Service.findOne(this.tableId, where);
+            const result = await this.nocoDBService.findOne(this.tableId, where);
             return result as T | null;
         } catch (error) {
             this.logger.error(`Error finding one in ${this.tableId}`, error);
@@ -48,7 +48,7 @@ export abstract class BaseRepository<T> {
 
     async create(data: Partial<T>): Promise<T> {
         try {
-            const result = await this.nocoDBV3Service.create(this.tableId, data);
+            const result = await this.nocoDBService.create(this.tableId, data);
             return result as T;
         } catch (error) {
             this.logger.error(`Error creating in ${this.tableId}`, error);
@@ -58,7 +58,7 @@ export abstract class BaseRepository<T> {
 
     async update(id: number, data: Partial<T>): Promise<T> {
         try {
-            const result = await this.nocoDBV3Service.update(this.tableId, id, data);
+            const result = await this.nocoDBService.update(this.tableId, id, data);
             return result as T;
         } catch (error) {
             this.logger.error(`Error updating record ${id} in ${this.tableId}`, error);
@@ -68,7 +68,7 @@ export abstract class BaseRepository<T> {
 
     async delete(id: number): Promise<void> {
         try {
-            await this.nocoDBV3Service.delete(this.tableId, id);
+            await this.nocoDBService.delete(this.tableId, id);
         } catch (error) {
             this.logger.error(`Error deleting record ${id} in ${this.tableId}`, error);
             throw error;

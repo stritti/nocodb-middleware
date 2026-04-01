@@ -1,6 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { NocoDBService } from '../nocodb/nocodb.service';
-import { NocoDBV3Service } from '../nocodb/nocodb-v3.service';
 import { CrudAction } from './enums/crud-action.enum';
 import { UserPermissions } from './interfaces/permission.interface';
 
@@ -10,10 +9,7 @@ export class PermissionsService {
     private permissionsCache: Map<number, UserPermissions> = new Map();
     private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
-    constructor(
-        private nocoDBService: NocoDBService,
-        private nocoDBV3Service: NocoDBV3Service,
-    ) { }
+    constructor(private nocoDBService: NocoDBService) { }
 
     /**
      * Get all tables in the configured workspace
@@ -29,7 +25,6 @@ export class PermissionsService {
             const tables = response.data.list || [];
             const prefix = this.nocoDBService.getTablePrefix();
 
-            // Filter only tables with the configured prefix
             return tables
                 .map((table: any) => table.table_name)
                 .filter((name: string) =>
@@ -45,30 +40,27 @@ export class PermissionsService {
      * Load all permissions for a user
      */
     async getUserPermissions(userId: number): Promise<UserPermissions> {
-        // Check cache
         const cached = this.permissionsCache.get(userId);
         if (cached) {
             return cached;
         }
 
         try {
-            // 1. Get user data using v3 API
             const usersTable = await this.nocoDBService.getTableByName('users');
             if (!usersTable) {
                 this.logger.warn('Users table not found');
                 return this.createEmptyPermissions(userId, 'unknown');
             }
 
-            const user = await this.nocoDBV3Service.read(usersTable.id, userId);
+            const user = await this.nocoDBService.read(usersTable.id, userId);
 
-            // 2. Get user roles using v3 API with nested relations
             const userRolesTable = await this.nocoDBService.getTableByName('user_roles');
             if (!userRolesTable) {
                 this.logger.warn('User_roles table not found');
                 return this.createEmptyPermissions(userId, user.username);
             }
 
-            const userRolesResult = await this.nocoDBV3Service.list(
+            const userRolesResult = await this.nocoDBService.list(
                 userRolesTable.id,
                 {
                     where: `(user.id,eq,${userId})`,
@@ -76,7 +68,6 @@ export class PermissionsService {
                 }
             );
 
-            // Extract role IDs from nested objects (v3 returns arrays for relations)
             const roleIds = (userRolesResult.list || [])
                 .filter((ur: any) => ur.role && ur.role.length > 0)
                 .map((ur: any) => ur.role[0].id);
@@ -86,33 +77,30 @@ export class PermissionsService {
                 return this.createEmptyPermissions(userId, user.username);
             }
 
-            // 3. Get role information using v3 API
             const rolesTable = await this.nocoDBService.getTableByName('roles');
             if (!rolesTable) {
                 this.logger.warn('Roles table not found');
                 return this.createEmptyPermissions(userId, user.username);
             }
 
-            const rolesResult = await this.nocoDBV3Service.list(
+            const rolesResult = await this.nocoDBService.list(
                 rolesTable.id,
                 { where: `(id,in,${roleIds.join(',')})` }
             );
 
             const roleNames = (rolesResult.list || []).map((r: any) => r.role_name);
 
-            // 4. Get table permissions for all roles using v3 API
             const permissionsTable = await this.nocoDBService.getTableByName('table_permissions');
             if (!permissionsTable) {
                 this.logger.warn('Table_permissions table not found');
                 return this.createEmptyPermissions(userId, user.username);
             }
 
-            const permissionsResult = await this.nocoDBV3Service.list(
+            const permissionsResult = await this.nocoDBService.list(
                 permissionsTable.id,
                 { where: `(role.id,in,${roleIds.join(',')})` }
             );
 
-            // 5. Aggregate permissions (OR logic: if one role has access, user has access)
             const permissionsMap = new Map<string, Set<CrudAction>>();
 
             for (const perm of (permissionsResult.list || [])) {
@@ -137,7 +125,6 @@ export class PermissionsService {
                 permissions: permissionsMap,
             };
 
-            // Cache with TTL
             this.permissionsCache.set(userId, userPermissions);
             setTimeout(() => this.permissionsCache.delete(userId), this.CACHE_TTL);
 
@@ -161,7 +148,7 @@ export class PermissionsService {
         const tablePermissions = userPermissions.permissions.get(tableName);
 
         if (!tablePermissions) {
-            return false; // No permissions for this table
+            return false;
         }
 
         return tablePermissions.has(action);
@@ -182,14 +169,13 @@ export class PermissionsService {
                 throw new Error('Table_permissions table not found');
             }
 
-            // Check if permission entry exists using v3 API
-            const existing = await this.nocoDBV3Service.findOne(
+            const existing = await this.nocoDBService.findOne(
                 permissionsTable.id,
                 `(role.id,eq,${roleId})~and(table_name,eq,${tableName})`,
             );
 
             const permissionData = {
-                role: [{ id: roleId }], // v3 inline link format
+                role: [{ id: roleId }],
                 table_name: tableName,
                 can_create: permissions[CrudAction.CREATE] ?? false,
                 can_read: permissions[CrudAction.READ] ?? false,
@@ -198,16 +184,13 @@ export class PermissionsService {
             };
 
             if (existing) {
-                // Update existing
-                await this.nocoDBV3Service.update(permissionsTable.id, existing.id, permissionData);
+                await this.nocoDBService.update(permissionsTable.id, existing.id, permissionData);
             } else {
-                // Create new
-                await this.nocoDBV3Service.create(permissionsTable.id, permissionData);
+                await this.nocoDBService.create(permissionsTable.id, permissionData);
             }
 
             this.logger.log(`Permissions set for role ${roleId} on table ${tableName}`);
 
-            // Invalidate cache for all users with this role
             this.permissionsCache.clear();
         } catch (error) {
             this.logger.error('Error setting table permissions:', error);

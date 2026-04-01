@@ -1,16 +1,12 @@
 import { Injectable, Logger, NotFoundException, ConflictException } from '@nestjs/common';
 import { NocoDBService } from '../nocodb/nocodb.service';
-import { NocoDBV3Service } from '../nocodb/nocodb-v3.service';
 import { CreateRoleDto } from './dto/create-role.dto';
 
 @Injectable()
 export class RolesService {
     private readonly logger = new Logger(RolesService.name);
 
-    constructor(
-        private nocoDBService: NocoDBService,
-        private nocoDBV3Service: NocoDBV3Service,
-    ) { }
+    constructor(private nocoDBService: NocoDBService) { }
 
     /**
      * Create a new role
@@ -22,7 +18,6 @@ export class RolesService {
                 throw new NotFoundException('Roles table not found');
             }
 
-            // Check if role already exists using v3 API
             const existingRole = await this.findRoleByName(createRoleDto.roleName);
             if (existingRole) {
                 throw new ConflictException(
@@ -30,8 +25,7 @@ export class RolesService {
                 );
             }
 
-            // Create role using v3 API
-            const result = await this.nocoDBV3Service.create(
+            const result = await this.nocoDBService.create(
                 rolesTable.id,
                 {
                     role_name: createRoleDto.roleName,
@@ -58,7 +52,7 @@ export class RolesService {
                 return null;
             }
 
-            return await this.nocoDBV3Service.findOne(
+            return await this.nocoDBService.findOne(
                 rolesTable.id,
                 `(role_name,eq,${roleName})`
             );
@@ -78,7 +72,7 @@ export class RolesService {
                 return [];
             }
 
-            const response = await this.nocoDBV3Service.list(rolesTable.id);
+            const response = await this.nocoDBService.list(rolesTable.id);
             return response.list || [];
         } catch (error) {
             this.logger.error('Error fetching roles:', error);
@@ -96,7 +90,7 @@ export class RolesService {
                 throw new NotFoundException('Roles table not found');
             }
 
-            await this.nocoDBV3Service.delete(rolesTable.id, roleId);
+            await this.nocoDBService.delete(rolesTable.id, roleId);
 
             this.logger.log(`Role ${roleId} deleted`);
         } catch (error) {
