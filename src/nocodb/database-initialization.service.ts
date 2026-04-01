@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { NocoDBService } from './nocodb.service';
+import { NocoDBV3Service } from './nocodb-v3.service';
 import * as crypto from 'crypto';
 
 interface ColumnDefinition {
@@ -19,7 +20,10 @@ interface TableDefinition {
 export class DatabaseInitializationService implements OnModuleInit {
   private readonly logger = new Logger(DatabaseInitializationService.name);
 
-  constructor(private nocoDBService: NocoDBService) { }
+  constructor(
+    private nocoDBService: NocoDBService,
+    private nocoDBV3Service: NocoDBV3Service,
+  ) { }
 
   async onModuleInit() {
     const prefix = this.nocoDBService.getTablePrefix();
@@ -186,7 +190,7 @@ export class DatabaseInitializationService implements OnModuleInit {
           continue;
         }
 
-        const schema = await httpClient.get(`/api/v2/meta/tables/${table.id}`);
+        const schema = await httpClient.get(`/api/v3/meta/tables/${table.id}`);
         const columns = schema.data.columns || [];
 
         for (const linkSpec of tableSpec.linkColumns) {
@@ -267,7 +271,7 @@ For detailed instructions, see: docs/SETUP.md
     try {
       // Get existing columns
       const httpClient = this.nocoDBService.getHttpClient();
-      const response = await httpClient.get(`/api/v2/meta/tables/${tableId}`);
+      const response = await httpClient.get(`/api/v3/meta/tables/${tableId}`);
       const existingColumns = response.data.columns || [];
       const existingColumnNames = new Set(
         existingColumns.map((c: any) => c.column_name),
@@ -319,33 +323,24 @@ For detailed instructions, see: docs/SETUP.md
         return;
       }
 
-      const httpClient = this.nocoDBService.getHttpClient();
-
-      // Check if admin role exists
-      const rolesResponse = await httpClient.get(
-        `/api/v2/tables/${rolesTable.id}/records`,
-        {
-          params: {
-            where: '(Role Name,eq,admin)',
-          },
-        },
+      // Check if admin role exists using v3 API
+      const rolesResult = await this.nocoDBV3Service.list(
+        rolesTable.id,
+        { where: '(role_name,eq,admin)', limit: 1 },
       );
 
       let adminRoleId;
 
-      if (rolesResponse.data.list.length === 0) {
+      if (rolesResult.list.length === 0) {
         this.logger.log('Creating default admin role...');
-        const createRoleResponse = await httpClient.post(
-          `/api/v2/tables/${rolesTable.id}/records`,
-          {
-            role_name: 'admin',
-            description: 'System Administrator',
-            is_system_role: true,
-          },
-        );
-        adminRoleId = createRoleResponse.data.Id;
+        const createdRole = await this.nocoDBV3Service.create(rolesTable.id, {
+          role_name: 'admin',
+          description: 'System Administrator',
+          is_system_role: true,
+        });
+        adminRoleId = createdRole.id;
       } else {
-        adminRoleId = rolesResponse.data.list[0].Id;
+        adminRoleId = rolesResult.list[0].id;
       }
 
       // ... (rest of permissions seeding logic if needed, but assuming it's already there)
@@ -367,79 +362,59 @@ For detailed instructions, see: docs/SETUP.md
         return;
       }
 
-      const httpClient = this.nocoDBService.getHttpClient();
-
-      // 1. Check if admin user exists
-      const usersResponse = await httpClient.get(
-        `/api/v2/tables/${usersTable.id}/records`,
-        {
-          params: {
-            where: '(Username,eq,admin)',
-          },
-        },
+      // 1. Check if admin user exists using v3 API
+      const usersResult = await this.nocoDBV3Service.list(
+        usersTable.id,
+        { where: '(username,eq,admin)', limit: 1 },
       );
 
       let userId;
 
-      if (usersResponse.data.list.length === 0) {
+      if (usersResult.list.length === 0) {
         this.logger.log('Creating default admin user...');
 
         // Simple SHA256 hash for demo purposes (should use bcrypt in production)
         const passwordHash = crypto.createHash('sha256').update('password123').digest('hex');
 
-        const createUserResponse = await httpClient.post(
-          `/api/v2/tables/${usersTable.id}/records`,
-          {
-            username: 'admin',
-            email: 'admin@example.com',
-            password_hash: passwordHash,
-            is_active: true,
-          },
-        );
-        userId = createUserResponse.data.Id;
+        const createdUser = await this.nocoDBV3Service.create(usersTable.id, {
+          username: 'admin',
+          email: 'admin@example.com',
+          password_hash: passwordHash,
+          is_active: true,
+        });
+        userId = createdUser.id;
         this.logger.log(`Admin user created (ID: ${userId})`);
       } else {
-        userId = usersResponse.data.list[0].Id;
+        userId = usersResult.list[0].id;
         this.logger.log(`Admin user already exists (ID: ${userId})`);
       }
 
-      // 2. Get Admin Role ID
-      const rolesResponse = await httpClient.get(
-        `/api/v2/tables/${rolesTable.id}/records`,
-        {
-          params: {
-            where: '(Role Name,eq,admin)',
-          },
-        },
+      // 2. Get Admin Role ID using v3 API
+      const rolesResult = await this.nocoDBV3Service.list(
+        rolesTable.id,
+        { where: '(role_name,eq,admin)', limit: 1 },
       );
 
-      if (rolesResponse.data.list.length === 0) {
+      if (rolesResult.list.length === 0) {
         this.logger.warn('Admin role not found. Cannot assign role to user.');
         return;
       }
 
-      const adminRoleId = rolesResponse.data.list[0].Id;
+      const adminRoleId = rolesResult.list[0].id;
 
-      // 3. Check if user has admin role
-      const userRolesResponse = await httpClient.get(
-        `/api/v2/tables/${userRolesTable.id}/records`,
-        {
-          params: {
-            where: `(user.Id,eq,${userId})~and(role.Id,eq,${adminRoleId})`,
-          },
-        },
+      // 3. Check if user has admin role using v3 API
+      const userRolesResult = await this.nocoDBV3Service.list(
+        userRolesTable.id,
+        { where: `(user.id,eq,${userId})~and(role.id,eq,${adminRoleId})`, limit: 1 },
       );
 
-      if (userRolesResponse.data.list.length === 0) {
+      if (userRolesResult.list.length === 0) {
         this.logger.log('Assigning admin role to admin user...');
-        await httpClient.post(
-          `/api/v2/tables/${userRolesTable.id}/records`,
-          {
-            user: { Id: userId },
-            role: { Id: adminRoleId },
-            assigned_at: new Date().toISOString(),
-          },
-        );
+        await this.nocoDBV3Service.create(userRolesTable.id, {
+          user: [{ id: userId }],
+          role: [{ id: adminRoleId }],
+          assigned_at: new Date().toISOString(),
+        });
         this.logger.log('Admin role assigned successfully');
       } else {
         this.logger.log('Admin user already has admin role');

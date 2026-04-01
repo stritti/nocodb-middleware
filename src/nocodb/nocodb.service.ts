@@ -40,7 +40,7 @@ export class NocoDBService implements OnModuleInit {
             },
         });
 
-        // HTTP Client for Meta API v2 operations
+        // HTTP Client for Meta API v3 operations
         this.httpClient = axios.create({
             baseURL: apiUrl,
             headers: {
@@ -101,7 +101,7 @@ export class NocoDBService implements OnModuleInit {
 
         try {
             const response = await this.httpClient.get(
-                `/api/v2/meta/bases/${this.baseId}/tables`,
+                `/api/v3/meta/bases/${this.baseId}/tables`,
             );
 
             const tables = response.data.list || [];
@@ -123,7 +123,7 @@ export class NocoDBService implements OnModuleInit {
 
         try {
             const response = await this.httpClient.get(
-                `/api/v2/meta/bases/${this.baseId}/tables`,
+                `/api/v3/meta/bases/${this.baseId}/tables`,
             );
 
             const tables = response.data.list || [];
@@ -150,7 +150,7 @@ export class NocoDBService implements OnModuleInit {
 
         try {
             const response = await this.httpClient.post(
-                `/api/v2/meta/bases/${this.baseId}/tables`,
+                `/api/v3/meta/bases/${this.baseId}/tables`,
                 {
                     table_name: prefixedName,
                     title: prefixedTitle,
@@ -185,7 +185,7 @@ export class NocoDBService implements OnModuleInit {
             };
 
             const response = await this.httpClient.post(
-                `/api/v2/meta/tables/${tableId}/columns`,
+                `/api/v3/meta/tables/${tableId}/columns`,
                 payload,
             );
 

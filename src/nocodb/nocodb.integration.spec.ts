@@ -79,7 +79,7 @@ describe('NocoDB Integration', () => {
         const result = await nocodbService.getTableByName('users');
         expect(result).toBeNull();
         expect(mockHttpClient.get).toHaveBeenCalledWith(
-            expect.stringContaining('/api/v2/meta/bases/base_id/tables')
+            expect.stringContaining('/api/v3/meta/bases/base_id/tables')
         );
     });
 });

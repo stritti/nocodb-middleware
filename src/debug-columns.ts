@@ -28,7 +28,7 @@ async function bootstrap() {
         for (const filter of filters) {
             try {
                 logger.log(`Testing filter: ${filter}`);
-                const response = await httpClient.get(`/api/v2/tables/${usersTable.id}/records`, {
+                const response = await httpClient.get(`/api/v3/tables/${usersTable.id}/records`, {
                     params: { where: filter }
                 });
                 logger.log(`Filter ${filter} success. Records: ${response.data.list.length}`);
@@ -40,7 +40,7 @@ async function bootstrap() {
         /*
         // Fetch records to see actual column names
         try {
-            const recordsResponse = await httpClient.get(`/api/v2/tables/${usersTable.id}/records`, {
+            const recordsResponse = await httpClient.get(`/api/v3/tables/${usersTable.id}/records`, {
                 params: { limit: 1 }
             });
 
