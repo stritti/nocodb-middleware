@@ -9,9 +9,10 @@ export class NocoDbContextMiddleware implements NestMiddleware {
     const user = (req as any).user;
 
     if (user) {
-      // Set NocoDB specific headers or context based on user
-      req.headers['x-nocodb-user-id'] = user.userId;
-      req.headers['x-nocodb-user-roles'] = user.roles
+      // Set NocoDB specific headers or context based on user.
+      // Header values must always be strings, so coerce both fields explicitly.
+      req.headers['x-nocodb-user-id'] = String(user.userId);
+      req.headers['x-nocodb-user-roles'] = Array.isArray(user.roles)
         ? user.roles.join(',')
         : '';
     }
