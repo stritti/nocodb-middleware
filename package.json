@@ -85,7 +85,17 @@
       "^.+\\.(t|j)s$": "ts-jest"
     },
     "collectCoverageFrom": [
-      "**/*.(t|j)s"
+      "**/*.(t|j)s",
+      "!main.ts",
+      "!**/*.module.ts",
+      "!**/tracing.ts",
+      "!**/*.spec.ts",
+      "!**/test-phase*.ts",
+      "!**/debug-*.ts",
+      "!**/delete-*.ts",
+      "!**/inspect-*.ts",
+      "!**/investigate-*.ts",
+      "!**/test-*.ts"
     ],
     "coverageDirectory": "../coverage",
     "coverageReporters": [
