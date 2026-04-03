@@ -87,7 +87,12 @@
     "collectCoverageFrom": [
       "**/*.(t|j)s",
       "!main.ts",
-      "!**/*.module.ts",
+      "!app.module.ts",
+      "!auth/auth.module.ts",
+      "!examples/examples.module.ts",
+      "!health/health.module.ts",
+      "!permissions/permissions.module.ts",
+      "!tracing/telemetry.module.ts",
       "!**/tracing.ts",
       "!**/*.spec.ts",
       "!**/test-phase*.ts",
