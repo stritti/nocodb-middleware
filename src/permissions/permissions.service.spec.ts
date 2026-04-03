@@ -10,6 +10,8 @@ describe('PermissionsService', () => {
   let mockHttpClient: any;
 
   beforeEach(async () => {
+    jest.useFakeTimers();
+
     mockHttpClient = {
       get: jest.fn(),
       defaults: { baseURL: 'http://test-url' },
@@ -44,6 +46,8 @@ describe('PermissionsService', () => {
   });
 
   afterEach(() => {
+    jest.clearAllTimers();
+    jest.useRealTimers();
     jest.restoreAllMocks();
   });
 
