@@ -12,11 +12,13 @@ describe('AppController (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
-    app.useGlobalPipes(new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-    }));
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+      }),
+    );
     await app.init();
   });
 
@@ -35,9 +37,7 @@ describe('AppController (e2e)', () => {
 
   describe('/examples (Authenticated)', () => {
     it('should return 401 without auth token', () => {
-      return request(app.getHttpServer())
-        .get('/examples')
-        .expect(401);
+      return request(app.getHttpServer()).get('/examples').expect(401);
     });
 
     // Note: To test authenticated endpoints, you would need to:

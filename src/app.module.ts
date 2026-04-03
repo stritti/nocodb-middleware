@@ -7,12 +7,14 @@ import { AuthModule } from './auth/auth.module';
 import { ExamplesModule } from './examples/examples.module';
 import { HealthModule } from './health/health.module';
 import { PermissionsModule } from './permissions/permissions.module';
+import { TelemetryModule } from './tracing/telemetry.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+    TelemetryModule,
     NocoDBModule,
     AuthModule,
     ExamplesModule,
@@ -22,4 +24,4 @@ import { PermissionsModule } from './permissions/permissions.module';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule { }
+export class AppModule {}

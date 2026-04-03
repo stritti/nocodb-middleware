@@ -6,15 +6,15 @@ import { PageOptionsDto } from '../nocodb/dto/page-options.dto';
 
 @Injectable()
 export class ExamplesService {
-    constructor(private readonly exampleRepository: ExampleRepository) { }
+  constructor(private readonly exampleRepository: ExampleRepository) {}
 
-    async findAll(pageOptionsDto: PageOptionsDto) {
-        return this.exampleRepository.findMany(pageOptionsDto);
-    }
+  async findAll(pageOptionsDto: PageOptionsDto) {
+    return this.exampleRepository.findMany(pageOptionsDto);
+  }
 
-    async create(createExampleDto: CreateExampleDto) {
-        return this.exampleRepository.create(createExampleDto);
-    }
+  async create(createExampleDto: CreateExampleDto) {
+    return this.exampleRepository.create(createExampleDto);
+  }
 
-    // Add findOne, update, delete methods as needed
+  // Add findOne, update, delete methods as needed
 }

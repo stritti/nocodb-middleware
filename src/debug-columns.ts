@@ -4,40 +4,44 @@ import { NocoDBService } from './nocodb/nocodb.service';
 import { Logger } from '@nestjs/common';
 
 async function bootstrap() {
-    const app = await NestFactory.createApplicationContext(AppModule);
-    const nocoDBService = app.get(NocoDBService);
-    const logger = new Logger('DebugColumns');
+  const app = await NestFactory.createApplicationContext(AppModule);
+  const nocoDBService = app.get(NocoDBService);
+  const logger = new Logger('DebugColumns');
 
-    try {
-        const usersTable = await nocoDBService.getTableByName('users');
-        if (!usersTable) {
-            logger.error('Users table not found');
-            return;
-        }
+  try {
+    const usersTable = await nocoDBService.getTableByName('users');
+    if (!usersTable) {
+      logger.error('Users table not found');
+      return;
+    }
 
-        logger.log(`Users Table ID: ${usersTable.id}`);
+    logger.log(`Users Table ID: ${usersTable.id}`);
 
-        const httpClient = nocoDBService.getHttpClient();
+    const httpClient = nocoDBService.getHttpClient();
 
-        // Test filters
-        const filters = [
-            '(username,eq,admin)',
-            '(Username,eq,admin)'
-        ];
+    // Test filters
+    const filters = ['(username,eq,admin)', '(Username,eq,admin)'];
 
-        for (const filter of filters) {
-            try {
-                logger.log(`Testing filter: ${filter}`);
-                const response = await httpClient.get(`/api/v3/tables/${usersTable.id}/records`, {
-                    params: { where: filter }
-                });
-                logger.log(`Filter ${filter} success. Records: ${response.data.list.length}`);
-            } catch (err: any) {
-                logger.error(`Filter ${filter} failed: ${err.response?.data?.msg || err.message}`);
-            }
-        }
+    for (const filter of filters) {
+      try {
+        logger.log(`Testing filter: ${filter}`);
+        const response = await httpClient.get(
+          `/api/v3/tables/${usersTable.id}/records`,
+          {
+            params: { where: filter },
+          },
+        );
+        logger.log(
+          `Filter ${filter} success. Records: ${response.data.list.length}`,
+        );
+      } catch (err: any) {
+        logger.error(
+          `Filter ${filter} failed: ${err.response?.data?.msg || err.message}`,
+        );
+      }
+    }
 
-        /*
+    /*
         // Fetch records to see actual column names
         try {
             const recordsResponse = await httpClient.get(`/api/v3/tables/${usersTable.id}/records`, {
@@ -56,11 +60,11 @@ async function bootstrap() {
             logger.error('Error fetching records', recordError);
         }
         */
-    } catch (error) {
-        logger.error('Error fetching columns', error);
-    } finally {
-        await app.close();
-    }
+  } catch (error) {
+    logger.error('Error fetching columns', error);
+  } finally {
+    await app.close();
+  }
 }
 
 bootstrap();

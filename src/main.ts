@@ -1,3 +1,4 @@
+import './tracing/tracing';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { NocoDBExceptionFilter } from './nocodb/filters/nocodb-exception.filter';
@@ -11,11 +12,13 @@ async function bootstrap() {
   app.useGlobalFilters(new NocoDBExceptionFilter());
 
   // Global validation pipe
-  app.useGlobalPipes(new ValidationPipe({
-    whitelist: true,
-    forbidNonWhitelisted: true,
-    transform: true,
-  }));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
 
   // Swagger setup
   const config = new DocumentBuilder()
