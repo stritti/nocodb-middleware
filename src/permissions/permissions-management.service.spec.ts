@@ -146,4 +146,100 @@ describe('PermissionsManagementService', () => {
       expect(perms).toEqual([]);
     });
   });
+
+  describe('batchSetPermissions', () => {
+    it('should set permissions for multiple tables', async () => {
+      (nocoDBService.getTableByName as jest.Mock).mockResolvedValue({
+        id: 'perm_table_id',
+      });
+      (nocoDBService.findOne as jest.Mock).mockResolvedValue(null);
+      (nocoDBService.create as jest.Mock).mockResolvedValue({ id: 1 });
+
+      const dto = {
+        roleId: 1,
+        permissions: [
+          {
+            tableName: 'users',
+            canCreate: true,
+            canRead: true,
+            canUpdate: false,
+            canDelete: false,
+          },
+          {
+            tableName: 'orders',
+            canCreate: false,
+            canRead: true,
+            canUpdate: false,
+            canDelete: false,
+          },
+        ],
+      };
+
+      const result = await service.batchSetPermissions(dto as any);
+      expect(result.success).toBe(true);
+      expect(result.count).toBe(2);
+      expect(nocoDBService.create).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('copyPermissions', () => {
+    it('should copy permissions from source to target role', async () => {
+      (nocoDBService.getTableByName as jest.Mock).mockResolvedValue({
+        id: 'perm_table_id',
+      });
+      (nocoDBService.list as jest.Mock).mockResolvedValue({
+        list: [
+          {
+            id: 1,
+            table_name: 'users',
+            can_create: true,
+            can_read: true,
+            can_update: false,
+            can_delete: false,
+          },
+        ],
+      });
+      (nocoDBService.findOne as jest.Mock).mockResolvedValue(null);
+      (nocoDBService.create as jest.Mock).mockResolvedValue({ id: 2 });
+
+      const result = await service.copyPermissions(1, 2);
+      expect(result.success).toBe(true);
+      expect(result.copiedCount).toBe(1);
+    });
+
+    it('should throw NotFoundException when permissions table not found', async () => {
+      (nocoDBService.getTableByName as jest.Mock).mockResolvedValue(null);
+
+      await expect(service.copyPermissions(1, 2)).rejects.toThrow(
+        'Table_permissions table not found',
+      );
+    });
+  });
+
+  describe('setTablePermissions - NotFoundException', () => {
+    it('should throw NotFoundException when table_permissions not found', async () => {
+      (nocoDBService.getTableByName as jest.Mock).mockResolvedValue(null);
+
+      await expect(
+        service.setTablePermissions({
+          roleId: 1,
+          tableName: 'users',
+          canCreate: false,
+          canRead: false,
+          canUpdate: false,
+          canDelete: false,
+        }),
+      ).rejects.toThrow('Table_permissions table not found');
+    });
+  });
+
+  describe('deleteRolePermissions - NotFoundException', () => {
+    it('should throw NotFoundException when table_permissions not found', async () => {
+      (nocoDBService.getTableByName as jest.Mock).mockResolvedValue(null);
+
+      await expect(service.deleteRolePermissions(1)).rejects.toThrow(
+        'Table_permissions table not found',
+      );
+    });
+  });
 });

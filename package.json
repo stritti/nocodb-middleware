@@ -85,7 +85,22 @@
       "^.+\\.(t|j)s$": "ts-jest"
     },
     "collectCoverageFrom": [
-      "**/*.(t|j)s"
+      "**/*.(t|j)s",
+      "!main.ts",
+      "!app.module.ts",
+      "!auth/auth.module.ts",
+      "!examples/examples.module.ts",
+      "!health/health.module.ts",
+      "!permissions/permissions.module.ts",
+      "!tracing/telemetry.module.ts",
+      "!**/tracing.ts",
+      "!**/*.spec.ts",
+      "!**/test-phase*.ts",
+      "!**/debug-*.ts",
+      "!**/delete-*.ts",
+      "!**/inspect-*.ts",
+      "!**/investigate-*.ts",
+      "!**/test-*.ts"
     ],
     "coverageDirectory": "../coverage",
     "coverageReporters": [
