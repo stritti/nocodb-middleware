@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException, ConflictException, Logger } from '@nestjs/common';
+import { NotFoundException, ConflictException, BadRequestException, Logger } from '@nestjs/common';
 import { RolesService } from './roles.service';
 import { NocoDBService } from '../nocodb/nocodb.service';
 
@@ -130,6 +130,53 @@ describe('RolesService', () => {
 
       const result = await service.findRoleByName('nonexistent');
       expect(result).toBeNull();
+    });
+
+    it('should throw BadRequestException for role names containing filter injection characters', async () => {
+      await expect(
+        service.findRoleByName('admin),~(id,gt,0'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw BadRequestException for role names with parentheses', async () => {
+      await expect(service.findRoleByName('a(b')).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should throw BadRequestException for role names with commas', async () => {
+      await expect(service.findRoleByName('a,b')).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should throw BadRequestException for role names with tilde', async () => {
+      await expect(service.findRoleByName('a~b')).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should throw BadRequestException for role names with leading spaces', async () => {
+      await expect(service.findRoleByName(' admin')).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should throw BadRequestException for role names with trailing spaces', async () => {
+      await expect(service.findRoleByName('admin ')).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should accept valid role names with allowed characters', async () => {
+      (nocoDBService.getTableByName as jest.Mock).mockResolvedValue({
+        id: 'roles_table_id',
+      });
+      (nocoDBService.findOne as jest.Mock).mockResolvedValue(null);
+
+      await expect(
+        service.findRoleByName('Valid Role-Name_123'),
+      ).resolves.toBeNull();
     });
   });
 
