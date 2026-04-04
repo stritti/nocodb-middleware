@@ -235,15 +235,22 @@ export class NocoDBService implements OnModuleInit {
 
   // ── Data API v3 – rate limiting ───────────────────────────────────────────
 
+  private nextAllowedTime = 0;
+
   private enforceRateLimit(): Promise<void> {
-    const next = this.rateLimitChain
-      .catch(() => {})
-      .then(
-        () =>
-          new Promise<void>((resolve) =>
-            setTimeout(resolve, this.minRequestInterval),
-          ),
-      );
+    const next = this.rateLimitChain.catch(() => {}).then(() => {
+      const now = Date.now();
+      const scheduledTime = Math.max(now, this.nextAllowedTime);
+      const delay = Math.max(0, scheduledTime - now);
+
+      this.nextAllowedTime = scheduledTime + this.minRequestInterval;
+
+      if (delay === 0) {
+        return;
+      }
+
+      return new Promise<void>((resolve) => setTimeout(resolve, delay));
+    });
     this.rateLimitChain = next;
     return next;
   }
