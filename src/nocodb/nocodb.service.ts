@@ -47,7 +47,8 @@ export class NocoDBService implements OnModuleInit {
 
   // Rate limiting for Data API calls
   private readonly rateLimit = 5; // requests per second
-  private lastRequestTime = 0;
+  private readonly minRequestInterval = 1000 / this.rateLimit;
+  private rateLimitChain: Promise<void> = Promise.resolve();
 
   constructor(
     private readonly configService: ConfigService,
@@ -234,17 +235,17 @@ export class NocoDBService implements OnModuleInit {
 
   // ── Data API v3 – rate limiting ───────────────────────────────────────────
 
-  private async enforceRateLimit(): Promise<void> {
-    const now = Date.now();
-    const timeSinceLastRequest = now - this.lastRequestTime;
-    const minInterval = 1000 / this.rateLimit;
-
-    if (timeSinceLastRequest < minInterval) {
-      const delay = minInterval - timeSinceLastRequest;
-      await new Promise((resolve) => setTimeout(resolve, delay));
-    }
-
-    this.lastRequestTime = Date.now();
+  private enforceRateLimit(): Promise<void> {
+    const next = this.rateLimitChain
+      .catch(() => {})
+      .then(
+        () =>
+          new Promise<void>((resolve) =>
+            setTimeout(resolve, this.minRequestInterval),
+          ),
+      );
+    this.rateLimitChain = next;
+    return next;
   }
 
   // ── Data API v3 – CRUD ────────────────────────────────────────────────────
