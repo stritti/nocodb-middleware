@@ -194,7 +194,11 @@ describe('NocoDBService', () => {
   });
 
   describe('Rate Limiting', () => {
-    it('should enforce rate limit between requests', async () => {
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('should allow first request to proceed immediately and space subsequent requests by minRequestInterval', async () => {
       jest.useFakeTimers();
 
       mockHttpClient.post.mockResolvedValue({ data: {} });
@@ -202,13 +206,17 @@ describe('NocoDBService', () => {
       const p1 = service.create('t1', {});
       const p2 = service.create('t1', {});
 
-      jest.advanceTimersByTime(200);
+      // First request fires immediately (no delay needed when idle);
+      // second is serialized behind it and waits minRequestInterval (200 ms).
+      // Advancing by < 200 ms flushes microtasks so p1 runs, but p2 is still queued.
+      await jest.advanceTimersByTimeAsync(100);
+      expect(mockHttpClient.post).toHaveBeenCalledTimes(1);
 
-      await Promise.all([p1, p2]);
-
+      // Advance past the full minRequestInterval — p2 fires now.
+      await jest.advanceTimersByTimeAsync(100);
       expect(mockHttpClient.post).toHaveBeenCalledTimes(2);
 
-      jest.useRealTimers();
+      await Promise.all([p1, p2]);
     });
   });
 
