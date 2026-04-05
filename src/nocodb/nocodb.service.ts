@@ -238,19 +238,21 @@ export class NocoDBService implements OnModuleInit {
   private nextAllowedTime = 0;
 
   private enforceRateLimit(): Promise<void> {
-    const next = this.rateLimitChain.catch(() => {}).then(() => {
-      const now = Date.now();
-      const scheduledTime = Math.max(now, this.nextAllowedTime);
-      const delay = Math.max(0, scheduledTime - now);
+    const next = this.rateLimitChain
+      .catch(() => {})
+      .then(() => {
+        const now = Date.now();
+        const scheduledTime = Math.max(now, this.nextAllowedTime);
+        const delay = Math.max(0, scheduledTime - now);
 
-      this.nextAllowedTime = scheduledTime + this.minRequestInterval;
+        this.nextAllowedTime = scheduledTime + this.minRequestInterval;
 
-      if (delay === 0) {
-        return;
-      }
+        if (delay === 0) {
+          return;
+        }
 
-      return new Promise<void>((resolve) => setTimeout(resolve, delay));
-    });
+        return new Promise<void>((resolve) => setTimeout(resolve, delay));
+      });
     this.rateLimitChain = next;
     return next;
   }

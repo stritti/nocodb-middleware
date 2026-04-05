@@ -1,5 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException, ConflictException, BadRequestException, Logger } from '@nestjs/common';
+import {
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+  Logger,
+} from '@nestjs/common';
 import { RolesService } from './roles.service';
 import { NocoDBService } from '../nocodb/nocodb.service';
 
@@ -68,9 +73,9 @@ describe('RolesService', () => {
     it('should throw NotFoundException when roles table is not found', async () => {
       (nocoDBService.getTableByName as jest.Mock).mockResolvedValue(null);
 
-      await expect(
-        service.createRole({ roleName: 'admin' }),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.createRole({ roleName: 'admin' })).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should throw ConflictException when role already exists', async () => {
@@ -82,9 +87,9 @@ describe('RolesService', () => {
         role_name: 'admin',
       });
 
-      await expect(
-        service.createRole({ roleName: 'admin' }),
-      ).rejects.toThrow(ConflictException);
+      await expect(service.createRole({ roleName: 'admin' })).rejects.toThrow(
+        ConflictException,
+      );
     });
 
     it('should use defaults for optional fields', async () => {
@@ -133,9 +138,9 @@ describe('RolesService', () => {
     });
 
     it('should throw BadRequestException for role names containing filter injection characters', async () => {
-      await expect(
-        service.findRoleByName('admin),~(id,gt,0'),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.findRoleByName('admin),~(id,gt,0')).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should throw BadRequestException for role names with parentheses', async () => {
@@ -186,7 +191,10 @@ describe('RolesService', () => {
         id: 'roles_table_id',
       });
       (nocoDBService.list as jest.Mock).mockResolvedValue({
-        list: [{ id: 1, role_name: 'admin' }, { id: 2, role_name: 'user' }],
+        list: [
+          { id: 1, role_name: 'admin' },
+          { id: 2, role_name: 'user' },
+        ],
       });
 
       const roles = await service.getAllRoles();

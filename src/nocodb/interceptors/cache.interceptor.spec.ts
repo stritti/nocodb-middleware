@@ -47,7 +47,9 @@ describe('CacheInterceptor', () => {
     const next = { handle: jest.fn() };
 
     const observable = await interceptor.intercept(context as any, next as any);
-    const result = await new Promise((resolve) => observable.subscribe(resolve));
+    const result = await new Promise((resolve) =>
+      observable.subscribe(resolve),
+    );
 
     expect(result).toEqual(cachedData);
     expect(next.handle).not.toHaveBeenCalled();
