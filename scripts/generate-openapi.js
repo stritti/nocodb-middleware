@@ -11,7 +11,7 @@
  * code generators) can reference the spec without running the server.
  */
 
-/* eslint-disable */
+/* eslint-disable @typescript-eslint/no-var-requires */
 // This is a plain Node.js CJS script – no ts-node required.
 
 process.env.NOCODB_API_URL =
