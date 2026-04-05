@@ -24,11 +24,28 @@ process.env.JWT_SECRET = process.env.JWT_SECRET || 'dummy-secret';
 
 const { NestFactory } = require('@nestjs/core');
 const { DocumentBuilder, SwaggerModule } = require('@nestjs/swagger');
-const { AppModule } = require('../dist/src/app.module.js');
 const fs = require('fs');
 const path = require('path');
 const yaml = require('js-yaml');
 
+function resolveAppModule() {
+  const candidates = [
+    path.resolve(__dirname, '..', 'dist', 'app.module.js'),
+    path.resolve(__dirname, '..', 'dist', 'src', 'app.module.js'),
+  ];
+
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      return require(candidate).AppModule;
+    }
+  }
+
+  throw new Error(
+    `Unable to locate compiled AppModule. Run "npm run build" first. Tried: ${candidates.join(', ')}`,
+  );
+}
+
+const AppModule = resolveAppModule();
 async function generate() {
   const app = await NestFactory.create(AppModule, { logger: false });
 
