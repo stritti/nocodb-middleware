@@ -21,7 +21,7 @@ A robust NestJS middleware for NocoDB with comprehensive authentication, caching
 ✅ **Global Validation** - Automatic request validation with class-validator  
 ✅ **Health Check** - Service health monitoring  
 ✅ **Distributed Tracing** - Optional OpenTelemetry integration  
-✅ **Testing** - Comprehensive unit and E2E tests  
+✅ **Testing** - Unit tests and E2E smoke testing  
 
 ## Installation
 

@@ -74,7 +74,7 @@ paths:
         '403':
           description: Forbidden – insufficient permissions
       security: &ref_1
-        - access-token: []
+        - bearer: []
       summary: Create a new role
       tags: &ref_2
         - admin / permissions
@@ -133,7 +133,7 @@ paths:
         '403':
           description: Forbidden – insufficient permissions
       security: *ref_1
-      summary: Set CRUD permissions for a role on a table
+      summary: Set permissions for a role on a specific table
       tags: *ref_2
   /admin/permissions/table-permissions/batch:
     post:
@@ -147,7 +147,7 @@ paths:
               $ref: '#/components/schemas/BatchSetPermissionsDto'
       responses:
         '201':
-          description: Permissions set
+          description: Batch permissions set
         '400':
           description: Validation error
         '401':
@@ -155,7 +155,7 @@ paths:
         '403':
           description: Forbidden – insufficient permissions
       security: *ref_1
-      summary: Batch-set permissions for multiple tables/roles
+      summary: Batch-set permissions for a role across multiple tables
       tags: *ref_2
   /admin/permissions/roles/{roleId}/permissions:
     get:
@@ -169,13 +169,11 @@ paths:
             type: number
       responses:
         '200':
-          description: List of table permissions
+          description: Role permissions
         '401':
           description: Unauthorized
         '403':
           description: Forbidden – insufficient permissions
-        '404':
-          description: Role not found
       security: *ref_1
       summary: Get all table permissions for a role
       tags: *ref_2
@@ -190,13 +188,13 @@ paths:
             type: number
       responses:
         '204':
-          description: Permissions removed
+          description: Permissions deleted
         '401':
           description: Unauthorized
         '403':
           description: Forbidden – insufficient permissions
       security: *ref_1
-      summary: Remove all table permissions from a role
+      summary: Delete all table permissions for a role
       tags: *ref_2
   /admin/permissions/roles/{sourceRoleId}/copy-to/{targetRoleId}:
     post:
@@ -221,8 +219,6 @@ paths:
           description: Unauthorized
         '403':
           description: Forbidden – insufficient permissions
-        '404':
-          description: Source or target role not found
       security: *ref_1
       summary: Copy all permissions from one role to another
       tags: *ref_2
@@ -246,7 +242,7 @@ paths:
         '403':
           description: Forbidden – insufficient permissions
       security: *ref_1
-      summary: Assign a single role to a user
+      summary: Assign a role to a user
       tags: *ref_2
   /admin/permissions/user-roles/assign-multiple:
     post:
@@ -268,7 +264,7 @@ paths:
         '403':
           description: Forbidden – insufficient permissions
       security: *ref_1
-      summary: Assign multiple roles to a user at once
+      summary: Assign multiple roles to a user
       tags: *ref_2
   /admin/permissions/user-roles/users/{userId}/roles/{roleId}:
     delete:
@@ -293,8 +289,6 @@ paths:
           description: Unauthorized
         '403':
           description: Forbidden – insufficient permissions
-        '404':
-          description: Assignment not found
       security: *ref_1
       summary: Remove a role from a user
       tags: *ref_2
@@ -310,7 +304,7 @@ paths:
             type: number
       responses:
         '200':
-          description: List of roles
+          description: User roles
         '401':
           description: Unauthorized
         '403':
@@ -331,7 +325,7 @@ servers:
     description: Local
 components:
   securitySchemes:
-    access-token:
+    bearer:
       scheme: bearer
       bearerFormat: JWT
       type: http
@@ -347,16 +341,130 @@ components:
         - title
     CreateRoleDto:
       type: object
-      properties: {}
+      properties:
+        roleName:
+          type: string
+          example: content-editor
+          description: Unique role name (3–50 chars, alphanumeric/spaces/underscores/hyphens)
+        description:
+          type: string
+          example: Can create and edit content, but not delete
+          description: Optional human-readable description (max 255 chars)
+        isSystemRole:
+          type: boolean
+          example: false
+          default: false
+          description: Mark as a built-in system role that cannot be deleted
+      required:
+        - roleName
     SetTablePermissionsDto:
       type: object
-      properties: {}
+      properties:
+        roleId:
+          type: number
+          example: 1
+          description: Numeric role ID
+        tableName:
+          type: string
+          example: products
+          description: Table name (alphanumeric, underscores, hyphens)
+        canCreate:
+          type: boolean
+          example: true
+          description: Allow CREATE operations
+        canRead:
+          type: boolean
+          example: true
+          description: Allow READ operations
+        canUpdate:
+          type: boolean
+          example: true
+          description: Allow UPDATE operations
+        canDelete:
+          type: boolean
+          example: false
+          description: Allow DELETE operations
+      required:
+        - roleId
+        - tableName
+        - canCreate
+        - canRead
+        - canUpdate
+        - canDelete
+    TablePermissionItem:
+      type: object
+      properties:
+        tableName:
+          type: string
+          example: products
+          description: Table name (alphanumeric, underscores, hyphens)
+        canCreate:
+          type: boolean
+          example: true
+          description: Allow CREATE operations
+        canRead:
+          type: boolean
+          example: true
+          description: Allow READ operations
+        canUpdate:
+          type: boolean
+          example: true
+          description: Allow UPDATE operations
+        canDelete:
+          type: boolean
+          example: false
+          description: Allow DELETE operations
+      required:
+        - tableName
+        - canCreate
+        - canRead
+        - canUpdate
+        - canDelete
     BatchSetPermissionsDto:
       type: object
-      properties: {}
+      properties:
+        roleId:
+          type: number
+          example: 1
+          description: Numeric role ID
+        permissions:
+          description: List of table permission entries
+          type: array
+          items:
+            $ref: '#/components/schemas/TablePermissionItem'
+      required:
+        - roleId
+        - permissions
     AssignRoleDto:
       type: object
-      properties: {}
+      properties:
+        userId:
+          type: number
+          example: 42
+          description: Numeric user ID
+        roleId:
+          type: number
+          example: 1
+          description: Numeric role ID
+      required:
+        - userId
+        - roleId
     AssignMultipleRolesDto:
       type: object
-      properties: {}
+      properties:
+        userId:
+          type: number
+          example: 42
+          description: Numeric user ID
+        roleIds:
+          example:
+            - 1
+            - 2
+            - 3
+          description: Array of numeric role IDs to assign
+          type: array
+          items:
+            type: number
+      required:
+        - userId
+        - roleIds

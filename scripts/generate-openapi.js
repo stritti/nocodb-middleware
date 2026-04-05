@@ -56,10 +56,7 @@ async function generate() {
         'with role-based permissions, caching, rate limiting, and distributed tracing.',
     )
     .setVersion(process.env.npm_package_version ?? '1.0')
-    .addBearerAuth(
-      { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
-      'access-token',
-    )
+    .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' })
     .addServer('http://localhost:3000', 'Local')
     .build();
 
