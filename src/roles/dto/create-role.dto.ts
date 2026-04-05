@@ -11,10 +11,8 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateRoleDto {
   @ApiProperty({
-    description: 'Unique name for the role',
-    example: 'editor',
-    minLength: 3,
-    maxLength: 50,
+    example: 'content-editor',
+    description: 'Unique role name (3–50 chars, alphanumeric/spaces/underscores/hyphens)',
   })
   @IsString()
   @IsNotEmpty({ message: 'Role name cannot be empty' })
@@ -27,9 +25,8 @@ export class CreateRoleDto {
   roleName: string;
 
   @ApiPropertyOptional({
-    description: 'Optional description of the role',
-    example: 'Can edit but not delete records',
-    maxLength: 255,
+    example: 'Can create and edit content, but not delete',
+    description: 'Optional human-readable description (max 255 chars)',
   })
   @IsString()
   @IsOptional()
@@ -37,9 +34,9 @@ export class CreateRoleDto {
   description?: string;
 
   @ApiPropertyOptional({
-    description: 'Whether this is a built-in system role',
     example: false,
     default: false,
+    description: 'Mark as a built-in system role that cannot be deleted',
   })
   @IsBoolean()
   @IsOptional()

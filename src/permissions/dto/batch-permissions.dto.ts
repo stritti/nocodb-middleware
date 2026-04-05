@@ -12,9 +12,8 @@ import { ApiProperty } from '@nestjs/swagger';
 
 export class TablePermissionItem {
   @ApiProperty({
-    description: 'Name of the NocoDB table',
-    example: 'Products',
-    pattern: '^[a-zA-Z0-9_-]+$',
+    example: 'products',
+    description: 'Table name (alphanumeric, underscores, hyphens)',
   })
   @IsString()
   @IsNotEmpty()
@@ -24,35 +23,32 @@ export class TablePermissionItem {
   })
   tableName: string;
 
-  @ApiProperty({ description: 'Allow record creation', example: true })
+  @ApiProperty({ example: true, description: 'Allow CREATE operations' })
   @IsBoolean()
   canCreate: boolean;
 
-  @ApiProperty({ description: 'Allow record reads', example: true })
+  @ApiProperty({ example: true, description: 'Allow READ operations' })
   @IsBoolean()
   canRead: boolean;
 
-  @ApiProperty({ description: 'Allow record updates', example: true })
+  @ApiProperty({ example: true, description: 'Allow UPDATE operations' })
   @IsBoolean()
   canUpdate: boolean;
 
-  @ApiProperty({ description: 'Allow record deletion', example: false })
+  @ApiProperty({ example: false, description: 'Allow DELETE operations' })
   @IsBoolean()
   canDelete: boolean;
 }
 
 export class BatchSetPermissionsDto {
-  @ApiProperty({
-    description: 'ID of the role to assign permissions to',
-    example: 1,
-  })
+  @ApiProperty({ example: 1, description: 'Numeric role ID' })
   @IsNumber()
   @IsNotEmpty()
   roleId: number;
 
   @ApiProperty({
-    description: 'Array of table permission objects',
     type: [TablePermissionItem],
+    description: 'List of table permission entries',
   })
   @IsArray()
   @ValidateNested({ each: true })
