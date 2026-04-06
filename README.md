@@ -178,4 +178,4 @@ curl http://localhost:3000/health
 
 ## License
 
-UNLICENSED
+This project is licensed under the [MIT License](LICENSE).
