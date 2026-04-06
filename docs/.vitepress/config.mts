@@ -1,76 +1,67 @@
 import { defineConfig } from 'vitepress'
-import { useSidebar } from 'vitepress-openapi'
-import yamlPlugin from '@rollup/plugin-yaml'
-import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import jsYaml from 'js-yaml'
+import { fileURLToPath } from 'node:url'
+import { withOpenSpec } from '@stritti/vitepress-plugin-openspec'
 
-const specPath = resolve(__dirname, '../../openapi.yaml')
-const spec = jsYaml.load(readFileSync(specPath, 'utf-8')) as object
+const __dirname = resolve(fileURLToPath(import.meta.url), '..')
 
-const openApiSidebar = useSidebar({ spec }).generateSidebarGroups()
+export default defineConfig(
+  withOpenSpec(
+    {
+      title: 'NocoDB Middleware',
+      description: 'A robust NestJS middleware for NocoDB with authentication, caching, error handling, and API documentation.',
+      base: '/nocodb-middleware/',
+      ignoreDeadLinks: [/^http:\/\/localhost/],
 
-export default defineConfig({
-  title: 'NocoDB Middleware',
-  description: 'A robust NestJS middleware for NocoDB with authentication, caching, error handling, and API documentation.',
-  base: '/nocodb-middleware/',
-  ignoreDeadLinks: [/^http:\/\/localhost/],
-
-  vite: {
-    plugins: [yamlPlugin()],
-  },
-
-  themeConfig: {
-    nav: [
-      { text: 'Home', link: '/' },
-      { text: 'Guide', link: '/middleware' },
-      { text: 'API', link: '/api' },
-      { text: 'OpenAPI Spec', link: '/openapi-spec' },
-    ],
-
-    sidebar: [
-      {
-        text: 'Getting Started',
-        items: [
-          { text: 'Overview', link: '/' },
-          { text: 'Middleware', link: '/middleware' },
+      themeConfig: {
+        nav: [
+          { text: 'Home', link: '/' },
+          { text: 'Guide', link: '/middleware' },
+          { text: 'API', link: '/api' },
         ],
-      },
-      {
-        text: 'Reference',
-        items: [
-          { text: 'API Documentation', link: '/api' },
-          { text: 'Error Handling', link: '/error-handling' },
-          { text: 'Caching', link: '/caching' },
-          { text: 'Testing', link: '/testing' },
-          { text: 'Versioning', link: '/versioning' },
-        ],
-      },
-      {
-        text: 'Advanced',
-        items: [
-          { text: 'NocoDB v3 Usage Examples', link: '/nocodb-v3-usage-examples' },
-          { text: 'Database Schema', link: '/database-schema' },
-          { text: 'Product Readiness', link: '/product-readiness' },
-        ],
-      },
-      {
-        text: 'OpenAPI Spec',
-        items: openApiSidebar,
-      },
-    ],
 
-    socialLinks: [
-      { icon: 'github', link: 'https://github.com/stritti/nocodb-middleware' },
-    ],
+        sidebar: [
+          {
+            text: 'Getting Started',
+            items: [
+              { text: 'Overview', link: '/' },
+              { text: 'Middleware', link: '/middleware' },
+            ],
+          },
+          {
+            text: 'Reference',
+            items: [
+              { text: 'API Documentation', link: '/api' },
+              { text: 'Error Handling', link: '/error-handling' },
+              { text: 'Caching', link: '/caching' },
+              { text: 'Testing', link: '/testing' },
+              { text: 'Versioning', link: '/versioning' },
+            ],
+          },
+          {
+            text: 'Advanced',
+            items: [
+              { text: 'NocoDB v3 Usage Examples', link: '/nocodb-v3-usage-examples' },
+              { text: 'Database Schema', link: '/database-schema' },
+              { text: 'Product Readiness', link: '/product-readiness' },
+            ],
+          },
+        ],
 
-    footer: {
-      message: 'Released under the UNLICENSED License.',
-      copyright: 'Copyright © stritti',
+        socialLinks: [
+          { icon: 'github', link: 'https://github.com/stritti/nocodb-middleware' },
+        ],
+
+        footer: {
+          message: 'Released under the MIT License.',
+          copyright: 'Copyright © stritti',
+        },
+
+        search: {
+          provider: 'local',
+        },
+      },
     },
-
-    search: {
-      provider: 'local',
-    },
-  },
-})
+    { specDir: resolve(__dirname, '../../openspec') }
+  )
+)
