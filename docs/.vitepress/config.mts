@@ -1,4 +1,14 @@
 import { defineConfig } from 'vitepress'
+import { useSidebar } from 'vitepress-openapi'
+import yamlPlugin from '@rollup/plugin-yaml'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import jsYaml from 'js-yaml'
+
+const specPath = resolve(__dirname, '../../openapi.yaml')
+const spec = jsYaml.load(readFileSync(specPath, 'utf-8')) as object
+
+const openApiSidebar = useSidebar({ spec }).generateSidebarGroups()
 
 export default defineConfig({
   title: 'NocoDB Middleware',
@@ -6,11 +16,16 @@ export default defineConfig({
   base: '/nocodb-middleware/',
   ignoreDeadLinks: [/^http:\/\/localhost/],
 
+  vite: {
+    plugins: [yamlPlugin()],
+  },
+
   themeConfig: {
     nav: [
       { text: 'Home', link: '/' },
       { text: 'Guide', link: '/middleware' },
       { text: 'API', link: '/api' },
+      { text: 'OpenAPI Spec', link: '/openapi-spec' },
     ],
 
     sidebar: [
@@ -38,6 +53,10 @@ export default defineConfig({
           { text: 'Database Schema', link: '/database-schema' },
           { text: 'Product Readiness', link: '/product-readiness' },
         ],
+      },
+      {
+        text: 'OpenAPI Spec',
+        items: openApiSidebar,
       },
     ],
 
