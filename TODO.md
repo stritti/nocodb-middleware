@@ -41,7 +41,7 @@ Alle Phasen 1–11 der ursprünglichen Checkliste sind implementiert:
 
 > Details: [docs/product-readiness.md – Abschnitt 8](docs/product-readiness.md#8-prioritised-action-plan)
 
-- [ ] **Datenbankschema dokumentieren** – `docs/database-schema.md` mit allen benötigten
+- [x] **Datenbankschema dokumentieren** – `docs/database-schema.md` mit allen benötigten
   NocoDB-Tabellen (`users`, `user_roles`, `roles`, `table_permissions`), Spalten und
   Beziehungen erstellen.
   _(vgl. [product-readiness.md §3.7](docs/product-readiness.md#37-nocodb-table-setup--bootstrap-documentation))_
