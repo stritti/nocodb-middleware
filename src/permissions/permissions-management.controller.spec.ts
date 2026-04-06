@@ -36,7 +36,10 @@ describe('PermissionsManagementController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [PermissionsManagementController],
       providers: [
-        { provide: PermissionsManagementService, useValue: permissionsManagement },
+        {
+          provide: PermissionsManagementService,
+          useValue: permissionsManagement,
+        },
         { provide: RolesService, useValue: rolesService },
         { provide: UserRolesService, useValue: userRolesService },
       ],
@@ -102,7 +105,9 @@ describe('PermissionsManagementController', () => {
       permissionsManagement.setTablePermissions.mockResolvedValue(expected);
 
       const result = await controller.setTablePermissions(dto as any);
-      expect(permissionsManagement.setTablePermissions).toHaveBeenCalledWith(dto);
+      expect(permissionsManagement.setTablePermissions).toHaveBeenCalledWith(
+        dto,
+      );
       expect(result).toEqual(expected);
     });
   });
@@ -133,7 +138,9 @@ describe('PermissionsManagementController', () => {
     it('should delete all permissions for a role', async () => {
       permissionsManagement.deleteRolePermissions.mockResolvedValue(undefined);
       await controller.deleteRolePermissions(1);
-      expect(permissionsManagement.deleteRolePermissions).toHaveBeenCalledWith(1);
+      expect(permissionsManagement.deleteRolePermissions).toHaveBeenCalledWith(
+        1,
+      );
     });
   });
 

@@ -23,7 +23,7 @@ describe('NocoDBException', () => {
       const exception = NocoDBException.tableNotFound('users');
       expect(exception.getStatus()).toBe(HttpStatus.NOT_FOUND);
       const response = exception.getResponse() as any;
-      expect(response.message).toContain("users");
+      expect(response.message).toContain('users');
       expect(response.message).toContain('not found');
     });
   });
@@ -53,7 +53,9 @@ describe('NocoDBException', () => {
     });
 
     it('should create an UNAUTHORIZED exception with custom message', () => {
-      const exception = NocoDBException.unauthorized('Custom unauthorized message');
+      const exception = NocoDBException.unauthorized(
+        'Custom unauthorized message',
+      );
       expect(exception.getStatus()).toBe(HttpStatus.UNAUTHORIZED);
       const response = exception.getResponse() as any;
       expect(response.message).toBe('Custom unauthorized message');

@@ -1,289 +1,113 @@
-# TODO: NocoDB Middleware für Nest.js
+# TODO: NocoDB Middleware
 
-## Überblick
-Diese Checkliste führt dich durch die Implementierung einer robusten Middleware für NocoDB in deinem Nest.js-Projekt mit modernen Authentifizierungsmechanismen.
-
----
-
-## Phase 1: Projekt-Setup und Dependencies
-
-### 1.1 Basis-Dependencies installieren
-- [ ] NocoDB SDK installieren
-  ```bash
-  npm install nocodb-sdk
-  ```
-- [ ] Zusätzliche Dependencies für Authentifizierung
-  ```bash
-  npm install @nestjs/passport passport passport-jwt
-  npm install @nestjs/jwt
-  npm install -D @types/passport-jwt
-  ```
-- [ ] Config-Management
-  ```bash
-  npm install @nestjs/config
-  ```
-
-### 1.2 Umgebungsvariablen konfigurieren
-- [ ] `.env.example` erstellen mit folgenden Variablen:
-  - `NOCODB_API_URL` (z.B. http://localhost:8080)
-  - `NOCODB_API_TOKEN` oder `NOCODB_AUTH_TOKEN`
-  - `NOCODB_PROJECT_ID` (optional)
-  - `JWT_SECRET` (für eigene JWT-Authentifizierung)
-  - `JWT_EXPIRES_IN` (z.B. '1d')
-- [ ] `.env` Datei anlegen (nicht committen!)
-- [ ] `.env` in `.gitignore` eintragen
+> Vollständige Analyse, Bewertungsmatrix und Begründung der Priorisierung:
+> **[docs/product-readiness.md](docs/product-readiness.md)**
 
 ---
 
-## Phase 2: Basis-Konfiguration
+## Status-Legende
 
-### 2.1 Config-Module einrichten
-- [ ] `src/config/nocodb.config.ts` erstellen
-  - Configuration-Interface definieren
-  - Environment-Variablen validieren
-  - Factory-Function für Config bereitstellen
-
-### 2.2 NocoDB-Service erstellen
-- [ ] `src/nocodb/nocodb.service.ts` erstellen
-  - NocoDB-Client initialisieren
-  - Connection-Management implementieren
-  - Error-Handling für API-Calls
-  - Retry-Logik für fehlgeschlagene Requests
-
-### 2.3 NocoDB-Module strukturieren
-- [ ] `src/nocodb/nocodb.module.ts` erstellen
-  - Service registrieren
-  - Config-Module importieren
-  - Als globales Modul exportieren
+- [x] Abgeschlossen
+- [ ] Offen / geplant
+- [!] Blockiert / Problem
 
 ---
 
-## Phase 3: Authentifizierungs-Middleware
+## ✅ Abgeschlossen
 
-### 3.1 JWT-Strategy implementieren
-- [ ] `src/auth/strategies/jwt.strategy.ts` erstellen
-  - Passport-JWT-Strategy konfigurieren
-  - Token-Validierung implementieren
-  - User-Payload extrahieren
+Alle Phasen 1–11 der ursprünglichen Checkliste sind implementiert:
 
-### 3.2 Auth-Guards erstellen
-- [ ] `src/auth/guards/jwt-auth.guard.ts` erstellen
-  - JWT-Authentication-Guard
-  - Error-Handling für ungültige Tokens
-- [ ] `src/auth/guards/roles.guard.ts` erstellen (optional)
-  - Rollenbasierte Zugriffskontrolle
-  - Custom-Decorator für Rollen
-
-### 3.3 Auth-Module konfigurieren
-- [ ] `src/auth/auth.module.ts` erstellen
-  - JWT-Module konfigurieren
-  - Strategies registrieren
-  - Guards exportieren
-
----
-
-## Phase 4: NocoDB-Integration Middleware
-
-### 4.1 Request-Context-Middleware
-- [ ] `src/nocodb/middleware/nocodb-context.middleware.ts` erstellen
-  - User-Context aus JWT extrahieren
-  - NocoDB-spezifische Header setzen
-  - Request-ID für Tracing generieren
-
-### 4.2 Rate-Limiting-Middleware
-- [ ] `src/nocodb/middleware/rate-limit.middleware.ts` erstellen
-  - API-Rate-Limits implementieren
-  - Pro-User oder Pro-IP Limiting
-  - Throttling-Logik
-
-### 4.3 Logging-Middleware
-- [ ] `src/nocodb/middleware/logging.middleware.ts` erstellen
-  - Request/Response-Logging
-  - Performance-Monitoring
-  - Error-Tracking
+- [x] NocoDB-Integration (Meta API v3 + Data API v3)
+- [x] JWT-Authentifizierung (Passport-JWT)
+- [x] Role-Based Access Control (RBAC – Permissions Guards & Decorators)
+- [x] Middleware-Stack (Logging, Rate Limiting, Context)
+- [x] Repository-Pattern (`BaseRepository`, `ExampleRepository`)
+- [x] Caching-Layer (in-memory, 60 s TTL, Permissions 5 min)
+- [x] Error-Handling (Custom Exceptions, Global Filter)
+- [x] Swagger UI (`/api`) + statisches `openapi.yaml` (auto-regeneriert via CI)
+- [x] Health Check (`/health`)
+- [x] Unit-Tests (213 Tests, ≥ 80 % Coverage)
+- [x] Docker-Support (`Dockerfile` + `docker-compose.yml`)
+- [x] Graceful Shutdown
+- [x] OpenTelemetry Tracing (opt-in via `OTEL_ENABLED=true`)
+- [x] Security-Headers (`helmet`)
+- [x] CORS-Konfiguration (via `CORS_ORIGINS` Env-Variable)
+- [x] `CHANGELOG.md` (via `conventional-changelog`, automatisch bei jedem Release)
+- [x] Strukturiertes Logging (`nestjs-pino` + `pino-http`, JSON in Production, pretty-print in Dev)
 
 ---
 
-## Phase 5: NocoDB-Operationen
+## 🔴 Priorität 1 – Vor dem ersten Produktions-Deployment
 
-### 5.1 Base-Repository-Pattern
-- [ ] `src/nocodb/repositories/base.repository.ts` erstellen
-  - CRUD-Operationen abstrahieren
-  - Filter- und Sort-Logik
-  - Pagination-Unterstützung
+> Details: [docs/product-readiness.md – Abschnitt 8](docs/product-readiness.md#8-prioritised-action-plan)
 
-### 5.2 Spezifische Repositories
-- [ ] Für jede NocoDB-Tabelle ein Repository erstellen
-  - Type-Safe Interfaces definieren
-  - Validierung implementieren
-  - Business-Logic-Layer
+- [ ] **Datenbankschema dokumentieren** – `docs/database-schema.md` mit allen benötigten
+  NocoDB-Tabellen (`users`, `user_roles`, `roles`, `table_permissions`), Spalten und
+  Beziehungen erstellen.
+  _(vgl. [product-readiness.md §3.7](docs/product-readiness.md#37-nocodb-table-setup--bootstrap-documentation))_
 
-### 5.3 DTO-Klassen
-- [ ] `src/nocodb/dto/` Verzeichnis erstellen
-  - Create-DTOs für jede Entity
-  - Update-DTOs für jede Entity
-  - Query-DTOs für Filter/Pagination
-  - Validierung mit `class-validator`
+- [ ] **XSS-Eingabe-Sanitierung** – `sanitize-html` auf Freitextfelder anwenden, bevor
+  Daten in NocoDB gespeichert werden.
+  _(vgl. [product-readiness.md §3.3](docs/product-readiness.md#33-security--input-sanitization))_
+
+- [ ] **`CORS_ORIGINS` in allen Umgebungen setzen** – Sicherstellen, dass in jedem
+  Deployment-Environment (Staging, Production) eine explizite Allowlist konfiguriert ist.
+  _(vgl. [product-readiness.md §3.4](docs/product-readiness.md#34-security--cors))_
 
 ---
 
-## Phase 6: Error-Handling und Resilience
+## 🟡 Priorität 2 – Kurzfristig (nächster Sprint)
 
-### 6.1 Custom-Exceptions
-- [ ] `src/nocodb/exceptions/nocodb.exception.ts` erstellen
-  - NocoDB-spezifische Exceptions
-  - HTTP-Status-Mapping
-  - Error-Messages formatieren
+> Details: [docs/product-readiness.md – Abschnitt 8](docs/product-readiness.md#8-prioritised-action-plan)
 
-### 6.2 Exception-Filter
-- [ ] `src/nocodb/filters/nocodb-exception.filter.ts` erstellen
-  - Global Exception-Handler
-  - Strukturierte Error-Responses
-  - Logging von Fehlern
+- [ ] **Retry-Logik** – `axios-retry` mit exponentiellem Back-off für transiente
+  NocoDB-Fehler (5xx, Netzwerk-Timeouts) hinzufügen.
+  _(vgl. [product-readiness.md §3.1](docs/product-readiness.md#31-resilience))_
 
-### 6.3 Retry-Mechanismus
-- [ ] Circuit-Breaker-Pattern implementieren (optional)
-  - Mit `@nestjs/axios` oder custom
-  - Fallback-Strategien definieren
+- [ ] **E2E-Tests für Auth-Flow** – JWT-Guard-Tests und Permissions-Tests zum E2E-Test-Suite
+  hinzufügen.
+  _(vgl. [product-readiness.md §4.5](docs/product-readiness.md#45-e2e-tests))_
+
+- [ ] **Pagination auf Admin-Endpoints** – `PageOptionsDto` / `PageDto` auf alle
+  List-Endpoints in `PermissionsManagementController` anwenden.
+  _(vgl. [product-readiness.md §3.6](docs/product-readiness.md#36-pagination--missing-on-admin-endpoints))_
 
 ---
 
-## Phase 7: Caching-Layer
+## 🟢 Priorität 3 – Mittelfristig (nächstes Release)
 
-### 7.1 Cache-Module einrichten
-- [ ] Cache-Manager installieren
-  ```bash
-  npm install @nestjs/cache-manager cache-manager
-  ```
-- [ ] `src/nocodb/cache/nocodb-cache.service.ts` erstellen
-  - Redis oder In-Memory-Cache
-  - TTL-Strategien
-  - Cache-Invalidierung
+> Details: [docs/product-readiness.md – Abschnitt 8](docs/product-readiness.md#8-prioritised-action-plan)
 
-### 7.2 Cache-Interceptor
-- [ ] `src/nocodb/interceptors/cache.interceptor.ts` erstellen
-  - GET-Requests cachen
-  - Cache-Keys generieren
-  - Conditional-Caching
+- [ ] **Circuit-Breaker** – `opossum` oder ähnliches integrieren, um bei anhaltenden
+  NocoDB-Ausfällen schnell zu versagen (fail-fast).
+  _(vgl. [product-readiness.md §3.1](docs/product-readiness.md#31-resilience))_
 
----
+- [ ] **Audit-Logging** – Alle Schreiboperationen (Create/Update/Delete) mit User-ID
+  protokollieren.
+  _(vgl. [product-readiness.md §5 – Security Checklist](docs/product-readiness.md#6-security-checklist))_
 
-## Phase 8: API-Endpoints
+- [ ] **Prometheus-Metrics** – `/metrics`-Endpoint für operatives Monitoring bereitstellen.
+  _(vgl. [product-readiness.md §5 – Performance](docs/product-readiness.md#7-performance-checklist))_
 
-### 8.1 Controller erstellen
-- [ ] Für jede Resource einen Controller
-  - RESTful-Endpoints definieren
-  - Swagger/OpenAPI-Dokumentation
-  - Guards und Interceptors anwenden
+- [ ] **Redis-Cache** – In-Memory-Cache durch Redis ersetzen (notwendig für
+  Multi-Instanz-Betrieb).
+  _(vgl. [product-readiness.md §7 – Performance Checklist](docs/product-readiness.md#7-performance-checklist))_
 
-### 8.2 Input-Validierung
-- [ ] ValidationPipe global aktivieren
-- [ ] Custom-Validators für NocoDB-spezifische Felder
+- [ ] **Response-Kompression** – `compression`-Middleware (gzip/brotli) aktivieren.
 
 ---
 
-## Phase 9: Testing
+## 💡 Optional / Langfristig
 
-### 9.1 Unit-Tests
-- [ ] Tests für NocoDB-Service
-- [ ] Tests für Repositories
-- [ ] Tests für Middleware-Komponenten
-- [ ] Mocking von NocoDB-API
-
-### 9.2 Integration-Tests
-- [ ] E2E-Tests für API-Endpoints
-- [ ] Test-Database-Setup
-- [ ] Authentication-Flow-Tests
-
-### 9.3 Test-Coverage
-- [ ] Minimum 80% Code-Coverage anstreben
-- [ ] Coverage-Report generieren
-  ```bash
-  npm run test:cov
-  ```
-
----
-
-## Phase 10: Dokumentation und Deployment
-
-### 10.1 API-Dokumentation
-- [ ] Swagger-UI konfigurieren
-- [ ] API-Endpoints dokumentieren
-- [ ] Beispiel-Requests hinzufügen
-
-### 10.2 README aktualisieren
-- [ ] Setup-Anleitung
-- [ ] Umgebungsvariablen beschreiben
-- [ ] Beispiel-Code für gängige Operationen
-
-### 10.3 Deployment-Vorbereitung
-- [ ] Health-Check-Endpoint implementieren
-- [ ] Graceful-Shutdown konfigurieren
-- [ ] Docker-Setup (optional)
-  - Dockerfile erstellen
-  - docker-compose.yml für lokale Entwicklung
-
----
-
-## Phase 11: Optimierung und Best Practices
-
-### 11.1 Performance-Optimierung
-- [ ] Lazy-Loading für Module
-- [ ] Database-Query-Optimierung
-- [ ] Batch-Operations für NocoDB
-
-### 11.2 Security-Hardening
-- [ ] Helmet.js integrieren
-- [ ] CORS korrekt konfigurieren
-- [ ] Input-Sanitization
-- [ ] Rate-Limiting auf API-Level
-
-### 11.3 Monitoring
-- [ ] Prometheus-Metrics (optional)
-- [ ] Application-Logging mit Winston
-- [ ] Error-Tracking (Sentry, etc.)
-
----
-
-## Zusätzliche Überlegungen
-
-### Webhooks (optional)
-- [ ] NocoDB-Webhook-Handler implementieren
-- [ ] Event-Processing-Queue
-- [ ] Webhook-Signature-Validation
-
-### Data-Migration (optional)
-- [ ] Migration-Scripts für NocoDB-Schema
-- [ ] Seed-Data für Entwicklung
-
-### CLI-Tools (optional)
-- [ ] NestJS-CLI-Commands für NocoDB-Operationen
-- [ ] Schema-Sync-Tools
+- [ ] **Webhooks** – NocoDB-Webhook-Handler mit Signatur-Validierung implementieren.
+- [ ] **CLI-Tools** – NestJS-CLI-Commands für NocoDB-Operationen.
+- [ ] **Lazy-Loading** – Module lazy laden, um Startup-Zeit zu reduzieren.
 
 ---
 
 ## Ressourcen
 
-- [NocoDB SDK Dokumentation](https://docs.nocodb.com/developer-resources/sdk)
-- [Nest.js Middleware](https://docs.nestjs.com/middleware)
-- [Nest.js Authentication](https://docs.nestjs.com/security/authentication)
-- [Nest.js Guards](https://docs.nestjs.com/guards)
+- 📄 [Product Readiness Analysis](docs/product-readiness.md)
+- 📖 [NocoDB SDK Dokumentation](https://docs.nocodb.com/developer-resources/sdk)
+- 📖 [Nest.js Dokumentation](https://docs.nestjs.com)
 
----
-
-## Notizen
-
-- **Versionskontrolle**: Jeden Phase-Abschluss committen
-- **Code-Review**: Regelmäßige Reviews einplanen
-- **Refactoring**: Technical Debt früh addressieren
-- **Dokumentation**: Code inline kommentieren
-
----
-
-**Status-Legende:**
-- [ ] Offen
-- [→] In Bearbeitung
-- [✓] Abgeschlossen
-- [!] Blockiert/Problem
-
-Viel Erfolg bei der Implementierung! 🚀

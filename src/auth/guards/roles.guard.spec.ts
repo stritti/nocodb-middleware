@@ -6,7 +6,9 @@ function makeContext(userRoles: string[] | undefined): ExecutionContext {
   return {
     getHandler: jest.fn(),
     switchToHttp: () => ({
-      getRequest: () => ({ user: userRoles !== undefined ? { roles: userRoles } : undefined }),
+      getRequest: () => ({
+        user: userRoles !== undefined ? { roles: userRoles } : undefined,
+      }),
     }),
   } as unknown as ExecutionContext;
 }

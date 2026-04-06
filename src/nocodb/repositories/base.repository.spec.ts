@@ -89,7 +89,9 @@ describe('BaseRepository', () => {
       const error = new Error('Network error');
       (nocoDBService.list as jest.Mock).mockRejectedValue(error);
 
-      await expect(repository.findMany(pageOptions)).rejects.toThrow('Network error');
+      await expect(repository.findMany(pageOptions)).rejects.toThrow(
+        'Network error',
+      );
       expect(Logger.prototype.error).toHaveBeenCalled();
     });
   });
@@ -137,7 +139,9 @@ describe('BaseRepository', () => {
       const error = new Error('Create failed');
       (nocoDBService.create as jest.Mock).mockRejectedValue(error);
 
-      await expect(repository.create({ name: 'Test' })).rejects.toThrow('Create failed');
+      await expect(repository.create({ name: 'Test' })).rejects.toThrow(
+        'Create failed',
+      );
       expect(Logger.prototype.error).toHaveBeenCalled();
     });
   });
@@ -149,18 +153,18 @@ describe('BaseRepository', () => {
 
       const result = await repository.update(1, { name: 'Updated' });
       expect(result).toEqual(expected);
-      expect(nocoDBService.update).toHaveBeenCalledWith(
-        'test_table_id',
-        1,
-        { name: 'Updated' },
-      );
+      expect(nocoDBService.update).toHaveBeenCalledWith('test_table_id', 1, {
+        name: 'Updated',
+      });
     });
 
     it('should throw error and log when update fails', async () => {
       const error = new Error('Update failed');
       (nocoDBService.update as jest.Mock).mockRejectedValue(error);
 
-      await expect(repository.update(1, { name: 'Test' })).rejects.toThrow('Update failed');
+      await expect(repository.update(1, { name: 'Test' })).rejects.toThrow(
+        'Update failed',
+      );
       expect(Logger.prototype.error).toHaveBeenCalled();
     });
   });

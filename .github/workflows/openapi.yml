@@ -1,0 +1,83 @@
+name: OpenAPI Spec
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Keeps the committed openapi.yaml in sync with the NestJS source code.
+#
+#  • On every pull_request: fails if openapi.yaml is stale so developers are
+#    reminded to run `npm run build && npm run generate:openapi` before merging.
+#  • On push to main (after tests pass): regenerates openapi.yaml and commits
+#    the updated file automatically with [skip ci].
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    name: Validate OpenAPI spec freshness
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # needed for the auto-commit on main
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history so git diff is meaningful
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Regenerate openapi.yaml
+        env:
+          NOCODB_API_URL: http://localhost:8080
+          NOCODB_API_TOKEN: dummy
+          NOCODB_BASE_ID: dummy
+          JWT_SECRET: dummy
+        run: npm run generate:openapi
+
+      # ── Determine if spec changed ──────────────────────────────────────────
+      - name: Check for openapi.yaml changes
+        id: openapi_diff
+        run: |
+          if git diff --exit-code openapi.yaml > /dev/null 2>&1; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
+
+      # ── On PRs: fail if the committed spec differs from freshly generated ──
+      - name: Fail PR if openapi.yaml is out of date
+        if: github.event_name == 'pull_request' && steps.openapi_diff.outputs.changed == 'true'
+        run: |
+          echo "::error::openapi.yaml is out of date."
+          echo "  Run 'npm run build && npm run generate:openapi' locally and"
+          echo "  commit the updated file."
+          exit 1
+
+      # ── On PRs when spec is current: confirm ──────────────────────────────
+      - name: Confirm openapi.yaml is up to date (PR)
+        if: github.event_name == 'pull_request' && steps.openapi_diff.outputs.changed == 'false'
+        run: echo "openapi.yaml is up to date ✅"
+
+      # ── On push to main: auto-commit the updated spec if changed ──────────
+      - name: Commit updated openapi.yaml (main push)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.openapi_diff.outputs.changed == 'true'
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add openapi.yaml
+          git commit -m "chore: regenerate openapi.yaml [skip ci]"
+          git push
+          echo "openapi.yaml updated and committed ✅"

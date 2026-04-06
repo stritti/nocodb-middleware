@@ -189,7 +189,11 @@ describe('PermissionsService', () => {
         return Promise.resolve({ list: [] });
       });
 
-      const result = await service.canUserPerformAction(1, 'users', CrudAction.READ);
+      const result = await service.canUserPerformAction(
+        1,
+        'users',
+        CrudAction.READ,
+      );
       expect(result).toBe(true);
     });
 
@@ -220,7 +224,11 @@ describe('PermissionsService', () => {
       };
       (service as any).permissionsCache.set(1, cachedPerms);
 
-      const result = await service.canUserPerformAction(1, 'users', CrudAction.READ);
+      const result = await service.canUserPerformAction(
+        1,
+        'users',
+        CrudAction.READ,
+      );
       expect(result).toBe(true);
       expect(nocoDBService.getTableByName).not.toHaveBeenCalled();
     });
@@ -251,7 +259,8 @@ describe('PermissionsService', () => {
     it('should return empty permissions when roles table not found', async () => {
       (nocoDBService.getTableByName as jest.Mock).mockImplementation((name) => {
         if (name === 'users') return Promise.resolve({ id: 'id_users' });
-        if (name === 'user_roles') return Promise.resolve({ id: 'id_user_roles' });
+        if (name === 'user_roles')
+          return Promise.resolve({ id: 'id_user_roles' });
         return Promise.resolve(null);
       });
       (nocoDBService.read as jest.Mock).mockResolvedValue({
@@ -272,7 +281,8 @@ describe('PermissionsService', () => {
     it('should return empty permissions when table_permissions table not found', async () => {
       (nocoDBService.getTableByName as jest.Mock).mockImplementation((name) => {
         if (name === 'users') return Promise.resolve({ id: 'id_users' });
-        if (name === 'user_roles') return Promise.resolve({ id: 'id_user_roles' });
+        if (name === 'user_roles')
+          return Promise.resolve({ id: 'id_user_roles' });
         if (name === 'roles') return Promise.resolve({ id: 'id_roles' });
         return Promise.resolve(null);
       });
@@ -330,9 +340,9 @@ describe('PermissionsService', () => {
     it('should throw when table_permissions table not found', async () => {
       (nocoDBService.getTableByName as jest.Mock).mockResolvedValue(null);
 
-      await expect(
-        service.setTablePermissions(1, 'users', {}),
-      ).rejects.toThrow('Table_permissions table not found');
+      await expect(service.setTablePermissions(1, 'users', {})).rejects.toThrow(
+        'Table_permissions table not found',
+      );
     });
   });
 
@@ -354,4 +364,3 @@ describe('PermissionsService', () => {
     });
   });
 });
-

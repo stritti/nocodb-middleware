@@ -229,9 +229,13 @@ describe('NocoDBService', () => {
       mockHttpClient.delete.mockResolvedValue({});
 
       // All CRUD methods delegate to this.trace() which falls back to direct fn() call
-      await expect(service.create('t1', { name: 'Test' })).resolves.toEqual(responseData);
+      await expect(service.create('t1', { name: 'Test' })).resolves.toEqual(
+        responseData,
+      );
       await expect(service.read('t1', 1)).resolves.toEqual(responseData);
-      await expect(service.update('t1', 1, { name: 'Updated' })).resolves.toEqual(responseData);
+      await expect(
+        service.update('t1', 1, { name: 'Updated' }),
+      ).resolves.toEqual(responseData);
       await expect(service.delete('t1', 1)).resolves.toBeUndefined();
     });
   });
@@ -306,7 +310,9 @@ describe('NocoDBService', () => {
 
     it('should throw when HTTP call fails', async () => {
       mockHttpClient.get.mockRejectedValue(new Error('Network error'));
-      await expect(service.tableExists('users')).rejects.toThrow('Network error');
+      await expect(service.tableExists('users')).rejects.toThrow(
+        'Network error',
+      );
     });
   });
 
@@ -333,7 +339,9 @@ describe('NocoDBService', () => {
 
     it('should throw when HTTP call fails', async () => {
       mockHttpClient.get.mockRejectedValue(new Error('Network error'));
-      await expect(service.getTableByName('users')).rejects.toThrow('Network error');
+      await expect(service.getTableByName('users')).rejects.toThrow(
+        'Network error',
+      );
     });
   });
 
@@ -352,7 +360,9 @@ describe('NocoDBService', () => {
 
     it('should throw when createTable fails', async () => {
       mockHttpClient.post.mockRejectedValue(new Error('Create error'));
-      await expect(service.createTable('items', 'Items')).rejects.toThrow('Create error');
+      await expect(service.createTable('items', 'Items')).rejects.toThrow(
+        'Create error',
+      );
     });
   });
 
@@ -361,7 +371,12 @@ describe('NocoDBService', () => {
       const colData = { id: 'col_1', column_name: 'email' };
       mockHttpClient.post.mockResolvedValue({ data: colData });
 
-      const result = await service.createColumn('tbl_1', 'email', 'SingleLineText', 'Email');
+      const result = await service.createColumn(
+        'tbl_1',
+        'email',
+        'SingleLineText',
+        'Email',
+      );
       expect(mockHttpClient.post).toHaveBeenCalledWith(
         `/api/v3/meta/tables/tbl_1/columns`,
         expect.objectContaining({
@@ -425,11 +440,9 @@ describe('NocoDBService', () => {
       const responseData = { id: 1 };
       mockHttpClient.post.mockResolvedValue({ data: responseData });
 
-      const result = await service.createWithLinks(
-        'tbl_1',
-        { name: 'Test' },
-        [{ fieldName: 'tags', recordIds: [10, 20] }],
-      );
+      const result = await service.createWithLinks('tbl_1', { name: 'Test' }, [
+        { fieldName: 'tags', recordIds: [10, 20] },
+      ]);
 
       expect(mockHttpClient.post).toHaveBeenCalledWith(
         expect.any(String),
@@ -444,11 +457,9 @@ describe('NocoDBService', () => {
     it('should update relationships for a record', async () => {
       mockHttpClient.patch.mockResolvedValue({ data: { id: 1 } });
 
-      await service.updateLinks(
-        'tbl_1',
-        1,
-        [{ fieldName: 'tags', recordIds: [5] }],
-      );
+      await service.updateLinks('tbl_1', 1, [
+        { fieldName: 'tags', recordIds: [5] },
+      ]);
 
       expect(mockHttpClient.patch).toHaveBeenCalledWith(
         expect.any(String),
@@ -462,7 +473,10 @@ describe('NocoDBService', () => {
       const responseData = { id: 1, tags: [] };
       mockHttpClient.get.mockResolvedValue({ data: responseData });
 
-      const result = await service.getWithLinks('tbl_1', 1, ['tags', 'category']);
+      const result = await service.getWithLinks('tbl_1', 1, [
+        'tags',
+        'category',
+      ]);
       expect(result).toEqual(responseData);
     });
   });

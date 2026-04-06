@@ -19,9 +19,10 @@ name: Release
 # The workflow will:
 #   1. Determine the new SemVer version.
 #   2. Update the version field in package.json.
-#   3. Commit the change with "[skip ci]" so CI is not re-triggered.
-#   4. Create an annotated git tag (vX.Y.Z).
-#   5. Create a GitHub Release with auto-generated release notes.
+#   3. Update CHANGELOG.md via conventional-changelog.
+#   4. Commit the change with "[skip ci]" so CI is not re-triggered.
+#   5. Create an annotated git tag (vX.Y.Z).
+#   6. Create a GitHub Release with auto-generated release notes.
 # ─────────────────────────────────────────────────────────────────────────────
 
 on:
@@ -128,6 +129,13 @@ jobs:
           npm version "$NEW" --no-git-tag-version
           echo "package.json and package-lock.json updated to version $NEW"
 
+      # ── Update CHANGELOG.md ───────────────────────────────────────────────
+      - name: Update CHANGELOG.md
+        if: steps.bump.outputs.type != 'none'
+        run: |
+          npm run changelog
+          echo "CHANGELOG.md updated"
+
       # ── Commit and tag ────────────────────────────────────────────────────
       - name: Commit Version Bump and Create Tag
         if: steps.bump.outputs.type != 'none'
@@ -136,7 +144,7 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add package.json package-lock.json
+          git add package.json package-lock.json CHANGELOG.md
           git commit -m "chore(release): bump version to v${NEW} [skip ci]"
           git tag -a "v${NEW}" -m "Release v${NEW}"
           git push origin HEAD:main --follow-tags
