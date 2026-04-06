@@ -111,33 +111,40 @@ Definiert, welche CRUD-Operationen eine Rolle auf einer bestimmten Tabelle ausf�
 
 ## Beziehungsdiagramm
 
-```
-┌──────────────────────────┐
-│          users           │
-│  id  │ username │ email  │
-└────────────┬─────────────┘
-             │ 1
-             │
-             │ N
-┌────────────▼─────────────────────────┐
-│             user_roles               │
-│  id  │ user (→users) │ role (→roles) │
-│      │ assigned_at                   │
-└────────────────────┬─────────────────┘
-                     │ N
-                     │
-                     │ 1
-          ┌──────────▼──────────────────────────────┐
-          │                roles                    │
-          │  id  │ role_name │ description │ ...    │
-          └──────────────────┬──────────────────────┘
-                             │ 1
-                             │
-                             │ N
-          ┌──────────────────▼──────────────────────────────────────┐
-          │                  table_permissions                       │
-          │  id  │ role (→roles) │ table_name │ can_* (4× Checkbox) │
-          └─────────────────────────────────────────────────────────┘
+```mermaid
+erDiagram
+    users {
+        int id PK
+        string username
+        string email
+        string password_hash
+        boolean is_active
+    }
+    roles {
+        int id PK
+        string role_name
+        string description
+        boolean is_system_role
+    }
+    user_roles {
+        int id PK
+        int user FK
+        int role FK
+        datetime assigned_at
+    }
+    table_permissions {
+        int id PK
+        int role FK
+        string table_name
+        boolean can_create
+        boolean can_read
+        boolean can_update
+        boolean can_delete
+    }
+
+    users ||--o{ user_roles : "hat"
+    roles ||--o{ user_roles : "zugewiesen an"
+    roles ||--o{ table_permissions : "hat"
 ```
 
 **Beziehungen im Detail:**
