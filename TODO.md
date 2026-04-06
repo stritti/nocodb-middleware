@@ -24,7 +24,7 @@ Alle Phasen 1–11 der ursprünglichen Checkliste sind implementiert:
 - [x] Repository-Pattern (`BaseRepository`, `ExampleRepository`)
 - [x] Caching-Layer (in-memory, 60 s TTL, Permissions 5 min)
 - [x] Error-Handling (Custom Exceptions, Global Filter)
-- [x] Swagger UI (`/api`) + statisches `openapi.yaml`
+- [x] Swagger UI (`/api`) + statisches `openapi.yaml` (auto-regeneriert via CI)
 - [x] Health Check (`/health`)
 - [x] Unit-Tests (213 Tests, ≥ 80 % Coverage)
 - [x] Docker-Support (`Dockerfile` + `docker-compose.yml`)
@@ -32,6 +32,8 @@ Alle Phasen 1–11 der ursprünglichen Checkliste sind implementiert:
 - [x] OpenTelemetry Tracing (opt-in via `OTEL_ENABLED=true`)
 - [x] Security-Headers (`helmet`)
 - [x] CORS-Konfiguration (via `CORS_ORIGINS` Env-Variable)
+- [x] `CHANGELOG.md` (via `conventional-changelog`, automatisch bei jedem Release)
+- [x] Strukturiertes Logging (`nestjs-pino` + `pino-http`, JSON in Production, pretty-print in Dev)
 
 ---
 
@@ -70,9 +72,6 @@ Alle Phasen 1–11 der ursprünglichen Checkliste sind implementiert:
   List-Endpoints in `PermissionsManagementController` anwenden.
   _(vgl. [product-readiness.md §3.6](docs/product-readiness.md#36-pagination--missing-on-admin-endpoints))_
 
-- [ ] **`CHANGELOG.md`** – Release-History beginnen (Conventional Commits → automatisch
-  via Release-Workflow).
-
 ---
 
 ## 🟢 Priorität 3 – Mittelfristig (nächstes Release)
@@ -103,7 +102,6 @@ Alle Phasen 1–11 der ursprünglichen Checkliste sind implementiert:
 - [ ] **Webhooks** – NocoDB-Webhook-Handler mit Signatur-Validierung implementieren.
 - [ ] **CLI-Tools** – NestJS-CLI-Commands für NocoDB-Operationen.
 - [ ] **Lazy-Loading** – Module lazy laden, um Startup-Zeit zu reduzieren.
-- [ ] **Strukturiertes Logging** – Winston oder Pino als Log-Framework integrieren.
 
 ---
 
