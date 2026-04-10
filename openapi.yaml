@@ -10,40 +10,35 @@ paths:
       summary: API Information
       tags:
         - info
-  /examples:
+  /meta/tables:
     get:
-      operationId: ExamplesController_findAll
+      operationId: TableCatalogController_listTables
       parameters: []
       responses:
         '200':
-          description: Returns paginated examples
-        '401':
-          description: Unauthorized
-      security:
-        - bearer: []
-      summary: Get all examples with pagination
-      tags: &ref_0
-        - examples
+          description: ''
+      tags:
+        - TableCatalog
+  /bootstrap/admin:
     post:
-      operationId: ExamplesController_create
-      parameters: []
+      operationId: BootstrapAdminController_bootstrapAdmin
+      parameters:
+        - name: x-bootstrap-token
+          required: true
+          in: header
+          schema:
+            type: string
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateExampleDto'
+              $ref: '#/components/schemas/BootstrapAdminDto'
       responses:
         '201':
-          description: Example created successfully
-        '400':
-          description: Bad Request
-        '401':
-          description: Unauthorized
-      security:
-        - bearer: []
-      summary: Create a new example
-      tags: *ref_0
+          description: ''
+      tags:
+        - BootstrapAdmin
   /health:
     get:
       operationId: HealthController_check
@@ -73,10 +68,10 @@ paths:
           description: Unauthorized
         '403':
           description: Forbidden – insufficient permissions
-      security: &ref_1
+      security: &ref_0
         - bearer: []
       summary: Create a new role
-      tags: &ref_2
+      tags: &ref_1
         - admin / permissions
     get:
       operationId: PermissionsManagementController_getAllRoles
@@ -88,9 +83,9 @@ paths:
           description: Unauthorized
         '403':
           description: Forbidden – insufficient permissions
-      security: *ref_1
+      security: *ref_0
       summary: List all roles
-      tags: *ref_2
+      tags: *ref_1
   /admin/permissions/roles/{roleId}:
     delete:
       operationId: PermissionsManagementController_deleteRole
@@ -110,9 +105,9 @@ paths:
           description: Forbidden – insufficient permissions
         '404':
           description: Role not found
-      security: *ref_1
+      security: *ref_0
       summary: Delete a role by ID
-      tags: *ref_2
+      tags: *ref_1
   /admin/permissions/table-permissions:
     post:
       operationId: PermissionsManagementController_setTablePermissions
@@ -132,9 +127,9 @@ paths:
           description: Unauthorized
         '403':
           description: Forbidden – insufficient permissions
-      security: *ref_1
+      security: *ref_0
       summary: Set permissions for a role on a specific table
-      tags: *ref_2
+      tags: *ref_1
   /admin/permissions/table-permissions/batch:
     post:
       operationId: PermissionsManagementController_batchSetPermissions
@@ -154,9 +149,9 @@ paths:
           description: Unauthorized
         '403':
           description: Forbidden – insufficient permissions
-      security: *ref_1
+      security: *ref_0
       summary: Batch-set permissions for a role across multiple tables
-      tags: *ref_2
+      tags: *ref_1
   /admin/permissions/roles/{roleId}/permissions:
     get:
       operationId: PermissionsManagementController_getRolePermissions
@@ -174,9 +169,9 @@ paths:
           description: Unauthorized
         '403':
           description: Forbidden – insufficient permissions
-      security: *ref_1
+      security: *ref_0
       summary: Get all table permissions for a role
-      tags: *ref_2
+      tags: *ref_1
     delete:
       operationId: PermissionsManagementController_deleteRolePermissions
       parameters:
@@ -193,9 +188,9 @@ paths:
           description: Unauthorized
         '403':
           description: Forbidden – insufficient permissions
-      security: *ref_1
+      security: *ref_0
       summary: Delete all table permissions for a role
-      tags: *ref_2
+      tags: *ref_1
   /admin/permissions/roles/{sourceRoleId}/copy-to/{targetRoleId}:
     post:
       operationId: PermissionsManagementController_copyPermissions
@@ -219,9 +214,9 @@ paths:
           description: Unauthorized
         '403':
           description: Forbidden – insufficient permissions
-      security: *ref_1
+      security: *ref_0
       summary: Copy all permissions from one role to another
-      tags: *ref_2
+      tags: *ref_1
   /admin/permissions/user-roles/assign:
     post:
       operationId: PermissionsManagementController_assignRole
@@ -241,9 +236,9 @@ paths:
           description: Unauthorized
         '403':
           description: Forbidden – insufficient permissions
-      security: *ref_1
+      security: *ref_0
       summary: Assign a role to a user
-      tags: *ref_2
+      tags: *ref_1
   /admin/permissions/user-roles/assign-multiple:
     post:
       operationId: PermissionsManagementController_assignMultipleRoles
@@ -263,9 +258,9 @@ paths:
           description: Unauthorized
         '403':
           description: Forbidden – insufficient permissions
-      security: *ref_1
+      security: *ref_0
       summary: Assign multiple roles to a user
-      tags: *ref_2
+      tags: *ref_1
   /admin/permissions/user-roles/users/{userId}/roles/{roleId}:
     delete:
       operationId: PermissionsManagementController_removeRole
@@ -289,9 +284,9 @@ paths:
           description: Unauthorized
         '403':
           description: Forbidden – insufficient permissions
-      security: *ref_1
+      security: *ref_0
       summary: Remove a role from a user
-      tags: *ref_2
+      tags: *ref_1
   /admin/permissions/users/{userId}/roles:
     get:
       operationId: PermissionsManagementController_getUserRoles
@@ -309,9 +304,9 @@ paths:
           description: Unauthorized
         '403':
           description: Forbidden – insufficient permissions
-      security: *ref_1
+      security: *ref_0
       summary: Get all roles assigned to a user
-      tags: *ref_2
+      tags: *ref_1
 info:
   title: NocoDB Middleware API
   description: >-
@@ -330,15 +325,9 @@ components:
       bearerFormat: JWT
       type: http
   schemas:
-    CreateExampleDto:
+    BootstrapAdminDto:
       type: object
-      properties:
-        title:
-          type: string
-          description: Title of the example
-          example: My Example
-      required:
-        - title
+      properties: {}
     CreateRoleDto:
       type: object
       properties:
