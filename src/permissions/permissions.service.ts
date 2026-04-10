@@ -3,6 +3,24 @@ import { NocoDBService } from '../nocodb/nocodb.service';
 import { CrudAction } from './enums/crud-action.enum';
 import { UserPermissions } from './interfaces/permission.interface';
 
+type ListResponse<T> = { list?: T[] };
+
+type WorkspaceTableRecord = { table_name?: string };
+
+type UserRecord = { username?: string };
+
+type UserRoleRecord = { role?: { Id?: number } };
+
+type RoleRecord = { role_name?: string; Id?: number };
+
+type PermissionRecord = {
+  table_name?: string;
+  can_create?: boolean;
+  can_read?: boolean;
+  can_update?: boolean;
+  can_delete?: boolean;
+};
+
 @Injectable()
 export class PermissionsService {
   private readonly logger = new Logger(PermissionsService.name);
@@ -18,17 +36,20 @@ export class PermissionsService {
     try {
       const httpClient = this.nocoDBService.getHttpClient();
       const baseId = this.nocoDBService.getBaseId();
-      const response = await httpClient.get(
+      const response = await httpClient.get<ListResponse<WorkspaceTableRecord>>(
         `/api/v2/meta/bases/${baseId}/tables`,
       );
 
-      const tables = response.data.list || [];
+      const tables = response.data.list ?? [];
       const prefix = this.nocoDBService.getTablePrefix();
 
       // Filter only tables with the configured prefix
       return tables
-        .map((table: any) => table.table_name)
-        .filter((name: string) => (prefix ? name.startsWith(prefix) : true));
+        .map((table) => table.table_name)
+        .filter(
+          (name): name is string =>
+            typeof name === 'string' && (!prefix || name.startsWith(prefix)),
+        );
     } catch (error) {
       this.logger.error('Error fetching workspace tables:', error);
       throw error;
@@ -55,51 +76,52 @@ export class PermissionsService {
         return this.createEmptyPermissions(userId, 'unknown');
       }
 
-      const userResponse = await httpClient.get(
+      const userResponse = await httpClient.get<UserRecord>(
         `/api/v2/tables/${usersTable.id}/records/${userId}`,
       );
       const user = userResponse.data;
+      const username =
+        typeof user.username === 'string' ? user.username : 'unknown';
 
       // 2. Get user roles
       const userRolesTable =
         await this.nocoDBService.getTableByName('user_roles');
       if (!userRolesTable) {
         this.logger.warn('User_roles table not found');
-        return this.createEmptyPermissions(userId, user.username);
+        return this.createEmptyPermissions(userId, username);
       }
 
-      const userRolesResponse = await httpClient.get(
-        `/api/v2/tables/${userRolesTable.id}/records`,
-        {
-          params: {
-            where: `(user.Id,eq,${userId})`,
-            nested: {
-              role: {
-                fields: ['Id', 'role_name'],
-              },
+      const userRolesResponse = await httpClient.get<
+        ListResponse<UserRoleRecord>
+      >(`/api/v2/tables/${userRolesTable.id}/records`, {
+        params: {
+          where: `(user.Id,eq,${userId})`,
+          nested: {
+            role: {
+              fields: ['Id', 'role_name'],
             },
           },
         },
-      );
+      });
 
       // Extract role IDs from nested objects
-      const roleIds = userRolesResponse.data.list
-        .filter((ur: any) => ur.role && ur.role.Id)
-        .map((ur: any) => ur.role.Id);
+      const roleIds = (userRolesResponse.data.list ?? [])
+        .map((ur) => ur.role?.Id)
+        .filter((id): id is number => typeof id === 'number');
 
       if (roleIds.length === 0) {
         this.logger.warn(`User ${userId} has no assigned roles`);
-        return this.createEmptyPermissions(userId, user.username);
+        return this.createEmptyPermissions(userId, username);
       }
 
       // 3. Get role information
       const rolesTable = await this.nocoDBService.getTableByName('roles');
       if (!rolesTable) {
         this.logger.warn('Roles table not found');
-        return this.createEmptyPermissions(userId, user.username);
+        return this.createEmptyPermissions(userId, username);
       }
 
-      const rolesResponse = await httpClient.get(
+      const rolesResponse = await httpClient.get<ListResponse<RoleRecord>>(
         `/api/v2/tables/${rolesTable.id}/records`,
         {
           params: {
@@ -108,37 +130,41 @@ export class PermissionsService {
         },
       );
 
-      const roles = rolesResponse.data.list;
-      const roleNames = roles.map((r: any) => r.role_name);
+      const roles = rolesResponse.data.list ?? [];
+      const roleNames = roles
+        .map((r) => r.role_name)
+        .filter((name): name is string => typeof name === 'string');
 
       // 4. Get table permissions for all roles
       const permissionsTable =
         await this.nocoDBService.getTableByName('table_permissions');
       if (!permissionsTable) {
         this.logger.warn('Table_permissions table not found');
-        return this.createEmptyPermissions(userId, user.username);
+        return this.createEmptyPermissions(userId, username);
       }
 
-      const permissionsResponse = await httpClient.get(
-        `/api/v2/tables/${permissionsTable.id}/records`,
-        {
-          params: {
-            where: `(role.Id,in,${roleIds.join(',')})`,
-          },
+      const permissionsResponse = await httpClient.get<
+        ListResponse<PermissionRecord>
+      >(`/api/v2/tables/${permissionsTable.id}/records`, {
+        params: {
+          where: `(role.Id,in,${roleIds.join(',')})`,
         },
-      );
+      });
 
       // 5. Aggregate permissions (OR logic: if one role has access, user has access)
       const permissionsMap = new Map<string, Set<CrudAction>>();
+      const permissionsList = permissionsResponse.data.list ?? [];
 
-      for (const perm of permissionsResponse.data.list) {
-        const tableName = perm.table_name;
-
-        if (!permissionsMap.has(tableName)) {
-          permissionsMap.set(tableName, new Set());
+      for (const perm of permissionsList) {
+        if (typeof perm.table_name !== 'string') {
+          continue;
         }
 
-        const actions = permissionsMap.get(tableName)!;
+        if (!permissionsMap.has(perm.table_name)) {
+          permissionsMap.set(perm.table_name, new Set());
+        }
+
+        const actions = permissionsMap.get(perm.table_name)!;
 
         if (perm.can_create) actions.add(CrudAction.CREATE);
         if (perm.can_read) actions.add(CrudAction.READ);
@@ -148,7 +174,7 @@ export class PermissionsService {
 
       const userPermissions: UserPermissions = {
         userId,
-        username: user.username,
+        username,
         roles: roleNames,
         permissions: permissionsMap,
       };
@@ -201,14 +227,13 @@ export class PermissionsService {
       }
 
       // Check if permission entry exists
-      const existingResponse = await httpClient.get(
-        `/api/v2/tables/${permissionsTable.id}/records`,
-        {
-          params: {
-            where: `(role.Id,eq,${roleId})~and(table_name,eq,${tableName})`,
-          },
+      const existingResponse = await httpClient.get<
+        ListResponse<{ Id?: string | number }>
+      >(`/api/v2/tables/${permissionsTable.id}/records`, {
+        params: {
+          where: `(role.Id,eq,${roleId})~and(table_name,eq,${tableName})`,
         },
-      );
+      });
 
       const permissionData = {
         role: { Id: roleId }, // LinkToAnotherRecord format
@@ -219,9 +244,13 @@ export class PermissionsService {
         can_delete: permissions[CrudAction.DELETE] ?? false,
       };
 
-      if (existingResponse.data.list.length > 0) {
-        // Update existing
-        const existingId = existingResponse.data.list[0].Id;
+      const existingList = existingResponse.data.list ?? [];
+
+      if (existingList.length > 0) {
+        const existingId = existingList[0]?.Id;
+        if (existingId === undefined) {
+          throw new Error('Existing permission record id missing');
+        }
         await httpClient.patch(
           `/api/v2/tables/${permissionsTable.id}/records/${existingId}`,
           permissionData,

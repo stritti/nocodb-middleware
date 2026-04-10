@@ -36,45 +36,49 @@ export class PermissionsManagementController {
     private userRolesService: UserRolesService,
   ) {}
 
-  // ========== Roles Management ==========
-
   @Post('roles')
   @RequireCreate('roles')
   @HttpCode(HttpStatus.CREATED)
-  async createRole(@Body() createRoleDto: CreateRoleDto) {
+  async createRole(@Body() createRoleDto: CreateRoleDto): Promise<unknown> {
     return this.rolesService.createRole(createRoleDto);
   }
 
   @Get('roles')
   @RequireRead('roles')
-  async getAllRoles() {
+  async getAllRoles(): Promise<unknown> {
     return this.rolesService.getAllRoles();
   }
 
   @Delete('roles/:roleId')
   @RequireDelete('roles')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async deleteRole(@Param('roleId', ParseIntPipe) roleId: number) {
+  async deleteRole(
+    @Param('roleId', ParseIntPipe) roleId: number,
+  ): Promise<void> {
     await this.rolesService.deleteRole(roleId);
   }
 
-  // ========== Table Permissions Management ==========
-
   @Post('table-permissions')
   @RequireCreate('table_permissions')
-  async setTablePermissions(@Body() dto: SetTablePermissionsDto) {
+  async setTablePermissions(
+    @Body() dto: SetTablePermissionsDto,
+  ): Promise<unknown> {
     return this.permissionsManagement.setTablePermissions(dto);
   }
 
   @Post('table-permissions/batch')
   @RequireCreate('table_permissions')
-  async batchSetPermissions(@Body() dto: BatchSetPermissionsDto) {
+  async batchSetPermissions(
+    @Body() dto: BatchSetPermissionsDto,
+  ): Promise<{ success: true; count: number; results: unknown[] }> {
     return this.permissionsManagement.batchSetPermissions(dto);
   }
 
   @Get('roles/:roleId/permissions')
   @RequireRead('table_permissions')
-  async getRolePermissions(@Param('roleId', ParseIntPipe) roleId: number) {
+  async getRolePermissions(
+    @Param('roleId', ParseIntPipe) roleId: number,
+  ): Promise<unknown> {
     return this.permissionsManagement.getRolePermissions(roleId);
   }
 
@@ -90,24 +94,24 @@ export class PermissionsManagementController {
   async copyPermissions(
     @Param('sourceRoleId', ParseIntPipe) sourceRoleId: number,
     @Param('targetRoleId', ParseIntPipe) targetRoleId: number,
-  ) {
+  ): Promise<{ success: true; copiedCount: number }> {
     return this.permissionsManagement.copyPermissions(
       sourceRoleId,
       targetRoleId,
     );
   }
 
-  // ========== User Roles Assignment ==========
-
   @Post('user-roles/assign')
   @RequireCreate('user_roles')
-  async assignRole(@Body() dto: AssignRoleDto) {
+  async assignRole(@Body() dto: AssignRoleDto): Promise<unknown> {
     return this.userRolesService.assignRole(dto);
   }
 
   @Post('user-roles/assign-multiple')
   @RequireCreate('user_roles')
-  async assignMultipleRoles(@Body() dto: AssignMultipleRolesDto) {
+  async assignMultipleRoles(
+    @Body() dto: AssignMultipleRolesDto,
+  ): Promise<unknown> {
     return this.userRolesService.assignMultipleRoles(dto);
   }
 
@@ -117,13 +121,15 @@ export class PermissionsManagementController {
   async removeRole(
     @Param('userId', ParseIntPipe) userId: number,
     @Param('roleId', ParseIntPipe) roleId: number,
-  ) {
+  ): Promise<void> {
     await this.userRolesService.removeRole(userId, roleId);
   }
 
   @Get('users/:userId/roles')
   @RequireRead('user_roles')
-  async getUserRoles(@Param('userId', ParseIntPipe) userId: number) {
+  async getUserRoles(
+    @Param('userId', ParseIntPipe) userId: number,
+  ): Promise<unknown> {
     return this.userRolesService.getUserRoles(userId);
   }
 }

@@ -100,16 +100,13 @@ export class NocoDBService implements OnModuleInit {
     const prefixedName = this.getPrefixedTableName(tableName);
 
     try {
-      const response = await this.httpClient.get(
-        `/api/v2/meta/bases/${this.baseId}/tables`,
-      );
-
-      const tables = response.data.list || [];
-      return tables.some((table: any) => table.table_name === prefixedName);
+      const tables = await this.fetchTables();
+      return tables.some((table) => table.table_name === prefixedName);
     } catch (error) {
+      const payload = this.safeErrorPayload(error);
       this.logger.error(
         `Error checking if table ${prefixedName} exists:`,
-        error,
+        payload,
       );
       throw error;
     }
@@ -118,16 +115,16 @@ export class NocoDBService implements OnModuleInit {
   /**
    * Get table details by name
    */
-  async getTableByName(tableName: string): Promise<any> {
+  async getTableByName(tableName: string): Promise<{
+    id: string;
+    table_name: string;
+    title?: string;
+  } | null> {
     const prefixedName = this.getPrefixedTableName(tableName);
 
     try {
-      const response = await this.httpClient.get(
-        `/api/v2/meta/bases/${this.baseId}/tables`,
-      );
-
-      const tables = response.data.list || [];
-      const table = tables.find((t: any) => t.table_name === prefixedName);
+      const tables = await this.fetchTables();
+      const table = tables.find((t) => t.table_name === prefixedName) ?? null;
 
       if (!table) {
         this.logger.warn(`Table ${prefixedName} not found`);
@@ -136,7 +133,8 @@ export class NocoDBService implements OnModuleInit {
 
       return table;
     } catch (error) {
-      this.logger.error(`Error getting table ${prefixedName}:`, error);
+      const payload = this.safeErrorPayload(error);
+      this.logger.error(`Error getting table ${prefixedName}:`, payload);
       throw error;
     }
   }
@@ -144,7 +142,11 @@ export class NocoDBService implements OnModuleInit {
   /**
    * Create a new table in the base
    */
-  async createTable(tableName: string, title: string, columns: any[] = []) {
+  async createTable(
+    tableName: string,
+    title: string,
+    columns: Array<Record<string, unknown>> = [],
+  ): Promise<unknown> {
     const prefixedName = this.getPrefixedTableName(tableName);
     const prefixedTitle = this.getPrefixedTableName(title);
 
@@ -161,7 +163,8 @@ export class NocoDBService implements OnModuleInit {
       this.logger.log(`Table ${prefixedName} created successfully`);
       return response.data;
     } catch (error) {
-      this.logger.error(`Error creating table ${prefixedName}:`, error);
+      const payload = this.safeErrorPayload(error);
+      this.logger.error(`Error creating table ${prefixedName}:`, payload);
       throw error;
     }
   }
@@ -174,10 +177,10 @@ export class NocoDBService implements OnModuleInit {
     columnName: string,
     columnType: string,
     title?: string,
-    additionalOptions?: any,
-  ): Promise<any> {
+    additionalOptions?: Record<string, unknown>,
+  ): Promise<unknown> {
     try {
-      const payload = {
+      const payload: Record<string, unknown> = {
         column_name: columnName,
         title: title || columnName,
         uidt: columnType, // UI Data Type
@@ -192,8 +195,80 @@ export class NocoDBService implements OnModuleInit {
       this.logger.log(`Column ${columnName} created in table ${tableId}`);
       return response.data;
     } catch (error) {
-      this.logger.error(`Error creating column ${columnName}:`, error);
+      const payload = this.safeErrorPayload(error);
+      this.logger.error(`Error creating column ${columnName}:`, payload);
       throw error;
     }
+  }
+
+  private async fetchTables(): Promise<
+    Array<{ id: string; table_name: string; title?: string }>
+  > {
+    const response = await this.httpClient.get(
+      `/api/v2/meta/bases/${this.baseId}/tables`,
+    );
+
+    return this.extractTables(response.data);
+  }
+
+  private extractTables(data: unknown): Array<{
+    id: string;
+    table_name: string;
+    title?: string;
+  }> {
+    if (typeof data !== 'object' || data === null) {
+      return [];
+    }
+
+    const list = (data as { list?: unknown }).list;
+    if (!Array.isArray(list)) {
+      return [];
+    }
+
+    return list
+      .map((item) => this.toTableRecord(item))
+      .filter(
+        (item): item is { id: string; table_name: string; title?: string } =>
+          item !== null,
+      );
+  }
+
+  private toTableRecord(
+    item: unknown,
+  ): { id: string; table_name: string; title?: string } | null {
+    if (
+      typeof item === 'object' &&
+      item !== null &&
+      'id' in item &&
+      'table_name' in item
+    ) {
+      const rawId = (item as { id: unknown }).id;
+      const tableName = (item as { table_name: unknown }).table_name;
+      if (
+        (typeof rawId === 'string' || typeof rawId === 'number') &&
+        typeof tableName === 'string'
+      ) {
+        return {
+          id: String(rawId),
+          table_name: tableName,
+          title:
+            'title' in item &&
+            typeof (item as { title?: unknown }).title === 'string'
+              ? ((item as { title?: unknown }).title as string)
+              : undefined,
+        };
+      }
+    }
+    return null;
+  }
+
+  private safeErrorPayload(error: unknown): string {
+    if (error instanceof Error) {
+      return error.message;
+    }
+    if (typeof error === 'string') {
+      return error;
+    }
+    return 'Unknown error';
   }
 }

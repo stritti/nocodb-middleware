@@ -40,10 +40,16 @@ async function testPhase1() {
     const response = await httpClient.get(
       `/api/v2/meta/bases/${baseId}/tables`,
     );
-    const tables = response.data.list || [];
+    interface TableInfo {
+      table_name?: string;
+      title?: string;
+    }
+    const tables = (response.data.list ?? []) as TableInfo[];
     console.log(`  ✅ Total tables in base: ${tables.length}`);
-    tables.forEach((table: any) => {
-      console.log(`     - ${table.table_name} (${table.title})`);
+    tables.forEach((table) => {
+      console.log(
+        `     - ${table.table_name ?? 'unknown'} (${table.title ?? 'unknown'})`,
+      );
     });
 
     console.log('\n✅ Phase 1 Tests Completed Successfully!');

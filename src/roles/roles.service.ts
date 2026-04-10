@@ -8,6 +8,17 @@ import { NocoDBService } from '../nocodb/nocodb.service';
 import { NocoDBV3Service } from '../nocodb/nocodb-v3.service';
 import { CreateRoleDto } from './dto/create-role.dto';
 
+type RoleRecord = {
+  Id: number;
+  role_name?: string;
+  description?: string;
+  is_system_role?: boolean;
+};
+
+type RoleListResponse = {
+  list?: RoleRecord[];
+};
+
 @Injectable()
 export class RolesService {
   private readonly logger = new Logger(RolesService.name);
@@ -20,14 +31,13 @@ export class RolesService {
   /**
    * Create a new role
    */
-  async createRole(createRoleDto: CreateRoleDto): Promise<any> {
+  async createRole(createRoleDto: CreateRoleDto): Promise<RoleRecord | null> {
     try {
       const rolesTable = await this.nocoDBService.getTableByName('roles');
       if (!rolesTable) {
         throw new NotFoundException('Roles table not found');
       }
 
-      // Check if role already exists
       const existingRole = await this.findRoleByName(createRoleDto.roleName);
       if (existingRole) {
         throw new ConflictException(
@@ -35,7 +45,6 @@ export class RolesService {
         );
       }
 
-      // Create role
       const httpClient = this.nocoDBService.getHttpClient();
       const response = await httpClient.post(
         `/api/v2/tables/${rolesTable.id}/records`,
@@ -47,7 +56,7 @@ export class RolesService {
       );
 
       this.logger.log(`Role "${createRoleDto.roleName}" created`);
-      return response.data;
+      return this.toRoleRecord(response.data);
     } catch (error) {
       this.logger.error('Error creating role:', error);
       throw error;
@@ -57,7 +66,7 @@ export class RolesService {
   /**
    * Find role by name
    */
-  async findRoleByName(roleName: string): Promise<any> {
+  async findRoleByName(roleName: string): Promise<RoleRecord | null> {
     try {
       const rolesTable = await this.nocoDBService.getTableByName('roles');
       if (!rolesTable) {
@@ -74,7 +83,8 @@ export class RolesService {
         },
       );
 
-      return response.data.list[0] || null;
+      const list = this.toRoleList(response.data);
+      return list[0] ?? null;
     } catch (error) {
       this.logger.error('Error finding role:', error);
       throw error;
@@ -84,7 +94,7 @@ export class RolesService {
   /**
    * Get all roles
    */
-  async getAllRoles(): Promise<any[]> {
+  async getAllRoles(): Promise<RoleRecord[]> {
     try {
       const rolesTable = await this.nocoDBService.getTableByName('roles');
       if (!rolesTable) {
@@ -96,7 +106,7 @@ export class RolesService {
         `/api/v2/tables/${rolesTable.id}/records`,
       );
 
-      return response.data.list || [];
+      return this.toRoleList(response.data);
     } catch (error) {
       this.logger.error('Error fetching roles:', error);
       throw error;
@@ -130,14 +140,13 @@ export class RolesService {
   /**
    * Create a new role using v3 API
    */
-  async createRoleV3(createRoleDto: CreateRoleDto): Promise<any> {
+  async createRoleV3(createRoleDto: CreateRoleDto): Promise<RoleRecord | null> {
     try {
       const rolesTable = await this.nocoDBService.getTableByName('roles');
       if (!rolesTable) {
         throw new NotFoundException('Roles table not found');
       }
 
-      // Check if role already exists
       const existingRole = await this.findRoleByNameV3(createRoleDto.roleName);
       if (existingRole) {
         throw new ConflictException(
@@ -145,7 +154,6 @@ export class RolesService {
         );
       }
 
-      // Create role using v3
       const result = await this.nocoDBV3Service.create(rolesTable.id, {
         role_name: createRoleDto.roleName,
         description: createRoleDto.description || '',
@@ -153,7 +161,7 @@ export class RolesService {
       });
 
       this.logger.log(`Role "${createRoleDto.roleName}" created (v3)`);
-      return result;
+      return this.toRoleRecord(result);
     } catch (error) {
       this.logger.error('Error creating role (v3):', error);
       throw error;
@@ -163,17 +171,18 @@ export class RolesService {
   /**
    * Find role by name using v3 API
    */
-  async findRoleByNameV3(roleName: string): Promise<any> {
+  async findRoleByNameV3(roleName: string): Promise<RoleRecord | null> {
     try {
       const rolesTable = await this.nocoDBService.getTableByName('roles');
       if (!rolesTable) {
         return null;
       }
 
-      return await this.nocoDBV3Service.findOne(
+      const result = await this.nocoDBV3Service.findOne(
         rolesTable.id,
         `(role_name,eq,${roleName})`,
       );
+      return this.toRoleRecord(result);
     } catch (error) {
       this.logger.error('Error finding role (v3):', error);
       throw error;
@@ -183,15 +192,17 @@ export class RolesService {
   /**
    * Get all roles using v3 API
    */
-  async getAllRolesV3(): Promise<any[]> {
+  async getAllRolesV3(): Promise<RoleRecord[]> {
     try {
       const rolesTable = await this.nocoDBService.getTableByName('roles');
       if (!rolesTable) {
         return [];
       }
 
-      const response = await this.nocoDBV3Service.list(rolesTable.id);
-      return response.list || [];
+      const response = (await this.nocoDBV3Service.list(
+        rolesTable.id,
+      )) as RoleListResponse;
+      return this.toRoleList(response);
     } catch (error) {
       this.logger.error('Error fetching roles (v3):', error);
       throw error;
@@ -215,5 +226,32 @@ export class RolesService {
       this.logger.error('Error deleting role (v3):', error);
       throw error;
     }
+  }
+
+  private toRoleRecord(value: unknown): RoleRecord | null {
+    if (!this.isRoleRecord(value)) {
+      return null;
+    }
+    return value;
+  }
+
+  private toRoleList(value: unknown): RoleRecord[] {
+    if (typeof value !== 'object' || value === null) {
+      return [];
+    }
+    const list = (value as RoleListResponse).list;
+    if (!Array.isArray(list)) {
+      return [];
+    }
+    return list.filter((item): item is RoleRecord => this.isRoleRecord(item));
+  }
+
+  private isRoleRecord(value: unknown): value is RoleRecord {
+    if (typeof value !== 'object' || value === null) {
+      return false;
+    }
+    const candidate = value as { Id?: unknown; id?: unknown };
+    const id = candidate.Id ?? candidate.id;
+    return typeof id === 'number';
   }
 }

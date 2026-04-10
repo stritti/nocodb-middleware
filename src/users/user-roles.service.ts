@@ -9,6 +9,20 @@ import { NocoDBV3Service } from '../nocodb/nocodb-v3.service';
 import { AssignRoleDto, AssignMultipleRolesDto } from './dto/assign-role.dto';
 import { PermissionsService } from '../permissions/permissions.service';
 
+type TableMeta = { id: string };
+type UserRoleRecord = {
+  Id: string | number;
+  role?: { Id?: string | number } | { id?: string | number };
+};
+
+type RoleRecord = {
+  id?: string | number;
+  role_name?: string;
+  role?: string;
+  description?: string;
+  is_system_role?: boolean;
+};
+
 @Injectable()
 export class UserRolesService {
   private readonly logger = new Logger(UserRolesService.name);
@@ -19,66 +33,51 @@ export class UserRolesService {
     private permissionsService: PermissionsService,
   ) {}
 
-  /**
-   * Assign a role to a user
-   */
-  async assignRole(dto: AssignRoleDto): Promise<any> {
-    try {
-      const userRolesTable =
-        await this.nocoDBService.getTableByName('user_roles');
-      if (!userRolesTable) {
-        throw new NotFoundException('User_roles table not found');
-      }
+  async assignRole(dto: AssignRoleDto): Promise<unknown> {
+    const userRolesTable = await this.getTableMeta('user_roles');
+    const httpClient = this.nocoDBService.getHttpClient();
 
-      const httpClient = this.nocoDBService.getHttpClient();
-
-      // Check if assignment already exists
-      const existingResponse = await httpClient.get(
-        `/api/v2/tables/${userRolesTable.id}/records`,
-        {
-          params: {
-            where: `(user.Id,eq,${dto.userId})~and(role.Id,eq,${dto.roleId})`,
-          },
+    const existingResponse = await httpClient.get(
+      `/api/v2/tables/${userRolesTable.id}/records`,
+      {
+        params: {
+          where: `(user.Id,eq,${dto.userId})~and(role.Id,eq,${dto.roleId})`,
         },
+      },
+    );
+
+    const list = this.extractUserRoles(existingResponse.data);
+    if (list.length > 0) {
+      throw new ConflictException(
+        `User ${dto.userId} already has role ${dto.roleId}`,
       );
-
-      if (existingResponse.data.list.length > 0) {
-        throw new ConflictException(
-          `User ${dto.userId} already has role ${dto.roleId}`,
-        );
-      }
-
-      // Create assignment
-      const response = await httpClient.post(
-        `/api/v2/tables/${userRolesTable.id}/records`,
-        {
-          user: { Id: dto.userId },
-          role: { Id: dto.roleId },
-          assigned_at: new Date().toISOString(),
-        },
-      );
-
-      this.logger.log(`Role ${dto.roleId} assigned to user ${dto.userId}`);
-
-      // Invalidate cache for this user
-      this.permissionsService.clearCache(dto.userId);
-
-      return response.data;
-    } catch (error) {
-      this.logger.error('Error assigning role:', error);
-      throw error;
     }
+
+    const response = await httpClient.post(
+      `/api/v2/tables/${userRolesTable.id}/records`,
+      {
+        user: { Id: dto.userId },
+        role: { Id: dto.roleId },
+        assigned_at: new Date().toISOString(),
+      },
+    );
+
+    this.logger.log(`Role ${dto.roleId} assigned to user ${dto.userId}`);
+    this.permissionsService.clearCache(dto.userId);
+
+    return response.data;
   }
 
-  /**
-   * Assign multiple roles to a user
-   */
-  async assignMultipleRoles(dto: AssignMultipleRolesDto): Promise<any> {
+  async assignMultipleRoles(dto: AssignMultipleRolesDto): Promise<{
+    success: true;
+    assignedCount: number;
+    results: unknown[];
+  }> {
     this.logger.log(
       `Assigning ${dto.roleIds.length} roles to user ${dto.userId}`,
     );
 
-    const results = [];
+    const results: unknown[] = [];
 
     for (const roleId of dto.roleIds) {
       try {
@@ -103,196 +102,166 @@ export class UserRolesService {
     };
   }
 
-  /**
-   * Remove a role from a user
-   */
   async removeRole(userId: number, roleId: number): Promise<void> {
-    try {
-      const userRolesTable =
-        await this.nocoDBService.getTableByName('user_roles');
-      if (!userRolesTable) {
-        throw new NotFoundException('User_roles table not found');
-      }
+    const userRolesTable = await this.getTableMeta('user_roles');
+    const httpClient = this.nocoDBService.getHttpClient();
 
-      const httpClient = this.nocoDBService.getHttpClient();
-      const response = await httpClient.get(
-        `/api/v2/tables/${userRolesTable.id}/records`,
-        {
-          params: {
-            where: `(user.Id,eq,${userId})~and(role.Id,eq,${roleId})`,
-          },
+    const response = await httpClient.get(
+      `/api/v2/tables/${userRolesTable.id}/records`,
+      {
+        params: {
+          where: `(user.Id,eq,${userId})~and(role.Id,eq,${roleId})`,
         },
+      },
+    );
+
+    const list = this.extractUserRoles(response.data);
+    if (list.length === 0) {
+      throw new NotFoundException(
+        `Role ${roleId} is not assigned to user ${userId}`,
       );
-
-      if (response.data.list.length === 0) {
-        throw new NotFoundException(
-          `Role ${roleId} is not assigned to user ${userId}`,
-        );
-      }
-
-      const assignmentId = response.data.list[0].Id;
-
-      await httpClient.delete(
-        `/api/v2/tables/${userRolesTable.id}/records/${assignmentId}`,
-      );
-
-      this.logger.log(`Role ${roleId} removed from user ${userId}`);
-
-      // Invalidate cache
-      this.permissionsService.clearCache(userId);
-    } catch (error) {
-      this.logger.error('Error removing role:', error);
-      throw error;
     }
+
+    const assignmentId = list[0].Id;
+
+    await httpClient.delete(
+      `/api/v2/tables/${userRolesTable.id}/records/${assignmentId}`,
+    );
+
+    this.logger.log(`Role ${roleId} removed from user ${userId}`);
+    this.permissionsService.clearCache(userId);
   }
 
-  /**
-   * Get all roles for a user
-   */
-  async getUserRoles(userId: number): Promise<any[]> {
-    try {
-      const userRolesTable =
-        await this.nocoDBService.getTableByName('user_roles');
-      const rolesTable = await this.nocoDBService.getTableByName('roles');
+  async getUserRoles(userId: number): Promise<RoleRecord[]> {
+    const userRolesTable = await this.getTableMeta('user_roles');
+    const rolesTable = await this.getTableMeta('roles');
 
-      if (!userRolesTable || !rolesTable) {
-        return [];
-      }
+    if (!userRolesTable || !rolesTable) {
+      return [];
+    }
 
-      const httpClient = this.nocoDBService.getHttpClient();
-      const response = await httpClient.get(
-        `/api/v2/tables/${userRolesTable.id}/records`,
-        {
-          params: {
-            where: `(user.Id,eq,${userId})`,
-            nested: {
-              role: {
-                fields: ['Id', 'role_name', 'description', 'is_system_role'],
-              },
+    const httpClient = this.nocoDBService.getHttpClient();
+    const response = await httpClient.get(
+      `/api/v2/tables/${userRolesTable.id}/records`,
+      {
+        params: {
+          where: `(user.Id,eq,${userId})`,
+          nested: {
+            role: {
+              fields: ['Id', 'role_name', 'description', 'is_system_role'],
             },
           },
         },
-      );
+      },
+    );
 
-      // Extract roles from nested objects
-      return response.data.list
-        .filter((ur: any) => ur.role)
-        .map((ur: any) => ur.role);
-    } catch (error) {
-      this.logger.error('Error fetching user roles:', error);
-      throw error;
-    }
+    const list = this.extractUserRoles(response.data);
+    return list
+      .map((item) => item.role)
+      .filter((role): role is RoleRecord => Boolean(role));
   }
 
-  // ============ V3 API Methods ============
+  async assignRoleV3(dto: AssignRoleDto): Promise<unknown> {
+    const userRolesTable = await this.getTableMeta('user_roles');
 
-  /**
-   * Assign a role to a user using v3 API (inline relationships)
-   * This is more efficient than v2 as it uses inline relationship syntax
-   */
-  async assignRoleV3(dto: AssignRoleDto): Promise<any> {
-    try {
-      const userRolesTable =
-        await this.nocoDBService.getTableByName('user_roles');
-      if (!userRolesTable) {
-        throw new NotFoundException('User_roles table not found');
-      }
+    const existing = await this.nocoDBV3Service.findOne(
+      userRolesTable.id,
+      `(user.id,eq,${dto.userId})~and(role.id,eq,${dto.roleId})`,
+    );
 
-      // Check if assignment already exists using v3
-      const existing = await this.nocoDBV3Service.findOne(
-        userRolesTable.id,
-        `(user.id,eq,${dto.userId})~and(role.id,eq,${dto.roleId})`,
+    if (existing) {
+      throw new ConflictException(
+        `User ${dto.userId} already has role ${dto.roleId}`,
       );
-
-      if (existing) {
-        throw new ConflictException(
-          `User ${dto.userId} already has role ${dto.roleId}`,
-        );
-      }
-
-      // Create assignment with inline relationships (v3 style)
-      const result = await this.nocoDBV3Service.create(userRolesTable.id, {
-        user: [{ id: dto.userId }],
-        role: [{ id: dto.roleId }],
-        assigned_at: new Date().toISOString(),
-      });
-
-      this.logger.log(`Role ${dto.roleId} assigned to user ${dto.userId} (v3)`);
-
-      // Invalidate cache for this user
-      this.permissionsService.clearCache(dto.userId);
-
-      return result;
-    } catch (error) {
-      this.logger.error('Error assigning role (v3):', error);
-      throw error;
     }
+
+    const result = await this.nocoDBV3Service.create(userRolesTable.id, {
+      user: [{ id: dto.userId }],
+      role: [{ id: dto.roleId }],
+      assigned_at: new Date().toISOString(),
+    });
+
+    this.logger.log(`Role ${dto.roleId} assigned to user ${dto.userId} (v3)`);
+    this.permissionsService.clearCache(dto.userId);
+
+    return result;
   }
 
-  /**
-   * Get all roles for a user using v3 API with nested data
-   * This retrieves all role data in a single call
-   */
-  async getUserRolesV3(userId: number): Promise<any[]> {
-    try {
-      const userRolesTable =
-        await this.nocoDBService.getTableByName('user_roles');
+  async getUserRolesV3(userId: number): Promise<RoleRecord[]> {
+    const userRolesTable = await this.getTableMeta('user_roles');
 
-      if (!userRolesTable) {
-        return [];
-      }
+    const response = (await this.nocoDBV3Service.list(userRolesTable.id, {
+      where: `(user.id,eq,${userId})`,
+      includeRelations: ['role'],
+    })) as {
+      list?: Array<{ role?: RoleRecord[] }>;
+    };
 
-      // Use v3 list with nested relations
-      const response = await this.nocoDBV3Service.list(userRolesTable.id, {
-        where: `(user.id,eq,${userId})`,
-        includeRelations: ['role'],
-      });
-
-      // Extract roles from nested objects
-      return (
-        response.list
-          ?.filter((ur: any) => ur.role && ur.role.length > 0)
-          .map((ur: any) => ur.role[0]) || []
-      );
-    } catch (error) {
-      this.logger.error('Error fetching user roles (v3):', error);
-      throw error;
-    }
+    return (
+      response.list
+        ?.flatMap((item) => item.role ?? [])
+        .filter((role): role is RoleRecord => Boolean(role)) ?? []
+    );
   }
 
-  /**
-   * Remove a role from a user using v3 API
-   */
   async removeRoleV3(userId: number, roleId: number): Promise<void> {
-    try {
-      const userRolesTable =
-        await this.nocoDBService.getTableByName('user_roles');
-      if (!userRolesTable) {
-        throw new NotFoundException('User_roles table not found');
-      }
+    const userRolesTable = await this.getTableMeta('user_roles');
 
-      // Find the assignment
-      const assignment = await this.nocoDBV3Service.findOne(
+    const existing = this.toRecordRef(
+      await this.nocoDBV3Service.findOne(
         userRolesTable.id,
         `(user.id,eq,${userId})~and(role.id,eq,${roleId})`,
+      ),
+    );
+
+    if (!existing) {
+      throw new NotFoundException(
+        `Role ${roleId} is not assigned to user ${userId}`,
       );
-
-      if (!assignment) {
-        throw new NotFoundException(
-          `Role ${roleId} is not assigned to user ${userId}`,
-        );
-      }
-
-      // Delete the assignment
-      await this.nocoDBV3Service.delete(userRolesTable.id, assignment.id);
-
-      this.logger.log(`Role ${roleId} removed from user ${userId} (v3)`);
-
-      // Invalidate cache
-      this.permissionsService.clearCache(userId);
-    } catch (error) {
-      this.logger.error('Error removing role (v3):', error);
-      throw error;
     }
+
+    await this.nocoDBV3Service.delete(userRolesTable.id, Number(existing.id));
+    this.logger.log(`Role ${roleId} removed from user ${userId} (v3)`);
+    this.permissionsService.clearCache(userId);
+  }
+
+  private async getTableMeta(tableName: string): Promise<TableMeta> {
+    const table = await this.nocoDBService.getTableByName(tableName);
+    if (!table) {
+      throw new NotFoundException(`${tableName} table not found`);
+    }
+    return { id: table.id };
+  }
+
+  private extractUserRoles(data: unknown): UserRoleRecord[] {
+    if (typeof data !== 'object' || data === null) {
+      return [];
+    }
+
+    const list = (data as { list?: unknown }).list;
+    if (!Array.isArray(list)) {
+      return [];
+    }
+
+    return list.filter((item): item is UserRoleRecord => {
+      if (typeof item !== 'object' || item === null) {
+        return false;
+      }
+      const hasId = 'Id' in item;
+      const hasRole = 'role' in item;
+      return hasId || hasRole;
+    });
+  }
+
+  private toRecordRef(record: unknown): { id: number | string } | null {
+    if (typeof record !== 'object' || record === null) {
+      return null;
+    }
+    const candidate = record as { id?: unknown; Id?: unknown };
+    const id = candidate.id ?? candidate.Id;
+    if (typeof id === 'number' || typeof id === 'string') {
+      return { id };
+    }
+    return null;
   }
 }

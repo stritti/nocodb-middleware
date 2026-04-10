@@ -1,0 +1,11 @@
+{
+    "mcpServers": {
+        "nocodb-middleware": {
+            "command": "bun",
+            "args": [
+                "run",
+                "mcp"
+            ]
+        }
+    }
+}

@@ -3,11 +3,30 @@ import { NocoDBV3Service } from './nocodb-v3.service';
 import { NocoDBService } from './nocodb.service';
 import { ConfigService } from '@nestjs/config';
 import { Logger } from '@nestjs/common';
+import type { AxiosInstance } from 'axios';
+
+type HttpClientMock = {
+  post: jest.Mock<
+    Promise<unknown>,
+    [string, unknown?, { params?: Record<string, unknown> }?]
+  >;
+  get: jest.Mock<
+    Promise<unknown>,
+    [string, { params?: Record<string, unknown> }?]
+  >;
+  patch: jest.Mock<Promise<unknown>, [string, unknown?]>;
+  delete: jest.Mock<Promise<unknown>, [string]>;
+  defaults: { baseURL: string };
+};
+
+type NocoDBServiceMock = {
+  getHttpClient: jest.Mock<AxiosInstance, []>;
+  getBaseId: jest.Mock<string, []>;
+};
 
 describe('NocoDBV3Service', () => {
   let service: NocoDBV3Service;
-  let nocoDBService: NocoDBService;
-  let mockHttpClient: any;
+  let mockHttpClient: HttpClientMock;
 
   const mockBaseId = 'test-base-id';
 
@@ -18,7 +37,7 @@ describe('NocoDBV3Service', () => {
       patch: jest.fn(),
       delete: jest.fn(),
       defaults: { baseURL: 'http://test-url' },
-    };
+    } as unknown as HttpClientMock;
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -26,9 +45,12 @@ describe('NocoDBV3Service', () => {
         {
           provide: NocoDBService,
           useValue: {
-            getHttpClient: jest.fn().mockReturnValue(mockHttpClient),
-            getBaseId: jest.fn().mockReturnValue(mockBaseId),
-          },
+            getHttpClient: jest
+              .fn<AxiosInstance, []>()
+
+              .mockReturnValue(mockHttpClient as any),
+            getBaseId: jest.fn<string, []>().mockReturnValue(mockBaseId),
+          } satisfies NocoDBServiceMock,
         },
         {
           provide: ConfigService,
@@ -40,9 +62,7 @@ describe('NocoDBV3Service', () => {
     }).compile();
 
     service = module.get<NocoDBV3Service>(NocoDBV3Service);
-    nocoDBService = module.get<NocoDBService>(NocoDBService);
 
-    // Suppress logs
     jest.spyOn(Logger.prototype, 'log').mockImplementation(() => {});
     jest.spyOn(Logger.prototype, 'debug').mockImplementation(() => {});
     jest.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
@@ -56,7 +76,11 @@ describe('NocoDBV3Service', () => {
     it('should create a record', async () => {
       const tableId = 'mUsers';
       const data = { name: 'Test User' };
-      const responseData = { records: [{ id: 1, fields: data }] };
+      const responseData: {
+        records: Array<{ id: number; fields: { name: string } }>;
+      } = {
+        records: [{ id: 1, fields: data }],
+      };
       mockHttpClient.post.mockResolvedValue({ data: responseData });
 
       const result = await service.create(tableId, data);
@@ -109,6 +133,7 @@ describe('NocoDBV3Service', () => {
       expect(mockHttpClient.patch).toHaveBeenCalledWith(
         `/api/v3/data/${mockBaseId}/${tableId}/records/${recordId}`,
         { fields: data },
+        {},
       );
     });
 
@@ -177,7 +202,8 @@ describe('NocoDBV3Service', () => {
       expect(mockHttpClient.post).toHaveBeenCalledWith(
         expect.any(String),
         { fields: { name: 'A', rel: [{ id: 10 }, { id: 20 }] } },
-        expect.any(Object),
+
+        expect.objectContaining({ params: expect.any(Object) }),
       );
     });
 
@@ -187,9 +213,11 @@ describe('NocoDBV3Service', () => {
         { fieldName: 'rel', recordIds: [10] },
       ]);
 
-      expect(mockHttpClient.patch).toHaveBeenCalledWith(expect.any(String), {
-        fields: { rel: [{ id: 10 }] },
-      });
+      expect(mockHttpClient.patch).toHaveBeenCalledWith(
+        `/api/v3/data/${mockBaseId}/t1/records/1`,
+        { fields: { rel: [{ id: 10 }] } },
+        {},
+      );
     });
 
     it('getWithLinks should call read with includeRelations', async () => {
@@ -225,6 +253,7 @@ describe('NocoDBV3Service', () => {
       const results = await service.batchCreate('t1', [{ a: 1 }, { b: 2 }]);
       expect(results[0]).toEqual({ id: 1 });
       expect(results[1]).toHaveProperty('error', 'Fail');
+      expect(mockHttpClient.post).toHaveBeenCalledTimes(2);
     });
 
     it('batchUpdate should iterate updates', async () => {
@@ -237,6 +266,7 @@ describe('NocoDBV3Service', () => {
       mockHttpClient.patch.mockRejectedValue(new Error('Fail'));
       const results = await service.batchUpdate('t1', [{ id: 1, data: {} }]);
       expect(results[0]).toHaveProperty('error', 'Fail');
+      expect(mockHttpClient.patch).toHaveBeenCalled();
     });
   });
 

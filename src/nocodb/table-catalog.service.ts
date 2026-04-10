@@ -3,6 +3,12 @@ import { NocoDBService } from './nocodb.service';
 import { NocoDBV3Service } from './nocodb-v3.service';
 import { TableCatalogItemDto } from './dto/table-catalog-item.dto';
 
+interface NocoTableMeta {
+  id?: string | number;
+  table_name?: string;
+  title?: string;
+}
+
 @Injectable()
 export class TableCatalogService {
   private readonly internalTableNames = new Set([
@@ -23,19 +29,42 @@ export class TableCatalogService {
     const tables = await this.nocoDBV3Service.listTablesMetaV3(baseId);
 
     return tables
-      .filter((table: any) => {
-        const tableName = table.table_name || '';
+      .map((table) => this.normalizeTableMeta(table))
+      .filter((table): table is Required<NocoTableMeta> => table !== null)
+      .filter((table) => {
         const unprefixedName =
-          prefix && tableName.startsWith(prefix)
-            ? tableName.slice(prefix.length)
-            : tableName;
+          prefix && table.table_name.startsWith(prefix)
+            ? table.table_name.slice(prefix.length)
+            : table.table_name;
 
         return !this.internalTableNames.has(unprefixedName);
       })
-      .map((table: any) => ({
+      .map((table) => ({
         id: String(table.id),
         tableName: table.table_name,
         title: table.title,
       }));
+  }
+
+  private normalizeTableMeta(input: unknown): Required<NocoTableMeta> | null {
+    if (!input || typeof input !== 'object') {
+      return null;
+    }
+
+    const table = input as NocoTableMeta;
+
+    if (
+      (typeof table.id !== 'string' && typeof table.id !== 'number') ||
+      typeof table.table_name !== 'string' ||
+      typeof table.title !== 'string'
+    ) {
+      return null;
+    }
+
+    return {
+      id: table.id,
+      table_name: table.table_name,
+      title: table.title,
+    };
   }
 }

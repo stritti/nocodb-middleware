@@ -1,85 +1,88 @@
-import { NocoDBService } from '../nocodb.service';
+import { NocoDBV3Service } from '../nocodb-v3.service';
 import { PageOptionsDto } from '../dto/page-options.dto';
 import { PageDto } from '../dto/page.dto';
 import { PageMetaDto } from '../dto/page-meta.dto';
 import { Logger } from '@nestjs/common';
 
+type JsonObject = Record<string, unknown>;
+
 export abstract class BaseRepository<T> {
   protected readonly logger: Logger;
 
   constructor(
-    protected readonly nocoDBService: NocoDBService,
-    protected readonly tableName: string,
-    protected readonly projectId?: string,
-    protected readonly viewId?: string,
+    protected readonly nocoDBV3Service: NocoDBV3Service,
+    protected readonly tableId: string,
   ) {
     this.logger = new Logger(this.constructor.name);
   }
 
-  protected get client() {
-    return this.nocoDBService.getClient();
-  }
-
-  // Helper to get dbViewRow method which is common for table operations
-  // Note: nocodb-sdk types might vary, adjusting for generic usage
-  protected get tableApi() {
-    // Assuming project ID is available or configured globally/per repo
-    // If projectId is not passed, we might need to rely on how the SDK is initialized or pass it in methods
-    // For this implementation, we assume we are using the table-centric APIs if possible,
-    // or we construct the requests manually if the SDK requires specific project IDs.
-
-    // The SDK structure: client.dbViewRow.list(projectId, tableId, ...)
-    // We need projectId.
-    if (!this.projectId) {
-      // Fallback or error if project ID is strictly required for the calls we make
-      // For now, let's assume it's passed in constructor or config
-    }
-    return this.client.dbViewRow;
-  }
-
   async findMany(pageOptionsDto: PageOptionsDto): Promise<PageDto<T>> {
     try {
-      const projectId = this.projectId || 'default_project_id'; // Replace with actual config retrieval if needed
-      const dbViewRow = this.client.dbViewRow as any;
+      const response = await this.nocoDBV3Service.list(this.tableId, {
+        offset: pageOptionsDto.skip,
+        limit: pageOptionsDto.take,
+      });
 
-      const result = await dbViewRow.list(
-        projectId,
-        this.tableName,
-        this.viewId,
-        {
-          offset: pageOptionsDto.skip,
-          limit: pageOptionsDto.take,
-          // sort: ... map order
-        },
+      const list = this.extractList(response).map((item) =>
+        this.toRecord(item),
       );
+      const total = this.extractTotalRows(response);
+      const pageMetaDto = new PageMetaDto({ itemCount: total, pageOptionsDto });
 
-      const data = result.list as T[];
-      const count = result.pageInfo.totalRows || 0;
-
-      const pageMetaDto = new PageMetaDto({ itemCount: count, pageOptionsDto });
-      return new PageDto(data, pageMetaDto);
+      return new PageDto(list as T[], pageMetaDto);
     } catch (error) {
-      this.logger.error(`Error finding many in ${this.tableName}`, error);
+      this.logger.error(`Error finding many in ${this.tableId}`, error);
       throw error;
     }
   }
 
   async create(data: Partial<T>): Promise<T> {
     try {
-      const projectId = this.projectId || 'default_project_id';
-      const dbViewRow = this.client.dbViewRow as any;
-      const result = await dbViewRow.create(
-        projectId,
-        this.tableName,
-        this.viewId,
-        data,
+      const result = await this.nocoDBV3Service.create(
+        this.tableId,
+        data as JsonObject,
       );
-      return result as T;
+      const record = this.toRecord(result);
+      if (!record) {
+        throw new Error('Failed to create record');
+      }
+      return record;
     } catch (error) {
-      this.logger.error(`Error creating in ${this.tableName}`, error);
+      this.logger.error(`Error creating in ${this.tableId}`, error);
       throw error;
     }
   }
 
-  // Add findOne, update, delete as needed
+  protected toRecord(value: unknown): T | null {
+    if (this.isObject(value)) {
+      return value as T;
+    }
+    return null;
+  }
+
+  private extractList(response: unknown): unknown[] {
+    if (!this.isObject(response)) {
+      return [];
+    }
+
+    const list = response.list;
+    return Array.isArray(list) ? list : [];
+  }
+
+  private extractTotalRows(response: unknown): number {
+    if (!this.isObject(response)) {
+      return 0;
+    }
+
+    const pageInfo = response.pageInfo;
+    if (this.isObject(pageInfo) && typeof pageInfo.totalRows === 'number') {
+      return pageInfo.totalRows;
+    }
+
+    return Array.isArray(response.list) ? response.list.length : 0;
+  }
+
+  private isObject(value: unknown): value is JsonObject {
+    return typeof value === 'object' && value !== null;
+  }
 }

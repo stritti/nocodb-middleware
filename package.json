@@ -21,7 +21,8 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
-    "docs:preview": "vitepress preview docs"
+    "docs:preview": "vitepress preview docs",
+    "mcp": "ts-node --esm scripts/mcp-server.ts"
   },
   "dependencies": {
     "@nestjs/cache-manager": "^3.0.1",
@@ -48,9 +49,11 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
     "@eslint/js": "^9.18.0",
+    "@modelcontextprotocol/sdk": "^1.28.0",
     "@nestjs/cli": "^11.0.0",
     "@nestjs/schematics": "^11.0.0",
     "@nestjs/testing": "^11.0.1",
+    "@stritti/vitepress-plugin-openspec": "0.3.1",
     "@types/express": "^5.0.0",
     "@types/express-rate-limit": "^5.1.3",
     "@types/jest": "^30.0.0",
@@ -63,6 +66,7 @@
     "globals": "^16.0.0",
     "jest": "^30.0.0",
     "prettier": "^3.4.2",
+    "semver": "^7.7.2",
     "source-map-support": "^0.5.21",
     "supertest": "^7.0.0",
     "ts-jest": "^29.2.5",
@@ -71,9 +75,7 @@
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.7.3",
     "typescript-eslint": "^8.20.0",
-    "vitepress": "^1.6.4",
-    "@stritti/vitepress-plugin-openspec": "0.3.1",
-    "semver": "^7.7.2"
+    "vitepress": "^1.6.4"
   },
   "jest": {
     "moduleFileExtensions": [

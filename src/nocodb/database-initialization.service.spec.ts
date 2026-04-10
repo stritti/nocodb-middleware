@@ -5,16 +5,56 @@ import { DatabaseInitializationService } from './database-initialization.service
 import { NocoDBService } from './nocodb.service';
 import { NocoDBV3Service } from './nocodb-v3.service';
 
+type HttpClientMock = {
+  get: jest.Mock<Promise<{ data?: unknown }>, [string]>;
+  post: jest.Mock<Promise<unknown>, [string, unknown?]>;
+};
+
+type NocoDBServiceMock = {
+  getTablePrefix: jest.Mock<string, []>;
+  getTableByName: jest.Mock<Promise<unknown>, [string]>;
+  getHttpClient: jest.Mock<HttpClientMock, []>;
+  getBaseId: jest.Mock<string, []>;
+};
+
+type NocoDBV3ServiceMock = {
+  createTableV3: jest.Mock<Promise<unknown>, [string, unknown]>;
+  findOne: jest.Mock<Promise<unknown>, [string, string]>;
+  create: jest.Mock<Promise<unknown>, [string, unknown]>;
+};
+
 describe('DatabaseInitializationService', () => {
   let service: DatabaseInitializationService;
-  let nocoDBService: NocoDBService;
-  let nocoDBV3Service: NocoDBV3Service;
-  let mockHttpClient: any;
+
+  let serviceWithPrivates: any;
+  let nocoDBService: NocoDBServiceMock;
+  let nocoDBV3Service: NocoDBV3ServiceMock;
+  let httpClientMock: HttpClientMock;
+  let configService: ConfigServiceMock;
 
   beforeEach(async () => {
-    mockHttpClient = {
-      get: jest.fn(),
-      post: jest.fn(),
+    httpClientMock = {
+      get: jest.fn<Promise<{ data?: unknown }>, [string]>(),
+      post: jest.fn<Promise<unknown>, [string, unknown?]>(),
+    };
+
+    nocoDBService = {
+      getTablePrefix: jest.fn<string, []>().mockReturnValue('nc_'),
+      getTableByName: jest.fn<Promise<unknown>, [string]>(),
+      getHttpClient: jest
+        .fn<HttpClientMock, []>()
+        .mockReturnValue(httpClientMock),
+      getBaseId: jest.fn<string, []>().mockReturnValue('base_id'),
+    };
+
+    nocoDBV3Service = {
+      createTableV3: jest.fn<Promise<unknown>, [string, unknown]>(),
+      findOne: jest.fn<Promise<unknown>, [string, string]>(),
+      create: jest.fn<Promise<unknown>, [string, unknown]>(),
+    };
+
+    configService = {
+      get: jest.fn<unknown, [string]>(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -22,26 +62,15 @@ describe('DatabaseInitializationService', () => {
         DatabaseInitializationService,
         {
           provide: NocoDBService,
-          useValue: {
-            getTablePrefix: jest.fn().mockReturnValue('nc_'),
-            getTableByName: jest.fn(),
-            getHttpClient: jest.fn().mockReturnValue(mockHttpClient),
-            getBaseId: jest.fn().mockReturnValue('base_id'),
-          },
+          useValue: nocoDBService,
         },
         {
           provide: NocoDBV3Service,
-          useValue: {
-            createTableV3: jest.fn(),
-            findOne: jest.fn(),
-            create: jest.fn(),
-          },
+          useValue: nocoDBV3Service,
         },
         {
           provide: ConfigService,
-          useValue: {
-            get: jest.fn(),
-          },
+          useValue: configService,
         },
       ],
     }).compile();
@@ -49,8 +78,8 @@ describe('DatabaseInitializationService', () => {
     service = module.get<DatabaseInitializationService>(
       DatabaseInitializationService,
     );
-    nocoDBService = module.get<NocoDBService>(NocoDBService);
-    nocoDBV3Service = module.get<NocoDBV3Service>(NocoDBV3Service);
+
+    serviceWithPrivates = service as any;
 
     jest.spyOn(Logger.prototype, 'log').mockImplementation(() => {});
     jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
@@ -63,7 +92,7 @@ describe('DatabaseInitializationService', () => {
 
   it('onModuleInit should trigger table initialization', async () => {
     const initSpy = jest
-      .spyOn(service as any, 'initializeTables')
+      .spyOn(serviceWithPrivates, 'initializeTables')
       .mockResolvedValue(undefined);
     await service.onModuleInit();
     expect(initSpy).toHaveBeenCalled();
@@ -71,16 +100,18 @@ describe('DatabaseInitializationService', () => {
 
   it('initializeTables should attempt base and junction tables and seeding', async () => {
     const ensureSpy = jest
-      .spyOn(service as any, 'ensureTableExists')
+      .spyOn(serviceWithPrivates, 'ensureTableExists')
       .mockResolvedValue('table-id');
+
     const seedPermSpy = jest
-      .spyOn(service as any, 'seedDefaultPermissions')
-      .mockResolvedValue(undefined);
-    const seedUserSpy = jest
-      .spyOn(service as any, 'seedDefaultUser')
+      .spyOn(serviceWithPrivates, 'seedDefaultPermissions')
       .mockResolvedValue(undefined);
 
-    await (service as any).initializeTables();
+    const seedUserSpy = jest
+      .spyOn(serviceWithPrivates, 'seedDefaultUser')
+      .mockResolvedValue(undefined);
+
+    await serviceWithPrivates.initializeTables();
 
     expect(ensureSpy).toHaveBeenCalledTimes(4);
     expect(seedPermSpy).toHaveBeenCalled();
@@ -88,12 +119,13 @@ describe('DatabaseInitializationService', () => {
   });
 
   it('ensureTableExists should return existing table id when accessible', async () => {
-    (nocoDBService.getTableByName as jest.Mock).mockResolvedValue({
+    nocoDBService.getTableByName.mockResolvedValue({
       id: 'existing-id',
-    });
-    mockHttpClient.get.mockResolvedValue({ data: { id: 'existing-id' } });
+      table_name: 'nc_users',
+    } as { id: string; table_name: string });
+    httpClientMock.get.mockResolvedValue({ data: { id: 'existing-id' } });
 
-    const result = await (service as any).ensureTableExists({
+    const result = await serviceWithPrivates.ensureTableExists({
       tableName: 'users',
       title: 'Users',
       columns: [
@@ -103,15 +135,16 @@ describe('DatabaseInitializationService', () => {
 
     expect(result).toBe('existing-id');
     expect(nocoDBV3Service.createTableV3).not.toHaveBeenCalled();
+    expect(httpClientMock.get).toHaveBeenCalled();
   });
 
   it('ensureTableExists should create table via v3 when missing', async () => {
-    (nocoDBService.getTableByName as jest.Mock).mockResolvedValue(null);
-    (nocoDBV3Service.createTableV3 as jest.Mock).mockResolvedValue({
+    nocoDBService.getTableByName.mockResolvedValue(null);
+    nocoDBV3Service.createTableV3.mockResolvedValue({
       id: 'new-id',
-    });
+    } as { id: string });
 
-    const result = await (service as any).ensureTableExists({
+    const result = await serviceWithPrivates.ensureTableExists({
       tableName: 'users',
       title: 'Users',
       columns: [
@@ -126,34 +159,39 @@ describe('DatabaseInitializationService', () => {
         title: 'nc_users',
       }),
     );
+    expect(httpClientMock.get).not.toHaveBeenCalled();
     expect(result).toBe('new-id');
   });
 
   it('seedDefaultUser should skip when bootstrap admin username is missing', async () => {
-    const configService = (service as any).configService;
-    configService.get.mockReturnValue(undefined);
+    configService.get.mockReturnValueOnce(undefined);
 
-    await (service as any).seedDefaultUser();
+    await serviceWithPrivates.seedDefaultUser();
 
     expect(nocoDBService.getTableByName).not.toHaveBeenCalled();
+    expect(nocoDBV3Service.findOne).not.toHaveBeenCalled();
+    expect(nocoDBV3Service.create).not.toHaveBeenCalled();
   });
 
   it('seedDefaultUser should assign admin role to configured bootstrap user', async () => {
-    const configService = (service as any).configService;
     configService.get.mockReturnValue('bootstrap-admin');
 
-    (nocoDBService.getTableByName as jest.Mock)
-      .mockResolvedValueOnce({ id: 'users-id' })
-      .mockResolvedValueOnce({ id: 'roles-id' })
-      .mockResolvedValueOnce({ id: 'user-roles-id' });
+    nocoDBService.getTableByName
+      .mockResolvedValueOnce({ id: 'users-id', table_name: 'nc_users' })
+      .mockResolvedValueOnce({ id: 'roles-id', table_name: 'nc_roles' })
+      .mockResolvedValueOnce({
+        id: 'user-roles-id',
+        table_name: 'nc_user_roles',
+      });
 
-    (nocoDBV3Service.findOne as jest.Mock)
+    nocoDBV3Service.findOne
       .mockResolvedValueOnce({ id: 10, Username: 'bootstrap-admin' })
       .mockResolvedValueOnce({ id: 1, 'Role Name': 'admin' })
       .mockResolvedValueOnce(null);
 
-    await (service as any).seedDefaultUser();
+    await serviceWithPrivates.seedDefaultUser();
 
+    expect(nocoDBV3Service.findOne).toHaveBeenCalledTimes(3);
     expect(nocoDBV3Service.create).toHaveBeenCalledWith('user-roles-id', {
       'User Id': 10,
       'Role Id': 1,

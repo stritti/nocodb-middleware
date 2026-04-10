@@ -10,13 +10,30 @@ describe('UserRolesService', () => {
   let nocoDBService: NocoDBService;
   let nocoDBV3Service: NocoDBV3Service;
   let permissionsService: PermissionsService;
-  let mockHttpClient: any;
+  let mockHttpClient: {
+    get: jest.Mock<
+      Promise<{ data?: { list?: unknown[] } }>,
+      [string, { params?: Record<string, unknown> }?]
+    >;
+    post: jest.Mock<Promise<{ data?: unknown }>, [string, unknown?]>;
+    delete: jest.Mock<Promise<unknown>, [string]>;
+  };
 
   beforeEach(async () => {
     mockHttpClient = {
-      get: jest.fn(),
-      post: jest.fn(),
-      delete: jest.fn(),
+      get: jest.fn<
+        Promise<{ data?: { list?: unknown[] } }>,
+        [string, { params?: Record<string, unknown> }?]
+      >(),
+      post: jest.fn<Promise<{ data?: unknown }>, [string, unknown?]>(),
+      delete: jest.fn<Promise<unknown>, [string]>(),
+    } satisfies {
+      get: jest.Mock<
+        Promise<{ data?: { list?: unknown[] } }>,
+        [string, { params?: Record<string, unknown> }?]
+      >;
+      post: jest.Mock<Promise<{ data?: unknown }>, [string, unknown?]>;
+      delete: jest.Mock<Promise<unknown>, [string]>;
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -128,6 +145,7 @@ describe('UserRolesService', () => {
 
       expect(result.assignedCount).toBe(1);
       expect(result.results.length).toBe(1);
+
       expect(service.assignRole).toHaveBeenCalledTimes(2);
     });
 
@@ -156,6 +174,7 @@ describe('UserRolesService', () => {
       expect(mockHttpClient.delete).toHaveBeenCalledWith(
         '/api/v2/tables/ur_id/records/99',
       );
+
       expect(permissionsService.clearCache).toHaveBeenCalledWith(1);
     });
 
@@ -213,6 +232,7 @@ describe('UserRolesService', () => {
       await service.removeRoleV3(1, 2);
 
       expect(nocoDBV3Service.delete).toHaveBeenCalledWith('t_id', 88);
+
       expect(permissionsService.clearCache).toHaveBeenCalledWith(1);
     });
 

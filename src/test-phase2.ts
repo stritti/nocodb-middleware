@@ -32,9 +32,9 @@ async function testPhase2() {
 
       if (exists) {
         const table = await nocoDBService.getTableByName(tableName);
-        console.log(
-          `     ID: ${table.id}, Columns: ${table.columns?.length || 'unknown'}`,
-        );
+        if (table) {
+          console.log(`     ID: ${table.id}`);
+        }
       }
     }
 
@@ -52,7 +52,12 @@ async function testPhase2() {
         },
       );
 
-      const adminRole = response.data.list?.[0];
+      interface AdminRole {
+        role_name?: string;
+        description?: string;
+        is_system_role?: boolean;
+      }
+      const adminRole = response.data.list?.[0] as AdminRole | undefined;
       if (adminRole) {
         console.log('  ✅ Admin role found:');
         console.log(`     Name: ${adminRole.role_name}`);

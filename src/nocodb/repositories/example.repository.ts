@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { BaseRepository } from './base.repository';
-import { NocoDBService } from '../nocodb.service';
+import { NocoDBV3Service } from '../nocodb-v3.service';
 
 export interface ExampleEntity {
   id: number;
@@ -10,11 +9,7 @@ export interface ExampleEntity {
 
 @Injectable()
 export class ExampleRepository extends BaseRepository<ExampleEntity> {
-  constructor(nocoDBService: NocoDBService, configService: ConfigService) {
-    super(
-      nocoDBService,
-      'Examples', // Table Name
-      configService.get<string>('nocodb.projectId'), // Project ID
-    );
+  constructor(nocoDBV3Service: NocoDBV3Service) {
+    super(nocoDBV3Service, 'Examples'); // Table Name
   }
 }

@@ -8,14 +8,33 @@ import { CrudAction } from './enums/crud-action.enum';
 describe('PermissionsService', () => {
   let service: PermissionsService;
   let nocoDBService: NocoDBService;
-  let mockHttpClient: any;
+  let mockHttpClient: {
+    get: jest.Mock<
+      Promise<{ data?: { list?: unknown[] } }>,
+      [string, { params?: Record<string, unknown> }?]
+    >;
+    post: jest.Mock<Promise<{ data?: unknown }>, [string, unknown?]>;
+    patch: jest.Mock<Promise<{ data?: unknown }>, [string, unknown?]>;
+    delete: jest.Mock<Promise<unknown>, [string]>;
+  };
 
   beforeEach(async () => {
     mockHttpClient = {
-      get: jest.fn(),
-      post: jest.fn(),
-      patch: jest.fn(),
-      delete: jest.fn(),
+      get: jest.fn<
+        Promise<{ data?: { list?: unknown[] } }>,
+        [string, { params?: Record<string, unknown> }?]
+      >(),
+      post: jest.fn<Promise<{ data?: unknown }>, [string, unknown?]>(),
+      patch: jest.fn<Promise<{ data?: unknown }>, [string, unknown?]>(),
+      delete: jest.fn<Promise<unknown>, [string]>(),
+    } satisfies {
+      get: jest.Mock<
+        Promise<{ data?: { list?: unknown[] } }>,
+        [string, { params?: Record<string, unknown> }?]
+      >;
+      post: jest.Mock<Promise<{ data?: unknown }>, [string, unknown?]>;
+      patch: jest.Mock<Promise<{ data?: unknown }>, [string, unknown?]>;
+      delete: jest.Mock<Promise<unknown>, [string]>;
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -77,8 +96,8 @@ describe('PermissionsService', () => {
     beforeEach(() => {
       // Setup mocking for table lookups
       (nocoDBService.getTableByName as jest.Mock).mockImplementation(
-        async (name) => {
-          return { id: `id_${name}`, title: name };
+        (name: string) => {
+          return Promise.resolve({ id: `id_${name}`, title: name });
         },
       );
     });
@@ -88,8 +107,9 @@ describe('PermissionsService', () => {
         userId,
         username: 'cached',
         roles: [],
-        permissions: new Map(),
+        permissions: new Map<string, Set<CrudAction>>(),
       };
+
       (service as any).permissionsCache.set(userId, cachedPerms);
 
       const result = await service.getUserPermissions(userId);
@@ -98,10 +118,10 @@ describe('PermissionsService', () => {
     });
 
     it('should fetch and calculate permissions if not cached', async () => {
-      // Mock sequence of API calls
-
       // 1. Get User
-      mockHttpClient.get.mockResolvedValueOnce({ data: mockUser });
+      mockHttpClient.get.mockResolvedValueOnce({
+        data: mockUser,
+      } as unknown as { data?: { list?: unknown[] } });
 
       // 2. Get User Roles
       mockHttpClient.get.mockResolvedValueOnce({
@@ -110,7 +130,7 @@ describe('PermissionsService', () => {
         },
       });
 
-      // 3. Get Roles Info (optional check in service but mocked response needed if it calls it)
+      // 3. Get Roles Info
       mockHttpClient.get.mockResolvedValueOnce({
         data: {
           list: [{ Id: 10, role_name: 'Admin' }],
@@ -132,25 +152,30 @@ describe('PermissionsService', () => {
         },
       });
 
+      (service as any).permissionsCache.clear();
+
       const result = await service.getUserPermissions(userId);
 
       expect(result.userId).toBe(userId);
       expect(result.username).toBe('testuser');
       expect(result.roles).toEqual(['Admin']);
       expect(result.permissions.get('test_table')).toBeDefined();
-      expect(result.permissions.get('test_table').has(CrudAction.CREATE)).toBe(
+      expect(result.permissions.get('test_table')?.has(CrudAction.CREATE)).toBe(
         true,
       );
-      expect(result.permissions.get('test_table').has(CrudAction.DELETE)).toBe(
+      expect(result.permissions.get('test_table')?.has(CrudAction.DELETE)).toBe(
         false,
       );
 
       // Verify cache was set
+
       expect((service as any).permissionsCache.has(userId)).toBe(true);
     });
 
     it('should return empty permissions if user has no roles', async () => {
-      mockHttpClient.get.mockResolvedValueOnce({ data: mockUser }); // User
+      mockHttpClient.get.mockResolvedValueOnce({
+        data: mockUser,
+      } as unknown as { data?: { list?: unknown[] } }); // User
       mockHttpClient.get.mockResolvedValueOnce({ data: { list: [] } }); // No roles
 
       const result = await service.getUserPermissions(userId);
@@ -161,14 +186,15 @@ describe('PermissionsService', () => {
 
   describe('canUserPerformAction', () => {
     it('should return true if user has permission', async () => {
-      const perms = new Map();
+      const perms = new Map<string, Set<CrudAction>>();
       perms.set('table1', new Set([CrudAction.READ]));
+
       jest.spyOn(service, 'getUserPermissions').mockResolvedValue({
         userId: 1,
         username: 'user',
-        roles: [],
+        roles: [] as string[],
         permissions: perms,
-      } as any);
+      });
 
       expect(
         await service.canUserPerformAction(1, 'table1', CrudAction.READ),
@@ -176,14 +202,15 @@ describe('PermissionsService', () => {
     });
 
     it('should return false if user does not have permission', async () => {
-      const perms = new Map();
+      const perms = new Map<string, Set<CrudAction>>();
       perms.set('table1', new Set([CrudAction.READ]));
+
       jest.spyOn(service, 'getUserPermissions').mockResolvedValue({
         userId: 1,
         username: 'user',
-        roles: [],
+        roles: [] as string[],
         permissions: perms,
-      } as any);
+      });
 
       expect(
         await service.canUserPerformAction(1, 'table1', CrudAction.CREATE),
@@ -213,7 +240,10 @@ describe('PermissionsService', () => {
           can_read: true,
         }),
       );
-      expect((service as any).permissionsCache.size).toBe(0); // Cleared
+      expect(
+        (service as unknown as { permissionsCache: Map<number, unknown> })
+          .permissionsCache.size,
+      ).toBe(0);
     });
   });
 

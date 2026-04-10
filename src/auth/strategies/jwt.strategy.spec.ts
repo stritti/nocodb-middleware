@@ -37,9 +37,9 @@ describe('JwtStrategy', () => {
   });
 
   describe('validate', () => {
-    it('should validate and return user data based on payload', async () => {
+    it('should validate and return user data based on payload', () => {
       const payload = { sub: 1, username: 'testuser', roles: ['admin'] };
-      const result = await strategy.validate(payload);
+      const result = strategy.validate(payload);
       expect(result).toEqual({
         userId: 1,
         username: 'testuser',

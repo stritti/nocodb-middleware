@@ -8,15 +8,36 @@ describe('PermissionsManagementService', () => {
   let service: PermissionsManagementService;
   let nocoDBService: NocoDBService;
   let permissionsService: PermissionsService;
-  let mockHttpClient: any;
+  let mockHttpClient: {
+    get: jest.Mock<
+      Promise<{ data?: { list?: unknown[] } }>,
+      [string, { params?: Record<string, unknown> }?]
+    >;
+    post: jest.Mock<Promise<{ data?: unknown }>, [string, unknown?]>;
+    patch: jest.Mock<Promise<{ data?: unknown }>, [string, unknown?]>;
+    delete: jest.Mock<Promise<unknown>, [string]>;
+    defaults: { baseURL: string };
+  };
 
   beforeEach(async () => {
     mockHttpClient = {
-      get: jest.fn(),
-      post: jest.fn(),
-      patch: jest.fn(),
-      delete: jest.fn(),
+      get: jest.fn<
+        Promise<{ data?: { list?: unknown[] } }>,
+        [string, { params?: Record<string, unknown> }?]
+      >(),
+      post: jest.fn<Promise<{ data?: unknown }>, [string, unknown?]>(),
+      patch: jest.fn<Promise<{ data?: unknown }>, [string, unknown?]>(),
+      delete: jest.fn<Promise<unknown>, [string]>(),
       defaults: { baseURL: 'http://test-url' },
+    } satisfies {
+      get: jest.Mock<
+        Promise<{ data?: { list?: unknown[] } }>,
+        [string, { params?: Record<string, unknown> }?]
+      >;
+      post: jest.Mock<Promise<{ data?: unknown }>, [string, unknown?]>;
+      patch: jest.Mock<Promise<{ data?: unknown }>, [string, unknown?]>;
+      delete: jest.Mock<Promise<unknown>, [string]>;
+      defaults: { baseURL: string };
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -87,6 +108,7 @@ describe('PermissionsManagementService', () => {
           can_create: dto.canCreate,
         }),
       );
+
       expect(permissionsService.clearCache).toHaveBeenCalled();
     });
 
@@ -139,6 +161,7 @@ describe('PermissionsManagementService', () => {
       expect(mockHttpClient.delete).toHaveBeenCalledWith(
         '/api/v2/tables/perm_table_id/records/2',
       );
+
       expect(permissionsService.clearCache).toHaveBeenCalled();
     });
   });

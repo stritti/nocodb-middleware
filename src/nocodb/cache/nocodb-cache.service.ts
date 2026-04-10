@@ -2,17 +2,23 @@ import { Injectable, Inject, Logger } from '@nestjs/common';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
 
+type CacheValue = unknown;
+
 @Injectable()
 export class NocoDBCacheService {
   private readonly logger = new Logger(NocoDBCacheService.name);
 
   constructor(@Inject(CACHE_MANAGER) private cacheManager: Cache) {}
 
-  async get<T>(key: string): Promise<T | undefined> {
+  async get<T = CacheValue>(key: string): Promise<T | undefined> {
     return this.cacheManager.get<T>(key);
   }
 
-  async set(key: string, value: any, ttl?: number): Promise<void> {
+  async set<T = CacheValue>(
+    key: string,
+    value: T,
+    ttl?: number,
+  ): Promise<void> {
     await this.cacheManager.set(key, value, ttl);
   }
 
@@ -20,7 +26,8 @@ export class NocoDBCacheService {
     await this.cacheManager.del(key);
   }
 
-  generateKey(prefix: string, params: any): string {
-    return `${prefix}:${JSON.stringify(params)}`;
+  generateKey(prefix: string, params: unknown): string {
+    const serialized = JSON.stringify(params ?? {});
+    return `${prefix}:${serialized}`;
   }
 }

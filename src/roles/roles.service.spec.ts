@@ -8,13 +8,30 @@ describe('RolesService', () => {
   let service: RolesService;
   let nocoDBService: NocoDBService;
   let nocoDBV3Service: NocoDBV3Service;
-  let mockHttpClient: any;
+  let mockHttpClient: {
+    get: jest.Mock<
+      Promise<{ data?: { list?: unknown[] } }>,
+      [string, { params?: Record<string, unknown> }?]
+    >;
+    post: jest.Mock<Promise<{ data?: unknown }>, [string, unknown?]>;
+    delete: jest.Mock<Promise<unknown>, [string]>;
+  };
 
   beforeEach(async () => {
     mockHttpClient = {
-      get: jest.fn(),
-      post: jest.fn(),
-      delete: jest.fn(),
+      get: jest.fn<
+        Promise<{ data?: { list?: unknown[] } }>,
+        [string, { params?: Record<string, unknown> }?]
+      >(),
+      post: jest.fn<Promise<{ data?: unknown }>, [string, unknown?]>(),
+      delete: jest.fn<Promise<unknown>, [string]>(),
+    } satisfies {
+      get: jest.Mock<
+        Promise<{ data?: { list?: unknown[] } }>,
+        [string, { params?: Record<string, unknown> }?]
+      >;
+      post: jest.Mock<Promise<{ data?: unknown }>, [string, unknown?]>;
+      delete: jest.Mock<Promise<unknown>, [string]>;
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -58,7 +75,7 @@ describe('RolesService', () => {
       });
 
       const result = await service.createRole({ roleName: 'Admin' });
-      expect(result.role_name).toBe('Admin');
+      expect(result?.role_name).toBe('Admin');
     });
 
     it('should throw Conflict if role exists', async () => {
@@ -133,12 +150,12 @@ describe('RolesService', () => {
       });
       (nocoDBV3Service.findOne as jest.Mock).mockResolvedValue(null);
       (nocoDBV3Service.create as jest.Mock).mockResolvedValue({
-        id: 1,
+        Id: 1,
         role_name: 'Admin',
       });
 
       const result = await service.createRoleV3({ roleName: 'Admin' });
-      expect(result.id).toBe(1);
+      expect(result?.Id).toBe(1);
     });
 
     it('should throw Conflict if V3 role exists', async () => {
@@ -173,6 +190,7 @@ describe('RolesService', () => {
         id: 'roles_table',
       });
       await service.deleteRoleV3(1);
+
       expect(nocoDBV3Service.delete).toHaveBeenCalled();
     });
   });

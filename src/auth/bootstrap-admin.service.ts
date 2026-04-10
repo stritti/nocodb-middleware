@@ -11,6 +11,21 @@ import { NocoDBService } from '../nocodb/nocodb.service';
 import { NocoDBV3Service } from '../nocodb/nocodb-v3.service';
 import { BootstrapAdminDto } from './dto/bootstrap-admin.dto';
 
+interface NocoTableRef {
+  id: string;
+}
+
+interface NocoUserRecord {
+  id?: number | string;
+  Id?: number | string;
+  Username?: string;
+}
+
+interface NocoRoleRecord {
+  id?: number | string;
+  Id?: number | string;
+}
+
 @Injectable()
 export class BootstrapAdminService {
   constructor(
@@ -30,58 +45,58 @@ export class BootstrapAdminService {
   }> {
     this.assertBootstrapAllowed(bootstrapToken);
 
-    const usersTable = await this.nocoDBService.getTableByName('users');
-    const rolesTable = await this.nocoDBService.getTableByName('roles');
-    const userRolesTable =
-      await this.nocoDBService.getTableByName('user_roles');
-
-    if (!usersTable || !rolesTable || !userRolesTable) {
-      throw new NotFoundException(
-        'Required bootstrap tables are missing. Run database initialization first.',
-      );
-    }
-
-    const existingByUsername = await this.nocoDBV3Service.findOne(
-      usersTable.id,
-      `(Username,eq,${dto.username})`,
+    const usersTable = this.assertTableRef(
+      await this.nocoDBService.getTableByName('users'),
+    );
+    const rolesTable = this.assertTableRef(
+      await this.nocoDBService.getTableByName('roles'),
+    );
+    const userRolesTable = this.assertTableRef(
+      await this.nocoDBService.getTableByName('user_roles'),
     );
 
-    const existingByEmail = await this.nocoDBV3Service.findOne(
-      usersTable.id,
-      `(Email,eq,${dto.email})`,
+    const existingByUsername = this.asUserRecord(
+      await this.nocoDBV3Service.findOne(
+        usersTable.id,
+        `(Username,eq,${dto.username})`,
+      ),
+    );
+
+    const existingByEmail = this.asUserRecord(
+      await this.nocoDBV3Service.findOne(
+        usersTable.id,
+        `(Email,eq,${dto.email})`,
+      ),
     );
 
     if (
       existingByEmail &&
       !existingByUsername &&
-      String(existingByEmail.Username || '') !== dto.username
+      String(existingByEmail.Username ?? '') !== dto.username
     ) {
       throw new ConflictException(
         `User with email "${dto.email}" already exists`,
       );
     }
 
-    const adminRole = await this.nocoDBV3Service.findOne(
-      rolesTable.id,
-      '(Role Name,eq,admin)',
+    const adminRole = this.asRoleRecord(
+      await this.nocoDBV3Service.findOne(rolesTable.id, '(Role Name,eq,admin)'),
     );
 
     if (!adminRole) {
       throw new NotFoundException('Admin role is missing');
     }
 
-    const adminRoleId = Number(adminRole.id || adminRole.Id);
+    const adminRoleId = this.extractNumericId(adminRole);
 
     if (existingByUsername) {
-      const existingUserId = Number(
-        existingByUsername.id || existingByUsername.Id,
-      );
-      const existingAssignment = await this.nocoDBV3Service.findOne(
-        userRolesTable.id,
-        `(User Id,eq,${existingUserId})~and(Role Id,eq,${adminRoleId})`,
-      );
-
-      if (!existingAssignment) {
+      const existingUserId = this.extractNumericId(existingByUsername);
+      if (
+        !(await this.nocoDBV3Service.findOne(
+          userRolesTable.id,
+          `(User Id,eq,${existingUserId})~and(Role Id,eq,${adminRoleId})`,
+        ))
+      ) {
         await this.nocoDBV3Service.create(userRolesTable.id, {
           'User Id': existingUserId,
           'Role Id': adminRoleId,
@@ -99,14 +114,20 @@ export class BootstrapAdminService {
 
     const passwordHash = this.hashPassword(dto.password);
 
-    const createdUser = await this.nocoDBV3Service.create(usersTable.id, {
-      Username: dto.username,
-      Email: dto.email,
-      'Password Hash': passwordHash,
-      'Is Active': true,
-    });
+    const createdUser = this.asUserRecord(
+      await this.nocoDBV3Service.create(usersTable.id, {
+        Username: dto.username,
+        Email: dto.email,
+        'Password Hash': passwordHash,
+        'Is Active': true,
+      }),
+    );
 
-    const userId = Number(createdUser.id || createdUser.Id);
+    if (!createdUser) {
+      throw new NotFoundException('Created user payload is invalid');
+    }
+
+    const userId = this.extractNumericId(createdUser);
 
     await this.nocoDBV3Service.create(userRolesTable.id, {
       'User Id': userId,
@@ -153,5 +174,59 @@ export class BootstrapAdminService {
     const salt = crypto.randomBytes(16).toString('hex');
     const derivedKey = crypto.scryptSync(password, salt, 64).toString('hex');
     return `scrypt:${salt}:${derivedKey}`;
+  }
+
+  private assertTableRef(value: unknown): NocoTableRef {
+    if (!value || typeof value !== 'object') {
+      throw new NotFoundException(
+        'Required bootstrap tables are missing. Run database initialization first.',
+      );
+    }
+
+    const record = value as { id?: unknown };
+
+    if (typeof record.id !== 'string') {
+      throw new NotFoundException(
+        'Required bootstrap tables are missing. Run database initialization first.',
+      );
+    }
+
+    return { id: record.id };
+  }
+
+  private asUserRecord(value: unknown): NocoUserRecord | null {
+    if (!value || typeof value !== 'object') {
+      return null;
+    }
+
+    return value as NocoUserRecord;
+  }
+
+  private asRoleRecord(value: unknown): NocoRoleRecord | null {
+    if (!value || typeof value !== 'object') {
+      return null;
+    }
+
+    return value as NocoRoleRecord;
+  }
+
+  private extractNumericId(record: {
+    id?: number | string;
+    Id?: number | string;
+  }): number {
+    const rawId = record.id ?? record.Id;
+
+    if (typeof rawId === 'number') {
+      return rawId;
+    }
+
+    if (typeof rawId === 'string' && rawId.length > 0) {
+      const parsed = Number(rawId);
+      if (!Number.isNaN(parsed)) {
+        return parsed;
+      }
+    }
+
+    throw new NotFoundException('Invalid record ID payload');
   }
 }
