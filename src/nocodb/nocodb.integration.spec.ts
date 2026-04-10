@@ -1,68 +1,58 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NocoDBService } from './nocodb.service';
+import { DatabaseInitializationService } from './database-initialization.service';
 import { ConfigService } from '@nestjs/config';
 import { Logger } from '@nestjs/common';
-import type { AxiosInstance } from 'axios';
+
+// Integration test: verifies module wiring and service interaction without real HTTP calls.
 
 describe('NocoDB Integration', () => {
   let nocodbService: NocoDBService;
-  let mockHttpClient: HttpClientMock;
-
-  type HttpClientMock = {
-    get: jest.Mock<
-      Promise<{ data: { list?: unknown[] } | null }>,
-      [string, { params?: Record<string, unknown> }?]
-    >;
-    post: jest.Mock<Promise<{ data: unknown }>, [string, unknown?]>;
-    patch: jest.Mock<Promise<{ data: unknown }>, [string, unknown?]>;
-    delete: jest.Mock<Promise<unknown>, [string]>;
-    defaults: { baseURL: string };
-  };
+  let dbInitService: DatabaseInitializationService;
+  let mockHttpClient: any;
 
   beforeEach(async () => {
     mockHttpClient = {
-      get: jest.fn<
-        Promise<{ data: { list?: unknown[] } | null }>,
-        [string, { params?: Record<string, unknown> }?]
-      >(),
-      post: jest.fn<Promise<{ data: unknown }>, [string, unknown?]>(),
-      patch: jest.fn<Promise<{ data: unknown }>, [string, unknown?]>(),
-      delete: jest.fn<Promise<unknown>, [string]>(),
+      get: jest.fn(),
+      post: jest.fn(),
+      patch: jest.fn(),
+      delete: jest.fn(),
       defaults: { baseURL: 'http://test-url' },
-    } satisfies HttpClientMock;
+    };
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       providers: [
         NocoDBService,
+        DatabaseInitializationService,
         {
           provide: ConfigService,
           useValue: {
-            get: jest.fn((key: string) => {
+            get: jest.fn((key) => {
               if (key === 'nocodb.apiUrl') return 'http://localhost';
               if (key === 'nocodb.apiToken') return 'token';
               if (key === 'nocodb.baseId') return 'base_id';
               return null;
-            }) as ConfigService['get'],
+            }),
           },
         },
       ],
     }).compile();
 
     nocodbService = moduleFixture.get<NocoDBService>(NocoDBService);
+    dbInitService = moduleFixture.get<DatabaseInitializationService>(
+      DatabaseInitializationService,
+    );
 
-    nocodbService.onModuleInit();
-
-    (nocodbService as any).httpClient =
-      mockHttpClient as unknown as AxiosInstance;
-
+    await nocodbService.onModuleInit();
+    (nocodbService as any).httpClient = mockHttpClient;
     (nocodbService as any).client = {};
 
     jest.spyOn(Logger.prototype, 'log').mockImplementation(() => {});
     jest.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
   });
 
-  it('NocoDBV3Service should use NocoDBService HTTP client', () => {
-    expect((nocodbService as any).httpClient).toBeDefined();
+  it('NocoDBService should expose the HTTP client', () => {
+    expect(nocodbService.getHttpClient()).toBeDefined();
   });
 
   it('DatabaseInit should use NocoDBService to check tables', async () => {
@@ -73,7 +63,7 @@ describe('NocoDB Integration', () => {
     const result = await nocodbService.getTableByName('users');
     expect(result).toBeNull();
     expect(mockHttpClient.get).toHaveBeenCalledWith(
-      expect.stringContaining('/api/v2/meta/bases/base_id/tables'),
+      expect.stringContaining('/api/v3/meta/bases/base_id/tables'),
     );
   });
 });

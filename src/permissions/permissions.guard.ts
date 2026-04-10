@@ -35,12 +35,10 @@ export class PermissionsGuard implements CanActivate {
       return true;
     }
 
-    const request = context
-      .switchToHttp()
-      .getRequest<{ user?: { userId?: number } }>();
-    const { user } = request;
+    const request = context.switchToHttp().getRequest();
+    const user = request.user;
 
-    if (!user || typeof user.userId !== 'number') {
+    if (!user || !user.userId) {
       this.logger.warn('User not authenticated');
       throw new ForbiddenException('User not authenticated');
     }
@@ -48,7 +46,7 @@ export class PermissionsGuard implements CanActivate {
     // Check all required permissions
     for (const permission of requiredPermissions) {
       const hasPermission = await this.permissionsService.canUserPerformAction(
-        user.userId,
+        Number(user.userId),
         permission.table,
         permission.action,
       );

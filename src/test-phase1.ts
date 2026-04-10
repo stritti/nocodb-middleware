@@ -38,19 +38,17 @@ async function testPhase1() {
     console.log('\n📋 Test 4: List All Tables');
     const httpClient = nocoDBService.getHttpClient();
     const response = await httpClient.get(
-      `/api/v2/meta/bases/${baseId}/tables`,
+      `/api/v3/meta/bases/${baseId}/tables`,
     );
-    interface TableInfo {
-      table_name?: string;
-      title?: string;
-    }
-    const tables = (response.data.list ?? []) as TableInfo[];
+    const tables = response.data.list || [];
     console.log(`  ✅ Total tables in base: ${tables.length}`);
-    tables.forEach((table) => {
-      console.log(
-        `     - ${table.table_name ?? 'unknown'} (${table.title ?? 'unknown'})`,
-      );
+    tables.forEach((table: any) => {
+      console.log(`     - ${table.table_name} (${table.title})`);
     });
+
+    console.log('\n📋 Test 5: List Tables (using service method)');
+    const tableList = await nocoDBService.listTables();
+    console.log(`  ✅ Service listTables returned ${tableList.length} tables`);
 
     console.log('\n✅ Phase 1 Tests Completed Successfully!');
   } catch (error) {

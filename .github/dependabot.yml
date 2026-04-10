@@ -1,0 +1,15 @@
+version: 2
+updates:
+  # Aktualisierung von npm-Abhängigkeiten
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "daily" # Täglich prüfen
+    open-pull-requests-limit: 10 # Maximal 10 PRs gleichzeitig
+    reviewers: # Optional: Reviewer zuweisen
+      - "stritti"
+    assignees: # Optional: Verantwortliche zuweisen
+      - "stritti"
+    commit-message: # Commit-Nachrichten formatieren
+      prefix: "chore"
+      include: "scope"

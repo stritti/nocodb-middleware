@@ -35,5 +35,6 @@ export class RolesGuard implements CanActivate {
 }
 
 function matchRoles(roles: string[], userRoles: string[]): boolean {
+  if (!userRoles) return false;
   return userRoles.some((role) => roles.includes(role));
 }

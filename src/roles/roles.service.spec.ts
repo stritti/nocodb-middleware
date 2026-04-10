@@ -1,197 +1,239 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import {
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+  Logger,
+} from '@nestjs/common';
 import { RolesService } from './roles.service';
 import { NocoDBService } from '../nocodb/nocodb.service';
-import { NocoDBV3Service } from '../nocodb/nocodb-v3.service';
-import { Logger, NotFoundException, ConflictException } from '@nestjs/common';
 
 describe('RolesService', () => {
   let service: RolesService;
-  let nocoDBService: NocoDBService;
-  let nocoDBV3Service: NocoDBV3Service;
-  let mockHttpClient: {
-    get: jest.Mock<
-      Promise<{ data?: { list?: unknown[] } }>,
-      [string, { params?: Record<string, unknown> }?]
-    >;
-    post: jest.Mock<Promise<{ data?: unknown }>, [string, unknown?]>;
-    delete: jest.Mock<Promise<unknown>, [string]>;
-  };
+  let nocoDBService: jest.Mocked<Partial<NocoDBService>>;
 
   beforeEach(async () => {
-    mockHttpClient = {
-      get: jest.fn<
-        Promise<{ data?: { list?: unknown[] } }>,
-        [string, { params?: Record<string, unknown> }?]
-      >(),
-      post: jest.fn<Promise<{ data?: unknown }>, [string, unknown?]>(),
-      delete: jest.fn<Promise<unknown>, [string]>(),
-    } satisfies {
-      get: jest.Mock<
-        Promise<{ data?: { list?: unknown[] } }>,
-        [string, { params?: Record<string, unknown> }?]
-      >;
-      post: jest.Mock<Promise<{ data?: unknown }>, [string, unknown?]>;
-      delete: jest.Mock<Promise<unknown>, [string]>;
+    nocoDBService = {
+      getTableByName: jest.fn(),
+      findOne: jest.fn(),
+      create: jest.fn(),
+      list: jest.fn(),
+      delete: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         RolesService,
-        {
-          provide: NocoDBService,
-          useValue: {
-            getTableByName: jest.fn(),
-            getHttpClient: jest.fn().mockReturnValue(mockHttpClient),
-          },
-        },
-        {
-          provide: NocoDBV3Service,
-          useValue: {
-            create: jest.fn(),
-            findOne: jest.fn(),
-            list: jest.fn(),
-            delete: jest.fn(),
-          },
-        },
+        { provide: NocoDBService, useValue: nocoDBService },
       ],
     }).compile();
 
     service = module.get<RolesService>(RolesService);
-    nocoDBService = module.get<NocoDBService>(NocoDBService);
-    nocoDBV3Service = module.get<NocoDBV3Service>(NocoDBV3Service);
 
     jest.spyOn(Logger.prototype, 'log').mockImplementation(() => {});
     jest.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
   });
 
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('should be defined', () => {
+    expect(service).toBeDefined();
+  });
+
   describe('createRole', () => {
-    it('should create a role', async () => {
-      (nocoDBService.getTableByName as jest.Mock).mockResolvedValue({
-        id: 'roles_table',
-      });
-      mockHttpClient.get.mockResolvedValue({ data: { list: [] } }); // No existing
-      mockHttpClient.post.mockResolvedValue({
-        data: { Id: 1, role_name: 'Admin' },
+    it('should create a new role when it does not exist', async () => {
+      (nocoDBService.getTableByName as jest.Mock)
+        .mockResolvedValueOnce({ id: 'roles_table_id' }) // for createRole
+        .mockResolvedValueOnce({ id: 'roles_table_id' }); // for findRoleByName
+      (nocoDBService.findOne as jest.Mock).mockResolvedValue(null);
+      (nocoDBService.create as jest.Mock).mockResolvedValue({
+        id: 1,
+        role_name: 'admin',
       });
 
-      const result = await service.createRole({ roleName: 'Admin' });
-      expect(result?.role_name).toBe('Admin');
+      const result = await service.createRole({
+        roleName: 'admin',
+        description: 'Administrator',
+        isSystemRole: true,
+      });
+
+      expect(nocoDBService.create).toHaveBeenCalledWith(
+        'roles_table_id',
+        expect.objectContaining({
+          role_name: 'admin',
+          description: 'Administrator',
+          is_system_role: true,
+        }),
+      );
+      expect(result).toEqual({ id: 1, role_name: 'admin' });
     });
 
-    it('should throw Conflict if role exists', async () => {
-      (nocoDBService.getTableByName as jest.Mock).mockResolvedValue({
-        id: 'roles_table',
-      });
-      mockHttpClient.get.mockResolvedValue({ data: { list: [{ Id: 1 }] } });
+    it('should throw NotFoundException when roles table is not found', async () => {
+      (nocoDBService.getTableByName as jest.Mock).mockResolvedValue(null);
 
-      await expect(service.createRole({ roleName: 'Admin' })).rejects.toThrow(
+      await expect(service.createRole({ roleName: 'admin' })).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('should throw ConflictException when role already exists', async () => {
+      (nocoDBService.getTableByName as jest.Mock).mockResolvedValue({
+        id: 'roles_table_id',
+      });
+      (nocoDBService.findOne as jest.Mock).mockResolvedValue({
+        id: 1,
+        role_name: 'admin',
+      });
+
+      await expect(service.createRole({ roleName: 'admin' })).rejects.toThrow(
         ConflictException,
       );
     });
 
-    it('should throw NotFound if table missing', async () => {
-      (nocoDBService.getTableByName as jest.Mock).mockResolvedValue(null);
-      await expect(service.createRole({ roleName: 'Admin' })).rejects.toThrow(
-        NotFoundException,
+    it('should use defaults for optional fields', async () => {
+      (nocoDBService.getTableByName as jest.Mock)
+        .mockResolvedValueOnce({ id: 'roles_table_id' })
+        .mockResolvedValueOnce({ id: 'roles_table_id' });
+      (nocoDBService.findOne as jest.Mock).mockResolvedValue(null);
+      (nocoDBService.create as jest.Mock).mockResolvedValue({ id: 2 });
+
+      await service.createRole({ roleName: 'viewer' });
+
+      expect(nocoDBService.create).toHaveBeenCalledWith(
+        'roles_table_id',
+        expect.objectContaining({
+          role_name: 'viewer',
+          description: '',
+          is_system_role: false,
+        }),
       );
     });
   });
 
   describe('findRoleByName', () => {
-    it('should return role if found', async () => {
+    it('should return a role by name', async () => {
       (nocoDBService.getTableByName as jest.Mock).mockResolvedValue({
-        id: 'roles_table',
+        id: 'roles_table_id',
       });
-      mockHttpClient.get.mockResolvedValue({ data: { list: [{ Id: 1 }] } });
+      (nocoDBService.findOne as jest.Mock).mockResolvedValue({
+        id: 1,
+        role_name: 'admin',
+      });
 
-      const result = await service.findRoleByName('Admin');
-      expect(result).toEqual({ Id: 1 });
+      const result = await service.findRoleByName('admin');
+      expect(result).toEqual({ id: 1, role_name: 'admin' });
+      expect(nocoDBService.findOne).toHaveBeenCalledWith(
+        'roles_table_id',
+        '(role_name,eq,admin)',
+      );
     });
 
-    it('should return null if table missing', async () => {
+    it('should return null when roles table not found', async () => {
       (nocoDBService.getTableByName as jest.Mock).mockResolvedValue(null);
-      const result = await service.findRoleByName('Admin');
+
+      const result = await service.findRoleByName('nonexistent');
       expect(result).toBeNull();
+    });
+
+    it('should throw BadRequestException for role names containing filter injection characters', async () => {
+      await expect(service.findRoleByName('admin),~(id,gt,0')).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should throw BadRequestException for role names with parentheses', async () => {
+      await expect(service.findRoleByName('a(b')).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should throw BadRequestException for role names with commas', async () => {
+      await expect(service.findRoleByName('a,b')).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should throw BadRequestException for role names with tilde', async () => {
+      await expect(service.findRoleByName('a~b')).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should throw BadRequestException for role names with leading spaces', async () => {
+      await expect(service.findRoleByName(' admin')).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should throw BadRequestException for role names with trailing spaces', async () => {
+      await expect(service.findRoleByName('admin ')).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should accept valid role names with allowed characters', async () => {
+      (nocoDBService.getTableByName as jest.Mock).mockResolvedValue({
+        id: 'roles_table_id',
+      });
+      (nocoDBService.findOne as jest.Mock).mockResolvedValue(null);
+
+      await expect(
+        service.findRoleByName('Valid Role-Name_123'),
+      ).resolves.toBeNull();
     });
   });
 
   describe('getAllRoles', () => {
     it('should return all roles', async () => {
       (nocoDBService.getTableByName as jest.Mock).mockResolvedValue({
-        id: 'roles_table',
+        id: 'roles_table_id',
       });
-      mockHttpClient.get.mockResolvedValue({ data: { list: [{ Id: 1 }] } });
+      (nocoDBService.list as jest.Mock).mockResolvedValue({
+        list: [
+          { id: 1, role_name: 'admin' },
+          { id: 2, role_name: 'user' },
+        ],
+      });
 
-      const result = await service.getAllRoles();
-      expect(result).toHaveLength(1);
+      const roles = await service.getAllRoles();
+      expect(roles).toHaveLength(2);
     });
-    it('should return empty if table missing', async () => {
+
+    it('should return empty array when roles table not found', async () => {
       (nocoDBService.getTableByName as jest.Mock).mockResolvedValue(null);
-      expect(await service.getAllRoles()).toEqual([]);
+
+      const roles = await service.getAllRoles();
+      expect(roles).toEqual([]);
+    });
+
+    it('should return empty array when response list is empty', async () => {
+      (nocoDBService.getTableByName as jest.Mock).mockResolvedValue({
+        id: 'roles_table_id',
+      });
+      (nocoDBService.list as jest.Mock).mockResolvedValue({});
+
+      const roles = await service.getAllRoles();
+      expect(roles).toEqual([]);
     });
   });
 
   describe('deleteRole', () => {
-    it('should delete role', async () => {
+    it('should delete a role by id', async () => {
       (nocoDBService.getTableByName as jest.Mock).mockResolvedValue({
-        id: 'roles_table',
+        id: 'roles_table_id',
       });
-      mockHttpClient.delete.mockResolvedValue({});
+      (nocoDBService.delete as jest.Mock).mockResolvedValue(undefined);
 
       await service.deleteRole(1);
-      expect(mockHttpClient.delete).toHaveBeenCalled();
-    });
-  });
-
-  describe('createRoleV3', () => {
-    it('should create role using V3', async () => {
-      (nocoDBService.getTableByName as jest.Mock).mockResolvedValue({
-        id: 'roles_table',
-      });
-      (nocoDBV3Service.findOne as jest.Mock).mockResolvedValue(null);
-      (nocoDBV3Service.create as jest.Mock).mockResolvedValue({
-        Id: 1,
-        role_name: 'Admin',
-      });
-
-      const result = await service.createRoleV3({ roleName: 'Admin' });
-      expect(result?.Id).toBe(1);
+      expect(nocoDBService.delete).toHaveBeenCalledWith('roles_table_id', 1);
     });
 
-    it('should throw Conflict if V3 role exists', async () => {
-      (nocoDBService.getTableByName as jest.Mock).mockResolvedValue({
-        id: 'roles_table',
-      });
-      (nocoDBV3Service.findOne as jest.Mock).mockResolvedValue({ id: 1 });
+    it('should throw NotFoundException when roles table not found', async () => {
+      (nocoDBService.getTableByName as jest.Mock).mockResolvedValue(null);
 
-      await expect(service.createRoleV3({ roleName: 'Admin' })).rejects.toThrow(
-        ConflictException,
-      );
-    });
-  });
-
-  describe('getAllRolesV3', () => {
-    it('should list roles using V3', async () => {
-      (nocoDBService.getTableByName as jest.Mock).mockResolvedValue({
-        id: 'roles_table',
-      });
-      (nocoDBV3Service.list as jest.Mock).mockResolvedValue({
-        list: [{ id: 1 }],
-      });
-
-      const result = await service.getAllRolesV3();
-      expect(result).toHaveLength(1);
-    });
-  });
-
-  describe('deleteRoleV3', () => {
-    it('should delete role using V3', async () => {
-      (nocoDBService.getTableByName as jest.Mock).mockResolvedValue({
-        id: 'roles_table',
-      });
-      await service.deleteRoleV3(1);
-
-      expect(nocoDBV3Service.delete).toHaveBeenCalled();
+      await expect(service.deleteRole(1)).rejects.toThrow(NotFoundException);
     });
   });
 });

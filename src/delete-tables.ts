@@ -36,13 +36,14 @@ async function bootstrap() {
 
   try {
     const httpClient = nocoDBService.getHttpClient();
+    const baseId = nocoDBService.getBaseId();
 
     // Tables to delete
     const tablesToDelete = ['user_roles', 'table_permissions'];
 
     for (const tableName of tablesToDelete) {
       try {
-        const table = asTableRef(await nocoDBService.getTableByName(tableName));
+        const table = await nocoDBService.getTableByName(tableName);
 
         if (!table) {
           logger.warn(`Table ${tableName} not found, skipping...`);
@@ -51,13 +52,13 @@ async function bootstrap() {
 
         logger.log(`Deleting table ${tableName} (ID: ${table.id})...`);
 
-        await httpClient.delete(`/api/v2/meta/tables/${table.id}`);
+        await httpClient.delete(`/api/v3/meta/tables/${table.id}`);
 
         logger.log(`✓ Table ${tableName} deleted successfully`);
-      } catch (error) {
+      } catch (error: any) {
         logger.error(
           `Failed to delete table ${tableName}:`,
-          extractErrorPayload(error),
+          error.response?.data || error.message,
         );
       }
     }

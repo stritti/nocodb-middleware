@@ -1,13 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
-import { Server } from 'http';
-import { default as request } from 'supertest';
 import { AppModule } from './../src/app.module';
+import * as request from 'supertest';
 
 describe('AppController (e2e)', () => {
   let app: INestApplication;
-
-  let server: Server;
 
   beforeEach(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -23,7 +20,6 @@ describe('AppController (e2e)', () => {
       }),
     );
     await app.init();
-    server = app.getHttpServer();
   });
 
   afterEach(async () => {
@@ -32,19 +28,19 @@ describe('AppController (e2e)', () => {
 
   describe('/ (GET)', () => {
     it('should return Hello World!', () => {
-      return request(server).get('/').expect(200).expect('Hello World!');
+      return request(app.getHttpServer()).get('/').expect(200).expect('Hello World!');
     });
   });
 
   describe('/examples (Authenticated)', () => {
     it('should return 401 without auth token', () => {
-      return request(server).get('/examples').expect(401);
+      return request(app.getHttpServer()).get('/examples').expect(401);
     });
   });
 
   describe('Validation', () => {
     it('should reject invalid POST data', () => {
-      return request(server)
+      return request(app.getHttpServer())
         .post('/examples')
         .send({ invalid: 'data' })
         .expect(401);

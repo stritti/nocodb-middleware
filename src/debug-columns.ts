@@ -26,35 +26,15 @@ function asTableRef(value: unknown): NocoTableRef | null {
   return typeof candidate.id === 'string' ? { id: candidate.id } : null;
 }
 
-function extractListLength(value: unknown): number {
-  if (!value || typeof value !== 'object') {
-    return 0;
-  }
-
-  const payload = value as { data?: NocoListResponse };
-  return Array.isArray(payload.data?.list) ? payload.data.list.length : 0;
-}
-
-function extractErrorMessage(error: unknown): string {
-  if (!error || typeof error !== 'object') {
-    return 'Unknown error';
-  }
-
-  const candidate = error as {
-    response?: NocoErrorResponse;
-    message?: string;
-  };
-
-  return candidate.response?.data?.msg ?? candidate.message ?? 'Unknown error';
-}
-
 async function bootstrap() {
   const app = await NestFactory.createApplicationContext(AppModule);
   const nocoDBService = app.get(NocoDBService);
   const logger = new Logger('DebugColumns');
 
   try {
-    const usersTable = asTableRef(await nocoDBService.getTableByName('users'));
+    const table = await nocoDBService.getTableByName('users');
+    const usersTable = asTableRef(table);
+    
     if (!usersTable) {
       logger.error('Users table not found');
       return;
@@ -71,16 +51,19 @@ async function bootstrap() {
       try {
         logger.log(`Testing filter: ${filter}`);
         const response = await httpClient.get(
-          `/api/v2/tables/${usersTable.id}/records`,
+          `/api/v3/tables/${usersTable.id}/records`,
           {
             params: { where: filter },
           },
         );
+        const listLen = Array.isArray(response.data.list) ? response.data.list.length : 0;
         logger.log(
-          `Filter ${filter} success. Records: ${extractListLength(response)}`,
+          `Filter ${filter} success. Records: ${listLen}`,
         );
-      } catch (err) {
-        logger.error(`Filter ${filter} failed: ${extractErrorMessage(err)}`);
+      } catch (err: any) {
+        logger.error(
+          `Filter ${filter} failed: ${err.response?.data?.msg || err.message}`,
+        );
       }
     }
   } catch (error) {

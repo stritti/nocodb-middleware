@@ -1,7 +1,11 @@
-import { Module, Global, MiddlewareConsumer, NestModule } from '@nestjs/common';
+import {
+  Module,
+  Global,
+  MiddlewareConsumer,
+  NestModule,
+} from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { NocoDBService } from './nocodb.service';
-import { NocoDBV3Service } from './nocodb-v3.service';
 import { DatabaseInitializationService } from './database-initialization.service';
 import nocodbConfig from '../config/nocodb.config';
 import { NocoDbContextMiddleware } from './middleware/nocodb-context.middleware';
@@ -24,7 +28,6 @@ import { AuthModule } from '../auth/auth.module';
   ],
   providers: [
     NocoDBService,
-    NocoDBV3Service,
     DatabaseInitializationService,
     ExampleRepository,
     NocoDBCacheService,
@@ -33,7 +36,6 @@ import { AuthModule } from '../auth/auth.module';
   controllers: [TableCatalogController],
   exports: [
     NocoDBService,
-    NocoDBV3Service,
     ExampleRepository,
     NocoDBCacheService,
     TableCatalogService,
@@ -42,9 +44,7 @@ import { AuthModule } from '../auth/auth.module';
 export class NocoDBModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     consumer.apply(LoggingMiddleware).forRoutes('*');
-
     consumer.apply(RateLimitMiddleware).forRoutes('*');
-
     consumer.apply(NocoDbContextMiddleware).forRoutes('*');
   }
 }

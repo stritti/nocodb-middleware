@@ -33,7 +33,9 @@ async function testPhase2() {
       if (exists) {
         const table = await nocoDBService.getTableByName(tableName);
         if (table) {
-          console.log(`     ID: ${table.id}`);
+          console.log(
+            `     ID: ${table.id}, Columns: ${table.columns?.length || 'unknown'}`,
+          );
         }
       }
     }
@@ -44,7 +46,7 @@ async function testPhase2() {
     if (rolesTable) {
       const httpClient = nocoDBService.getHttpClient();
       const response = await httpClient.get(
-        `/api/v2/tables/${rolesTable.id}/records`,
+        `/api/v3/tables/${rolesTable.id}/records`,
         {
           params: {
             where: '(role_name,eq,admin)',
@@ -52,12 +54,7 @@ async function testPhase2() {
         },
       );
 
-      interface AdminRole {
-        role_name?: string;
-        description?: string;
-        is_system_role?: boolean;
-      }
-      const adminRole = response.data.list?.[0] as AdminRole | undefined;
+      const adminRole = response.data.list?.[0];
       if (adminRole) {
         console.log('  ✅ Admin role found:');
         console.log(`     Name: ${adminRole.role_name}`);

@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { NocoDBService } from './nocodb.service';
-import { NocoDBV3Service } from './nocodb-v3.service';
 import { TableCatalogItemDto } from './dto/table-catalog-item.dto';
 
 interface NocoTableMeta {
@@ -20,13 +19,11 @@ export class TableCatalogService {
 
   constructor(
     private readonly nocoDBService: NocoDBService,
-    private readonly nocoDBV3Service: NocoDBV3Service,
   ) {}
 
   async listExternalTables(): Promise<TableCatalogItemDto[]> {
-    const baseId = this.nocoDBService.getBaseId();
     const prefix = this.nocoDBService.getTablePrefix();
-    const tables = await this.nocoDBV3Service.listTablesMetaV3(baseId);
+    const tables = await this.nocoDBService.listTables();
 
     return tables
       .map((table) => this.normalizeTableMeta(table))

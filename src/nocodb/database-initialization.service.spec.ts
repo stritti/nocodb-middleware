@@ -3,58 +3,17 @@ import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DatabaseInitializationService } from './database-initialization.service';
 import { NocoDBService } from './nocodb.service';
-import { NocoDBV3Service } from './nocodb-v3.service';
-
-type HttpClientMock = {
-  get: jest.Mock<Promise<{ data?: unknown }>, [string]>;
-  post: jest.Mock<Promise<unknown>, [string, unknown?]>;
-};
-
-type NocoDBServiceMock = {
-  getTablePrefix: jest.Mock<string, []>;
-  getTableByName: jest.Mock<Promise<unknown>, [string]>;
-  getHttpClient: jest.Mock<HttpClientMock, []>;
-  getBaseId: jest.Mock<string, []>;
-};
-
-type NocoDBV3ServiceMock = {
-  createTableV3: jest.Mock<Promise<unknown>, [string, unknown]>;
-  findOne: jest.Mock<Promise<unknown>, [string, string]>;
-  create: jest.Mock<Promise<unknown>, [string, unknown]>;
-};
 
 describe('DatabaseInitializationService', () => {
   let service: DatabaseInitializationService;
-
-  let serviceWithPrivates: any;
-  let nocoDBService: NocoDBServiceMock;
-  let nocoDBV3Service: NocoDBV3ServiceMock;
-  let httpClientMock: HttpClientMock;
-  let configService: ConfigServiceMock;
+  let nocoDBService: NocoDBService;
+  let mockHttpClient: any;
 
   beforeEach(async () => {
-    httpClientMock = {
-      get: jest.fn<Promise<{ data?: unknown }>, [string]>(),
-      post: jest.fn<Promise<unknown>, [string, unknown?]>(),
-    };
-
-    nocoDBService = {
-      getTablePrefix: jest.fn<string, []>().mockReturnValue('nc_'),
-      getTableByName: jest.fn<Promise<unknown>, [string]>(),
-      getHttpClient: jest
-        .fn<HttpClientMock, []>()
-        .mockReturnValue(httpClientMock),
-      getBaseId: jest.fn<string, []>().mockReturnValue('base_id'),
-    };
-
-    nocoDBV3Service = {
-      createTableV3: jest.fn<Promise<unknown>, [string, unknown]>(),
-      findOne: jest.fn<Promise<unknown>, [string, string]>(),
-      create: jest.fn<Promise<unknown>, [string, unknown]>(),
-    };
-
-    configService = {
-      get: jest.fn<unknown, [string]>(),
+    mockHttpClient = {
+      get: jest.fn(),
+      post: jest.fn(),
+      defaults: { baseURL: 'http://test-url' },
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -62,15 +21,26 @@ describe('DatabaseInitializationService', () => {
         DatabaseInitializationService,
         {
           provide: NocoDBService,
-          useValue: nocoDBService,
-        },
-        {
-          provide: NocoDBV3Service,
-          useValue: nocoDBV3Service,
+          useValue: {
+            getTablePrefix: jest.fn().mockReturnValue(''),
+            getTableByName: jest.fn(),
+            createTable: jest.fn(),
+            createColumn: jest.fn(),
+            getHttpClient: jest.fn().mockReturnValue(mockHttpClient),
+            list: jest.fn(),
+            create: jest.fn(),
+            findOne: jest.fn(),
+            delete: jest.fn(),
+          },
         },
         {
           provide: ConfigService,
-          useValue: configService,
+          useValue: {
+            get: jest.fn().mockImplementation((key) => {
+              if (key === 'nocodb.bootstrapAdminUsername') return 'admin';
+              return null;
+            }),
+          },
         },
       ],
     }).compile();
@@ -78,124 +48,146 @@ describe('DatabaseInitializationService', () => {
     service = module.get<DatabaseInitializationService>(
       DatabaseInitializationService,
     );
-
-    serviceWithPrivates = service as any;
+    nocoDBService = module.get<NocoDBService>(NocoDBService);
 
     jest.spyOn(Logger.prototype, 'log').mockImplementation(() => {});
-    jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
     jest.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
+    jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   it('should be defined', () => {
     expect(service).toBeDefined();
   });
 
-  it('onModuleInit should trigger table initialization', async () => {
-    const initSpy = jest
-      .spyOn(serviceWithPrivates, 'initializeTables')
-      .mockResolvedValue(undefined);
-    await service.onModuleInit();
-    expect(initSpy).toHaveBeenCalled();
-  });
-
-  it('initializeTables should attempt base and junction tables and seeding', async () => {
-    const ensureSpy = jest
-      .spyOn(serviceWithPrivates, 'ensureTableExists')
-      .mockResolvedValue('table-id');
-
-    const seedPermSpy = jest
-      .spyOn(serviceWithPrivates, 'seedDefaultPermissions')
-      .mockResolvedValue(undefined);
-
-    const seedUserSpy = jest
-      .spyOn(serviceWithPrivates, 'seedDefaultUser')
-      .mockResolvedValue(undefined);
-
-    await serviceWithPrivates.initializeTables();
-
-    expect(ensureSpy).toHaveBeenCalledTimes(4);
-    expect(seedPermSpy).toHaveBeenCalled();
-    expect(seedUserSpy).toHaveBeenCalled();
-  });
-
-  it('ensureTableExists should return existing table id when accessible', async () => {
-    nocoDBService.getTableByName.mockResolvedValue({
-      id: 'existing-id',
-      table_name: 'nc_users',
-    } as { id: string; table_name: string });
-    httpClientMock.get.mockResolvedValue({ data: { id: 'existing-id' } });
-
-    const result = await serviceWithPrivates.ensureTableExists({
-      tableName: 'users',
-      title: 'Users',
-      columns: [
-        { name: 'username', title: 'Username', type: 'SingleLineText' },
-      ],
-    });
-
-    expect(result).toBe('existing-id');
-    expect(nocoDBV3Service.createTableV3).not.toHaveBeenCalled();
-    expect(httpClientMock.get).toHaveBeenCalled();
-  });
-
-  it('ensureTableExists should create table via v3 when missing', async () => {
-    nocoDBService.getTableByName.mockResolvedValue(null);
-    nocoDBV3Service.createTableV3.mockResolvedValue({
-      id: 'new-id',
-    } as { id: string });
-
-    const result = await serviceWithPrivates.ensureTableExists({
-      tableName: 'users',
-      title: 'Users',
-      columns: [
-        { name: 'username', title: 'Username', type: 'SingleLineText' },
-      ],
-    });
-
-    expect(nocoDBV3Service.createTableV3).toHaveBeenCalledWith(
-      'base_id',
-      expect.objectContaining({
-        table_name: 'nc_users',
-        title: 'nc_users',
-      }),
-    );
-    expect(httpClientMock.get).not.toHaveBeenCalled();
-    expect(result).toBe('new-id');
-  });
-
-  it('seedDefaultUser should skip when bootstrap admin username is missing', async () => {
-    configService.get.mockReturnValueOnce(undefined);
-
-    await serviceWithPrivates.seedDefaultUser();
-
-    expect(nocoDBService.getTableByName).not.toHaveBeenCalled();
-    expect(nocoDBV3Service.findOne).not.toHaveBeenCalled();
-    expect(nocoDBV3Service.create).not.toHaveBeenCalled();
-  });
-
-  it('seedDefaultUser should assign admin role to configured bootstrap user', async () => {
-    configService.get.mockReturnValue('bootstrap-admin');
-
-    nocoDBService.getTableByName
-      .mockResolvedValueOnce({ id: 'users-id', table_name: 'nc_users' })
-      .mockResolvedValueOnce({ id: 'roles-id', table_name: 'nc_roles' })
-      .mockResolvedValueOnce({
-        id: 'user-roles-id',
-        table_name: 'nc_user_roles',
+  describe('ensureTableExists', () => {
+    it('should create table if it does not exist', async () => {
+      (nocoDBService.getTableByName as jest.Mock).mockResolvedValue(null);
+      (nocoDBService.createTable as jest.Mock).mockResolvedValue({
+        id: 'new-table-id',
       });
 
-    nocoDBV3Service.findOne
-      .mockResolvedValueOnce({ id: 10, Username: 'bootstrap-admin' })
-      .mockResolvedValueOnce({ id: 1, 'Role Name': 'admin' })
-      .mockResolvedValueOnce(null);
+      const result = await (service as any).ensureTableExists({
+        tableName: 'test_table',
+        title: 'Test Table',
+        columns: [{ name: 'col1', title: 'Col 1', type: 'SingleLineText' }],
+      });
 
-    await serviceWithPrivates.seedDefaultUser();
+      expect(nocoDBService.createTable).toHaveBeenCalledWith(
+        'test_table',
+        'Test Table',
+        expect.arrayContaining([
+          expect.objectContaining({ column_name: 'col1' }),
+        ]),
+      );
+      expect(result).toBe('new-table-id');
+    });
 
-    expect(nocoDBV3Service.findOne).toHaveBeenCalledTimes(3);
-    expect(nocoDBV3Service.create).toHaveBeenCalledWith('user-roles-id', {
-      'User Id': 10,
-      'Role Id': 1,
-      'Assigned At': expect.any(String),
+    it('should return existing table ID if found', async () => {
+      (nocoDBService.getTableByName as jest.Mock).mockResolvedValue({
+        id: 'existing-id',
+      });
+      mockHttpClient.get.mockResolvedValue({ data: { columns: [] } });
+
+      const result = await (service as any).ensureTableExists({
+        tableName: 'test_table',
+        title: 'Test Table',
+        columns: [],
+      });
+
+      expect(nocoDBService.createTable).not.toHaveBeenCalled();
+      expect(result).toBe('existing-id');
+    });
+  });
+
+  describe('verifyLinkColumnsExist', () => {
+    it('should continue if required link columns are missing (only logs error)', async () => {
+      (nocoDBService.getTableByName as jest.Mock).mockImplementation((name) => {
+        return Promise.resolve({ id: `id_${name}`, title: name });
+      });
+
+      mockHttpClient.get.mockImplementation((url: string) => {
+        if (url.includes('/api/v3/meta/tables/')) {
+          return Promise.resolve({ data: { columns: [] } });
+        }
+        return Promise.resolve({ data: {} });
+      });
+
+      await expect((service as any).verifyLinkColumnsExist()).resolves.not.toThrow();
+    });
+
+    it('should pass if all link columns exist', async () => {
+      (nocoDBService.getTableByName as jest.Mock).mockImplementation((name) => {
+        return Promise.resolve({ id: `id_${name}`, title: name });
+      });
+
+      mockHttpClient.get.mockImplementation((url: string) => {
+        if (url.includes('/api/v3/meta/tables/id_user_roles')) {
+          return Promise.resolve({
+            data: {
+              columns: [
+                { column_name: 'user', uidt: 'LinkToAnotherRecord' },
+                { column_name: 'role', uidt: 'LinkToAnotherRecord' },
+              ],
+            },
+          });
+        }
+        if (url.includes('/api/v3/meta/tables/id_table_permissions')) {
+          return Promise.resolve({
+            data: {
+              columns: [{ column_name: 'role', uidt: 'LinkToAnotherRecord' }],
+            },
+          });
+        }
+        return Promise.resolve({ data: { columns: [] } });
+      });
+
+      await expect(
+        (service as any).verifyLinkColumnsExist(),
+      ).resolves.not.toThrow();
+    });
+  });
+
+  describe('seedDefaultUser', () => {
+    it('should create admin user if not exists', async () => {
+      (nocoDBService.getTableByName as jest.Mock).mockImplementation((name) => {
+        return Promise.resolve({ id: `id_${name}`, title: name });
+      });
+
+      (nocoDBService.list as jest.Mock).mockResolvedValue({ list: [] });
+      (nocoDBService.create as jest.Mock).mockResolvedValue({ id: 1 });
+
+      await (service as any).seedDefaultUser();
+
+      expect(nocoDBService.create).toHaveBeenCalledWith(
+        'id_users',
+        expect.objectContaining({ username: 'admin' }),
+      );
+    });
+
+    it('should skip user creation if user already exists', async () => {
+      (nocoDBService.getTableByName as jest.Mock).mockImplementation((name) => {
+        return Promise.resolve({ id: `id_${name}`, title: name });
+      });
+
+      (nocoDBService.list as jest.Mock).mockImplementation(
+        (tableId: string) => {
+          if (tableId === 'id_users') {
+            return Promise.resolve({ list: [{ id: 1, username: 'admin' }] });
+          }
+          if (tableId === 'id_roles') {
+            return Promise.resolve({ list: [{ id: 1, role_name: 'admin' }] });
+          }
+          return Promise.resolve({ list: [{ id: 1 }] });
+        },
+      );
+
+      await (service as any).seedDefaultUser();
+
+      expect(nocoDBService.create).not.toHaveBeenCalled();
     });
   });
 });

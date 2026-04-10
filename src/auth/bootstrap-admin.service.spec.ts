@@ -7,12 +7,10 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { BootstrapAdminService } from './bootstrap-admin.service';
 import { NocoDBService } from '../nocodb/nocodb.service';
-import { NocoDBV3Service } from '../nocodb/nocodb-v3.service';
 
 describe('BootstrapAdminService', () => {
   let service: BootstrapAdminService;
   let nocoDBService: NocoDBService;
-  let nocoDBV3Service: NocoDBV3Service;
 
   const mockConfigService = {
     get: jest.fn((key: string) => {
@@ -31,9 +29,6 @@ describe('BootstrapAdminService', () => {
         return Promise.resolve({ id: 'user-roles-id' });
       return Promise.resolve(null);
     }),
-  };
-
-  const mockNocoDBV3Service = {
     findOne: jest.fn(),
     create: jest.fn(),
   };
@@ -50,27 +45,22 @@ describe('BootstrapAdminService', () => {
           provide: NocoDBService,
           useValue: mockNocoDBService,
         },
-        {
-          provide: NocoDBV3Service,
-          useValue: mockNocoDBV3Service,
-        },
       ],
     }).compile();
 
     service = module.get<BootstrapAdminService>(BootstrapAdminService);
     nocoDBService = module.get<NocoDBService>(NocoDBService);
-    nocoDBV3Service = module.get<NocoDBV3Service>(NocoDBV3Service);
 
     jest.clearAllMocks();
   });
 
   it('should bootstrap admin user when token and data are valid', async () => {
-    mockNocoDBV3Service.findOne
+    mockNocoDBService.findOne
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({ id: 1, 'Role Name': 'admin' });
+      .mockResolvedValueOnce({ id: 1, role_name: 'admin' });
 
-    mockNocoDBV3Service.create
+    mockNocoDBService.create
       .mockResolvedValueOnce({ id: 10 })
       .mockResolvedValueOnce({ id: 100 });
 
@@ -89,21 +79,21 @@ describe('BootstrapAdminService', () => {
       username: 'admin',
       created: true,
     });
-    expect(mockNocoDBV3Service.create).toHaveBeenNthCalledWith(
+    expect(mockNocoDBService.create).toHaveBeenNthCalledWith(
       1,
       'users-id',
       expect.objectContaining({
-        Username: 'admin',
-        Email: 'admin@example.com',
-        'Is Active': true,
+        username: 'admin',
+        email: 'admin@example.com',
+        is_active: true,
       }),
     );
-    expect(mockNocoDBV3Service.create).toHaveBeenNthCalledWith(
+    expect(mockNocoDBService.create).toHaveBeenNthCalledWith(
       2,
       'user-roles-id',
       expect.objectContaining({
-        'User Id': 10,
-        'Role Id': 1,
+        user: [{ id: 10 }],
+        role: [{ id: 1 }],
       }),
     );
   });
@@ -122,13 +112,13 @@ describe('BootstrapAdminService', () => {
   });
 
   it('should return existing user and assign role if user already exists', async () => {
-    mockNocoDBV3Service.findOne
-      .mockResolvedValueOnce({ id: 99, Username: 'admin' })
-      .mockResolvedValueOnce({ id: 99, Username: 'admin' })
-      .mockResolvedValueOnce({ id: 1, 'Role Name': 'admin' })
+    mockNocoDBService.findOne
+      .mockResolvedValueOnce({ id: 99, username: 'admin' })
+      .mockResolvedValueOnce({ id: 99, username: 'admin' })
+      .mockResolvedValueOnce({ id: 1, role_name: 'admin' })
       .mockResolvedValueOnce(null);
 
-    mockNocoDBV3Service.create.mockResolvedValueOnce({ id: 777 });
+    mockNocoDBService.create.mockResolvedValue({ id: 777 });
 
     const result = await service.bootstrapAdmin(
       {
@@ -145,20 +135,20 @@ describe('BootstrapAdminService', () => {
       username: 'admin',
       created: false,
     });
-    expect(mockNocoDBV3Service.create).toHaveBeenCalledTimes(1);
-    expect(mockNocoDBV3Service.create).toHaveBeenCalledWith(
+    expect(mockNocoDBService.create).toHaveBeenCalledTimes(1);
+    expect(mockNocoDBService.create).toHaveBeenCalledWith(
       'user-roles-id',
       expect.objectContaining({
-        'User Id': 99,
-        'Role Id': 1,
+        user: [{ id: 99 }],
+        role: [{ id: 1 }],
       }),
     );
   });
 
   it('should reject when email belongs to another user', async () => {
-    mockNocoDBV3Service.findOne
+    mockNocoDBService.findOne
       .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({ id: 42, Username: 'other-user' });
+      .mockResolvedValueOnce({ id: 42, username: 'other-user' });
 
     await expect(
       service.bootstrapAdmin(
@@ -185,18 +175,9 @@ describe('BootstrapAdminService', () => {
         'bootstrap-secret-token',
       ),
     ).rejects.toThrow(NotFoundException);
-
-    mockNocoDBService.getTableByName.mockImplementation((name: string) => {
-      if (name === 'users') return Promise.resolve({ id: 'users-id' });
-      if (name === 'roles') return Promise.resolve({ id: 'roles-id' });
-      if (name === 'user_roles')
-        return Promise.resolve({ id: 'user-roles-id' });
-      return Promise.resolve(null);
-    });
   });
 
   it('should keep injected providers available', () => {
     expect(nocoDBService).toBeDefined();
-    expect(nocoDBV3Service).toBeDefined();
   });
 });

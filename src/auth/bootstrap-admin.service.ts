@@ -8,7 +8,6 @@ import {
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
 import { NocoDBService } from '../nocodb/nocodb.service';
-import { NocoDBV3Service } from '../nocodb/nocodb-v3.service';
 import { BootstrapAdminDto } from './dto/bootstrap-admin.dto';
 
 interface NocoTableRef {
@@ -17,13 +16,11 @@ interface NocoTableRef {
 
 interface NocoUserRecord {
   id?: number | string;
-  Id?: number | string;
-  Username?: string;
+  username?: string;
 }
 
 interface NocoRoleRecord {
   id?: number | string;
-  Id?: number | string;
 }
 
 @Injectable()
@@ -31,7 +28,6 @@ export class BootstrapAdminService {
   constructor(
     private readonly configService: ConfigService,
     private readonly nocoDBService: NocoDBService,
-    private readonly nocoDBV3Service: NocoDBV3Service,
   ) {}
 
   async bootstrapAdmin(
@@ -56,23 +52,23 @@ export class BootstrapAdminService {
     );
 
     const existingByUsername = this.asUserRecord(
-      await this.nocoDBV3Service.findOne(
+      await this.nocoDBService.findOne(
         usersTable.id,
-        `(Username,eq,${dto.username})`,
+        `(username,eq,${dto.username})`,
       ),
     );
 
     const existingByEmail = this.asUserRecord(
-      await this.nocoDBV3Service.findOne(
+      await this.nocoDBService.findOne(
         usersTable.id,
-        `(Email,eq,${dto.email})`,
+        `(email,eq,${dto.email})`,
       ),
     );
 
     if (
       existingByEmail &&
       !existingByUsername &&
-      String(existingByEmail.Username ?? '') !== dto.username
+      String(existingByEmail.username ?? '') !== dto.username
     ) {
       throw new ConflictException(
         `User with email "${dto.email}" already exists`,
@@ -80,7 +76,7 @@ export class BootstrapAdminService {
     }
 
     const adminRole = this.asRoleRecord(
-      await this.nocoDBV3Service.findOne(rolesTable.id, '(Role Name,eq,admin)'),
+      await this.nocoDBService.findOne(rolesTable.id, '(role_name,eq,admin)'),
     );
 
     if (!adminRole) {
@@ -92,15 +88,14 @@ export class BootstrapAdminService {
     if (existingByUsername) {
       const existingUserId = this.extractNumericId(existingByUsername);
       if (
-        !(await this.nocoDBV3Service.findOne(
+        !(await this.nocoDBService.findOne(
           userRolesTable.id,
-          `(User Id,eq,${existingUserId})~and(Role Id,eq,${adminRoleId})`,
+          `(user,eq,${existingUserId})~and(role,eq,${adminRoleId})`,
         ))
       ) {
-        await this.nocoDBV3Service.create(userRolesTable.id, {
-          'User Id': existingUserId,
-          'Role Id': adminRoleId,
-          'Assigned At': new Date().toISOString(),
+        await this.nocoDBService.create(userRolesTable.id, {
+          user: [{ id: existingUserId }],
+          role: [{ id: adminRoleId }],
         });
       }
 
@@ -112,14 +107,14 @@ export class BootstrapAdminService {
       };
     }
 
-    const passwordHash = this.hashPassword(dto.password);
+    const passwordHash = crypto.createHash('sha256').update(dto.password).digest('hex');
 
     const createdUser = this.asUserRecord(
-      await this.nocoDBV3Service.create(usersTable.id, {
-        Username: dto.username,
-        Email: dto.email,
-        'Password Hash': passwordHash,
-        'Is Active': true,
+      await this.nocoDBService.create(usersTable.id, {
+        username: dto.username,
+        email: dto.email,
+        password_hash: passwordHash,
+        is_active: true,
       }),
     );
 
@@ -129,10 +124,9 @@ export class BootstrapAdminService {
 
     const userId = this.extractNumericId(createdUser);
 
-    await this.nocoDBV3Service.create(userRolesTable.id, {
-      'User Id': userId,
-      'Role Id': adminRoleId,
-      'Assigned At': new Date().toISOString(),
+    await this.nocoDBService.create(userRolesTable.id, {
+      user: [{ id: userId }],
+      role: [{ id: adminRoleId }],
     });
 
     return {
@@ -168,12 +162,6 @@ export class BootstrapAdminService {
     if (!valid) {
       throw new UnauthorizedException('Invalid bootstrap token');
     }
-  }
-
-  private hashPassword(password: string): string {
-    const salt = crypto.randomBytes(16).toString('hex');
-    const derivedKey = crypto.scryptSync(password, salt, 64).toString('hex');
-    return `scrypt:${salt}:${derivedKey}`;
   }
 
   private assertTableRef(value: unknown): NocoTableRef {
@@ -212,9 +200,8 @@ export class BootstrapAdminService {
 
   private extractNumericId(record: {
     id?: number | string;
-    Id?: number | string;
   }): number {
-    const rawId = record.id ?? record.Id;
+    const rawId = record.id;
 
     if (typeof rawId === 'number') {
       return rawId;

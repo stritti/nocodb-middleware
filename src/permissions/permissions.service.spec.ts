@@ -1,40 +1,20 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PermissionsService } from './permissions.service';
 import { NocoDBService } from '../nocodb/nocodb.service';
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Logger } from '@nestjs/common';
 import { CrudAction } from './enums/crud-action.enum';
 
 describe('PermissionsService', () => {
   let service: PermissionsService;
   let nocoDBService: NocoDBService;
-  let mockHttpClient: {
-    get: jest.Mock<
-      Promise<{ data?: { list?: unknown[] } }>,
-      [string, { params?: Record<string, unknown> }?]
-    >;
-    post: jest.Mock<Promise<{ data?: unknown }>, [string, unknown?]>;
-    patch: jest.Mock<Promise<{ data?: unknown }>, [string, unknown?]>;
-    delete: jest.Mock<Promise<unknown>, [string]>;
-  };
+  let mockHttpClient: any;
 
   beforeEach(async () => {
+    jest.useFakeTimers();
+
     mockHttpClient = {
-      get: jest.fn<
-        Promise<{ data?: { list?: unknown[] } }>,
-        [string, { params?: Record<string, unknown> }?]
-      >(),
-      post: jest.fn<Promise<{ data?: unknown }>, [string, unknown?]>(),
-      patch: jest.fn<Promise<{ data?: unknown }>, [string, unknown?]>(),
-      delete: jest.fn<Promise<unknown>, [string]>(),
-    } satisfies {
-      get: jest.Mock<
-        Promise<{ data?: { list?: unknown[] } }>,
-        [string, { params?: Record<string, unknown> }?]
-      >;
-      post: jest.Mock<Promise<{ data?: unknown }>, [string, unknown?]>;
-      patch: jest.Mock<Promise<{ data?: unknown }>, [string, unknown?]>;
-      delete: jest.Mock<Promise<unknown>, [string]>;
+      get: jest.fn(),
+      defaults: { baseURL: 'http://test-url' },
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -45,15 +25,13 @@ describe('PermissionsService', () => {
           useValue: {
             getTableByName: jest.fn(),
             getHttpClient: jest.fn().mockReturnValue(mockHttpClient),
-            getBaseId: jest.fn().mockReturnValue('base_id'),
+            getBaseId: jest.fn().mockReturnValue('test-base-id'),
             getTablePrefix: jest.fn().mockReturnValue(''),
-          },
-        },
-        {
-          provide: CACHE_MANAGER,
-          useValue: {
-            get: jest.fn(),
-            set: jest.fn(),
+            read: jest.fn(),
+            list: jest.fn(),
+            findOne: jest.fn(),
+            create: jest.fn(),
+            update: jest.fn(),
           },
         },
       ],
@@ -62,10 +40,15 @@ describe('PermissionsService', () => {
     service = module.get<PermissionsService>(PermissionsService);
     nocoDBService = module.get<NocoDBService>(NocoDBService);
 
-    // Suppress logs
     jest.spyOn(Logger.prototype, 'log').mockImplementation(() => {});
     jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
     jest.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    jest.clearAllTimers();
+    jest.useRealTimers();
+    jest.restoreAllMocks();
   });
 
   it('should be defined', () => {
@@ -73,194 +56,311 @@ describe('PermissionsService', () => {
   });
 
   describe('getAllWorkspaceTables', () => {
-    it('should return table names filtered by prefix', async () => {
+    it('should fetch tables using v3 meta API', async () => {
       mockHttpClient.get.mockResolvedValue({
         data: {
-          list: [{ table_name: 'nc_table1' }, { table_name: 'other_table' }],
+          list: [{ table_name: 'users' }, { table_name: 'roles' }],
         },
       });
-      (nocoDBService.getTablePrefix as jest.Mock).mockReturnValue('nc_');
 
       const tables = await service.getAllWorkspaceTables();
-      expect(tables).toEqual(['nc_table1']);
       expect(mockHttpClient.get).toHaveBeenCalledWith(
-        '/api/v2/meta/bases/base_id/tables',
+        '/api/v3/meta/bases/test-base-id/tables',
       );
+      expect(tables).toEqual(['users', 'roles']);
     });
   });
 
   describe('getUserPermissions', () => {
-    const userId = 1;
-    const mockUser = { username: 'testuser' };
+    it('should return empty permissions if user has no roles', async () => {
+      (nocoDBService.getTableByName as jest.Mock).mockImplementation((name) => {
+        return Promise.resolve({ id: `id_${name}`, title: name });
+      });
 
-    beforeEach(() => {
-      // Setup mocking for table lookups
-      (nocoDBService.getTableByName as jest.Mock).mockImplementation(
-        (name: string) => {
-          return Promise.resolve({ id: `id_${name}`, title: name });
-        },
-      );
+      (nocoDBService.read as jest.Mock).mockResolvedValue({
+        id: 1,
+        username: 'testuser',
+      });
+      (nocoDBService.list as jest.Mock).mockResolvedValue({ list: [] });
+
+      const permissions = await service.getUserPermissions(1);
+      expect(permissions.roles).toEqual([]);
+      expect(permissions.permissions.size).toBe(0);
     });
 
-    it('should return cached permissions if available', async () => {
-      const cachedPerms = {
-        userId,
-        username: 'cached',
-        roles: [],
-        permissions: new Map<string, Set<CrudAction>>(),
-      };
-
-      (service as any).permissionsCache.set(userId, cachedPerms);
-
-      const result = await service.getUserPermissions(userId);
-      expect(result).toBe(cachedPerms);
-      expect(nocoDBService.getHttpClient).not.toHaveBeenCalled();
-    });
-
-    it('should fetch and calculate permissions if not cached', async () => {
-      // 1. Get User
-      mockHttpClient.get.mockResolvedValueOnce({
-        data: mockUser,
-      } as unknown as { data?: { list?: unknown[] } });
-
-      // 2. Get User Roles
-      mockHttpClient.get.mockResolvedValueOnce({
-        data: {
-          list: [{ role: { Id: 10, role_name: 'Admin' } }],
-        },
+    it('should aggregate permissions from multiple roles', async () => {
+      (nocoDBService.getTableByName as jest.Mock).mockImplementation((name) => {
+        return Promise.resolve({ id: `id_${name}`, title: name });
       });
 
-      // 3. Get Roles Info
-      mockHttpClient.get.mockResolvedValueOnce({
-        data: {
-          list: [{ Id: 10, role_name: 'Admin' }],
-        },
+      (nocoDBService.read as jest.Mock).mockResolvedValue({
+        id: 1,
+        username: 'testuser',
       });
 
-      // 4. Get Table Permissions
-      mockHttpClient.get.mockResolvedValueOnce({
-        data: {
-          list: [
-            {
-              table_name: 'test_table',
-              can_create: true,
-              can_read: true,
-              can_update: false,
-              can_delete: false,
-            },
-          ],
-        },
+      (nocoDBService.list as jest.Mock).mockImplementation((tableId) => {
+        if (tableId === 'id_user_roles') {
+          return Promise.resolve({
+            list: [{ id: 1, role: [{ id: 10 }] }],
+          });
+        }
+        if (tableId === 'id_roles') {
+          return Promise.resolve({
+            list: [{ id: 10, role_name: 'admin' }],
+          });
+        }
+        if (tableId === 'id_table_permissions') {
+          return Promise.resolve({
+            list: [
+              {
+                id: 1,
+                table_name: 'users',
+                can_read: true,
+                can_create: false,
+                can_update: false,
+                can_delete: false,
+              },
+            ],
+          });
+        }
+        return Promise.resolve({ list: [] });
       });
 
-      (service as any).permissionsCache.clear();
-
-      const result = await service.getUserPermissions(userId);
-
-      expect(result.userId).toBe(userId);
-      expect(result.username).toBe('testuser');
-      expect(result.roles).toEqual(['Admin']);
-      expect(result.permissions.get('test_table')).toBeDefined();
-      expect(result.permissions.get('test_table')?.has(CrudAction.CREATE)).toBe(
+      const permissions = await service.getUserPermissions(1);
+      expect(permissions.roles).toEqual(['admin']);
+      expect(permissions.permissions.get('users')?.has(CrudAction.READ)).toBe(
         true,
       );
-      expect(result.permissions.get('test_table')?.has(CrudAction.DELETE)).toBe(
+      expect(permissions.permissions.get('users')?.has(CrudAction.CREATE)).toBe(
         false,
       );
+    });
+  });
 
-      // Verify cache was set
+  describe('clearCache', () => {
+    it('should clear entire cache when no userId provided', () => {
+      (service as any).permissionsCache.set(1, {});
+      (service as any).permissionsCache.set(2, {});
 
-      expect((service as any).permissionsCache.has(userId)).toBe(true);
+      service.clearCache();
+      expect((service as any).permissionsCache.size).toBe(0);
     });
 
-    it('should return empty permissions if user has no roles', async () => {
-      mockHttpClient.get.mockResolvedValueOnce({
-        data: mockUser,
-      } as unknown as { data?: { list?: unknown[] } }); // User
-      mockHttpClient.get.mockResolvedValueOnce({ data: { list: [] } }); // No roles
+    it('should clear only specific user cache when userId provided', () => {
+      (service as any).permissionsCache.set(1, {});
+      (service as any).permissionsCache.set(2, {});
 
-      const result = await service.getUserPermissions(userId);
-      expect(result.roles).toEqual([]);
-      expect(result.permissions.size).toBe(0);
+      service.clearCache(1);
+      expect((service as any).permissionsCache.has(1)).toBe(false);
+      expect((service as any).permissionsCache.has(2)).toBe(true);
     });
   });
 
   describe('canUserPerformAction', () => {
-    it('should return true if user has permission', async () => {
-      const perms = new Map<string, Set<CrudAction>>();
-      perms.set('table1', new Set([CrudAction.READ]));
-
-      jest.spyOn(service, 'getUserPermissions').mockResolvedValue({
-        userId: 1,
-        username: 'user',
-        roles: [] as string[],
-        permissions: perms,
+    it('should return true when user has the required permission', async () => {
+      (nocoDBService.getTableByName as jest.Mock).mockImplementation((name) =>
+        Promise.resolve({ id: `id_${name}`, title: name }),
+      );
+      (nocoDBService.read as jest.Mock).mockResolvedValue({
+        id: 1,
+        username: 'testuser',
+      });
+      (nocoDBService.list as jest.Mock).mockImplementation((tableId) => {
+        if (tableId === 'id_user_roles') {
+          return Promise.resolve({ list: [{ id: 1, role: [{ id: 10 }] }] });
+        }
+        if (tableId === 'id_roles') {
+          return Promise.resolve({ list: [{ id: 10, role_name: 'admin' }] });
+        }
+        if (tableId === 'id_table_permissions') {
+          return Promise.resolve({
+            list: [
+              {
+                id: 1,
+                table_name: 'users',
+                can_read: true,
+                can_create: true,
+                can_update: false,
+                can_delete: false,
+              },
+            ],
+          });
+        }
+        return Promise.resolve({ list: [] });
       });
 
-      expect(
-        await service.canUserPerformAction(1, 'table1', CrudAction.READ),
-      ).toBe(true);
+      const result = await service.canUserPerformAction(
+        1,
+        'users',
+        CrudAction.READ,
+      );
+      expect(result).toBe(true);
     });
 
-    it('should return false if user does not have permission', async () => {
-      const perms = new Map<string, Set<CrudAction>>();
-      perms.set('table1', new Set([CrudAction.READ]));
+    it('should return false when table has no permissions entry', async () => {
+      (nocoDBService.getTableByName as jest.Mock).mockImplementation((name) =>
+        Promise.resolve({ id: `id_${name}`, title: name }),
+      );
+      (nocoDBService.read as jest.Mock).mockResolvedValue({
+        id: 1,
+        username: 'testuser',
+      });
+      (nocoDBService.list as jest.Mock).mockResolvedValue({ list: [] });
 
-      jest.spyOn(service, 'getUserPermissions').mockResolvedValue({
+      const result = await service.canUserPerformAction(
+        1,
+        'nonexistent',
+        CrudAction.READ,
+      );
+      expect(result).toBe(false);
+    });
+
+    it('should return cached permissions on second call', async () => {
+      const cachedPerms = {
         userId: 1,
-        username: 'user',
-        roles: [] as string[],
-        permissions: perms,
+        username: 'testuser',
+        roles: ['admin'],
+        permissions: new Map([['users', new Set([CrudAction.READ])]]),
+      };
+      (service as any).permissionsCache.set(1, cachedPerms);
+
+      const result = await service.canUserPerformAction(
+        1,
+        'users',
+        CrudAction.READ,
+      );
+      expect(result).toBe(true);
+      expect(nocoDBService.getTableByName).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getUserPermissions - edge cases', () => {
+    it('should return empty permissions when users table not found', async () => {
+      (nocoDBService.getTableByName as jest.Mock).mockResolvedValue(null);
+      const result = await service.getUserPermissions(99);
+      expect(result.roles).toEqual([]);
+      expect(result.permissions.size).toBe(0);
+    });
+
+    it('should return empty permissions when user_roles table not found', async () => {
+      (nocoDBService.getTableByName as jest.Mock).mockImplementation((name) => {
+        if (name === 'users') return Promise.resolve({ id: 'id_users' });
+        return Promise.resolve(null);
+      });
+      (nocoDBService.read as jest.Mock).mockResolvedValue({
+        id: 1,
+        username: 'testuser',
       });
 
-      expect(
-        await service.canUserPerformAction(1, 'table1', CrudAction.CREATE),
-      ).toBe(false);
-      expect(
-        await service.canUserPerformAction(1, 'other_table', CrudAction.READ),
-      ).toBe(false);
+      const result = await service.getUserPermissions(1);
+      expect(result.roles).toEqual([]);
+    });
+
+    it('should return empty permissions when roles table not found', async () => {
+      (nocoDBService.getTableByName as jest.Mock).mockImplementation((name) => {
+        if (name === 'users') return Promise.resolve({ id: 'id_users' });
+        if (name === 'user_roles')
+          return Promise.resolve({ id: 'id_user_roles' });
+        return Promise.resolve(null);
+      });
+      (nocoDBService.read as jest.Mock).mockResolvedValue({
+        id: 1,
+        username: 'testuser',
+      });
+      (nocoDBService.list as jest.Mock).mockImplementation((tableId) => {
+        if (tableId === 'id_user_roles') {
+          return Promise.resolve({ list: [{ id: 1, role: [{ id: 10 }] }] });
+        }
+        return Promise.resolve({ list: [] });
+      });
+
+      const result = await service.getUserPermissions(1);
+      expect(result.roles).toEqual([]);
+    });
+
+    it('should return empty permissions when table_permissions table not found', async () => {
+      (nocoDBService.getTableByName as jest.Mock).mockImplementation((name) => {
+        if (name === 'users') return Promise.resolve({ id: 'id_users' });
+        if (name === 'user_roles')
+          return Promise.resolve({ id: 'id_user_roles' });
+        if (name === 'roles') return Promise.resolve({ id: 'id_roles' });
+        return Promise.resolve(null);
+      });
+      (nocoDBService.read as jest.Mock).mockResolvedValue({
+        id: 1,
+        username: 'testuser',
+      });
+      (nocoDBService.list as jest.Mock).mockImplementation((tableId) => {
+        if (tableId === 'id_user_roles') {
+          return Promise.resolve({ list: [{ id: 1, role: [{ id: 10 }] }] });
+        }
+        if (tableId === 'id_roles') {
+          return Promise.resolve({ list: [{ id: 10, role_name: 'admin' }] });
+        }
+        return Promise.resolve({ list: [] });
+      });
+
+      const result = await service.getUserPermissions(1);
+      expect(result.roles).toEqual([]);
     });
   });
 
   describe('setTablePermissions', () => {
-    it('should create permissions if not existing', async () => {
+    it('should update existing permissions', async () => {
       (nocoDBService.getTableByName as jest.Mock).mockResolvedValue({
-        id: 'perm_table',
+        id: 'id_table_permissions',
       });
-      mockHttpClient.get.mockResolvedValue({ data: { list: [] } }); // Not found
+      (nocoDBService.findOne as jest.Mock).mockResolvedValue({ id: 5 });
+      (nocoDBService.update as jest.Mock).mockResolvedValue({});
 
-      await service.setTablePermissions(1, 'table1', {
+      await service.setTablePermissions(1, 'users', {
         [CrudAction.READ]: true,
+        [CrudAction.CREATE]: false,
       });
 
-      expect(mockHttpClient.post).toHaveBeenCalledWith(
-        '/api/v2/tables/perm_table/records',
-        expect.objectContaining({
-          role: { Id: 1 },
-          table_name: 'table1',
-          can_read: true,
-        }),
+      expect(nocoDBService.update).toHaveBeenCalledWith(
+        'id_table_permissions',
+        5,
+        expect.objectContaining({ can_read: true }),
       );
-      expect(
-        (service as unknown as { permissionsCache: Map<number, unknown> })
-          .permissionsCache.size,
-      ).toBe(0);
+    });
+
+    it('should create new permissions when none exist', async () => {
+      (nocoDBService.getTableByName as jest.Mock).mockResolvedValue({
+        id: 'id_table_permissions',
+      });
+      (nocoDBService.findOne as jest.Mock).mockResolvedValue(null);
+      (nocoDBService.create as jest.Mock).mockResolvedValue({ id: 1 });
+
+      await service.setTablePermissions(1, 'orders', {});
+
+      expect(nocoDBService.create).toHaveBeenCalled();
+    });
+
+    it('should throw when table_permissions table not found', async () => {
+      (nocoDBService.getTableByName as jest.Mock).mockResolvedValue(null);
+
+      await expect(service.setTablePermissions(1, 'users', {})).rejects.toThrow(
+        'Table_permissions table not found',
+      );
     });
   });
 
-  describe('initializePermissionsForRole', () => {
-    it('should iterate all tables and set permissions', async () => {
-      jest
-        .spyOn(service, 'getAllWorkspaceTables')
-        .mockResolvedValue(['t1', 't2']);
-      const setPermSpy = jest
-        .spyOn(service, 'setTablePermissions')
-        .mockResolvedValue(undefined);
+  describe('getAllWorkspaceTables with prefix filter', () => {
+    it('should filter tables by prefix when prefix is set', async () => {
+      (nocoDBService.getTablePrefix as jest.Mock).mockReturnValue('nc_');
+      mockHttpClient.get.mockResolvedValue({
+        data: {
+          list: [
+            { table_name: 'nc_users' },
+            { table_name: 'nc_roles' },
+            { table_name: 'other_table' },
+          ],
+        },
+      });
 
-      await service.initializePermissionsForRole(1, 'Role', {});
-
-      expect(setPermSpy).toHaveBeenCalledTimes(2);
-      expect(setPermSpy).toHaveBeenCalledWith(1, 't1', {});
-      expect(setPermSpy).toHaveBeenCalledWith(1, 't2', {});
+      const tables = await service.getAllWorkspaceTables();
+      expect(tables).toEqual(['nc_users', 'nc_roles']);
     });
   });
 });
