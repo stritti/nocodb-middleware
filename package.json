@@ -47,7 +47,7 @@
     "express-rate-limit": "^8.2.1",
     "helmet": "^8.1.0",
     "nestjs-pino": "^4.6.1",
-    "nocodb-sdk": "^0.265.1",
+    "nocodb-sdk": "^0.301.3",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "pino-http": "^11.0.0",
