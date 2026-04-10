@@ -315,7 +315,7 @@ Die Middleware nutzt das **Repository-Pattern** für NocoDB. Du kannst eigene Ta
 | **🖥️ VPS (Ubuntu, Debian)** | Traditionelles Deployment auf einem eigenen Server |
 | **🔧 CI/CD (GitHub Actions)** | Automatisierte Deployments |
 
-#### **🔹 Dockerfile (Beispiel)**
+#### **🔹 Dockerfile (Beispiel)
 ```dockerfile
 # Dockerfile
 FROM node:20-alpine
