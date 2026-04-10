@@ -315,7 +315,7 @@ Die Middleware nutzt das **Repository-Pattern** für NocoDB. Du kannst eigene Ta
 | **🖥️ VPS (Ubuntu, Debian)** | Traditionelles Deployment auf einem eigenen Server |
 | **🔧 CI/CD (GitHub Actions)** | Automatisierte Deployments |
 
-#### **🔹 Dockerfile (Beispiel)
+#### **🔹 Dockerfile (Beispiel)**
 ```dockerfile
 # Dockerfile
 FROM node:20-alpine
@@ -362,7 +362,94 @@ services:
 ## **📌 Best Practices und Sicherheitshinweise**
 
 ### **🔹 JWT-Tokens sicher speichern**
-- **Nicht im `localStorage`** (XSS-Angriffrisiko)! **Empfohlen:** `httpOnly`-Cookies oder Secure Storage (z.B. `@auth0/auth0-react`).
+⚠️ **Wichtig:** JWT-Tokens **niemals** im `localStorage` oder `sessionStorage` speichern! Dies öffnet **XSS-Angriffen** Tür und Tor.
+
+🔹 **Empfohlene sichere Speicheroptionen:**
+- **`httpOnly`-Cookies** (nur über HTTP(S) zugänglich, nicht per JavaScript auslesbar)
+  ```javascript
+  // Backend: Setze das Token als httpOnly-Cookie
+  res.cookie('jwtToken', token, {
+    httpOnly: true,
+    secure: true, // Nur über HTTPS
+    sameSite: 'strict', // Schutz vor CSRF
+    maxAge: 24 * 60 * 60 * 1000, // 1 Tag
+  });
+  ```
+
+- **Secure Storage Bibliotheken** (z.B. `@auth0/auth0-react` für React)
+  ```javascript
+  import { useAuth0 } from '@auth0/auth0-react';
+
+  const { getAccessTokenSilently } = useAuth0();
+  const token = await getAccessTokenSilently();
+  ```
+
+- **Angular/NgRx Store** (für Angular-Anwendungen)
+  ```typescript
+  // Store das Token im Service und speichere es in einem verschlüsselten Zustand
+  this.tokenService.setToken(token);
+  ```
+
+📌 **Warum `localStorage` unsicher ist:**
+- **XSS-Angriffe:** Ein bösartiges Skript kann Tokens aus `localStorage` auslesen.
+- **Keine automatische Verschlüsselung:** Tokens sind im Klartext gespeichert.
+- **Keine Kontrolle über die Gültigkeit:** Tokens bleiben bis zum manuellen Löschen gespeichert.
+
+🔹 **Beispiel für eine sichere Frontend-Integration (React mit httpOnly-Cookies):**
+```javascript
+// utils/auth.js
+import axios from 'axios';
+
+// API-Client mit httpOnly-Cookie-Unterstützung
+export const api = axios.create({
+  baseURL: 'http://localhost:3000',
+});
+
+// Beispiel: Login mit httpOnly-Cookie
+const login = async (email, password) => {
+  const response = await fetch('/auth/login', {
+    method: 'POST',
+    credentials: 'include', // Wichtig für Cookies!
+    body: JSON.stringify({ email, password }),
+  });
+  return response;
+};
+
+// Beispiel: API-Aufruf mit httpOnly-Cookie
+export const getUsers = async () => {
+  const response = await api.get('/users', {
+    withCredentials: true, // Sende Cookies mit
+  });
+  return response.data;
+};
+
+// Backend: auth.controller.ts
+import { Controller, Post, Res } from '@nestjs/common';
+import { Response } from 'express';
+
+@Controller('auth')
+export class AuthController {
+  @Post('login')
+  async login(@Body() body: { email: string; password: string }, @Res() res: Response) {
+    const token = await this.authService.validateUser(body.email, body.password);
+    res.cookie('jwtToken', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 24 * 60 * 60 * 1000,
+    });
+    return res.send({ message: 'Login erfolgreich' });
+  }
+}
+```
+
+🔹 **Wichtige Sicherheitshinweise für Cookies:**
+- **`secure: true`** in Produktion (nur über HTTPS)
+- **`sameSite: 'strict'`** oder `'lax'` (Schutz vor CSRF)
+- **`httpOnly: true`** (kein Zugriff per JavaScript)
+- **Kurze Gültigkeit** (z.B. 1 Stunde für Tokens, Refresh-Tokens verwenden)
+
+---
 
 ### **🔹 CORS-Origins sicher konfigurieren**
 ```env
