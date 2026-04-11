@@ -27,7 +27,7 @@
     "mcp": "ts-node --esm scripts/mcp-server.ts"
   },
   "dependencies": {
-    "@nestjs/cache-manager": "^3.0.1",
+    "@nestjs/cache-manager": "^3.1.0",
     "@nestjs/common": "^11.1.18",
     "@nestjs/config": "^4.0.2",
     "@nestjs/core": "^11.1.18",
