@@ -13,7 +13,7 @@ A robust NestJS middleware for NocoDB with comprehensive authentication, caching
 ✅ **Role-Based Access Control** - Table-level CRUD permission guards  
 ✅ **Request Context Middleware** - User context enrichment  
 ✅ **Rate Limiting** - Protection against abuse (100 requests per 15 minutes)  
-✅ **Logging** - Request/response logging with duration to console and files (`/logs` directory)
+✅ **Logging Middleware** - Request/response logging with duration to console and files (`/logs` directory)
 ✅ **Caching Layer** - In-memory caching for read-heavy operations  
 ✅ **Error Handling** - Structured error responses with custom exceptions  
 ✅ **Security Headers** - `helmet` applied to every response  
@@ -21,7 +21,111 @@ A robust NestJS middleware for NocoDB with comprehensive authentication, caching
 ✅ **Global Validation** - Automatic request validation with class-validator  
 ✅ **Health Check** - Service health monitoring  
 ✅ **Distributed Tracing** - Optional OpenTelemetry integration  
-✅ **Testing** - Unit tests and E2E smoke testing
+✅ **Testing** - Unit tests and E2E smoke testing  
+
+## ⚡ Erste Schritte in 5 Minuten
+
+### **1️⃣ Middleware klonen und installieren**
+```bash
+git clone https://github.com/stritti/nocodb-middleware.git
+cd nocodb-middleware
+npm install
+```
+
+### **2️⃣ `.env` konfigurieren**
+Kopiere die `.env.example` und passe sie an:
+```env
+# NocoDB Connection
+NOCODB_API_URL=http://localhost:8080
+NOCODB_API_TOKEN=your_api_token_here
+NOCODB_BASE_ID=your_base_id_here       # required for Meta API v3
+
+# Optional table prefix (e.g. 'app_' → tables become 'app_users', 'app_roles')
+NOCODB_TABLE_PREFIX=
+
+# JWT – the middleware validates tokens; it does NOT issue them
+JWT_SECRET=your_jwt_secret_here
+JWT_EXPIRES_IN=1d
+
+# CORS – comma-separated list of allowed origins
+CORS_ORIGINS=http://localhost:3000
+
+# Server
+PORT=3000
+```
+
+> **📌 Hinweis zur Authentifizierung:**
+> Diese Middleware **validiert** JWT-Tokens, die von einem **externen Identity-Provider** ausgestellt werden.  
+> Sie enthält **keinen eigenen Login-Endpoint**. Dein Frontend oder Auth-Service muss das JWT erstellen und als `Authorization: Bearer <token>` weitergeben.
+
+### **3️⃣ Middleware starten**
+```bash
+# Entwicklungsmodus
+npm run start:dev
+
+# Produktionsmodus
+npm run build
+npm run start:prod
+```
+- Die Middleware läuft auf `http://localhost:3000`
+- **Swagger UI:** [http://localhost:3000/api](http://localhost:3000/api)
+- **Health Check:** [http://localhost:3000/health](http://localhost:3000/health)
+
+### **4️⃣ API-Aufruf testen**
+```bash
+# Nutzerdaten abrufen (mit JWT-Token)
+curl -X GET http://localhost:3000/users \
+  -H "Authorization: Bearer DEIN_JWT_TOKEN"
+```
+
+## 🔐 Sicherheit: Checkliste vor dem Deployment
+
+⚠️ **Wichtig:** Bevor du die Middleware in Produktion bringst, prüfe folgende Sicherheitsaspekte:
+
+### **📋 Checkliste**
+- [ ] **JWT-Tokens sicher speichern**
+  ➡️ Nutze **`httpOnly`-Cookies** oder sichere Storage-Lösungen (z.B. `@auth0/auth0-react`).
+  ➡️ **Nicht** im `localStorage` oder `sessionStorage`!
+
+- [ ] **CORS-Origins korrekt konfiguriert**
+  ➡️ `CORS_ORIGINS=https://deine-spa-app.de,https://staging.deine-spa-app.de`
+  ➡️ **Kein `*` in Produktion!**
+
+- [ ] **Rate Limiting aktiviert**
+  ➡️ Standard: 100 Anfragen/15 Minuten
+  ➡️ Für Produktion: Erhöhe auf z.B. 1000 Anfragen/15 Minuten
+
+- [ ] **Input-Validation erzwungen**
+  ➡️ Nutze `class-validator` für alle DTOs
+  ➡️ Aktiviere globale Validierung in `main.ts`
+
+- [ ] **Secrets sicher verwaltet**
+  ➡️ Nutze `.env` (nicht committed!)
+  ➡️ Speichere Secrets in GitHub Secrets
+  ➡️ Rotieren Sie NocoDB-API-Tokens regelmäßig
+
+- [ ] **NocoDB-API-Token sicher**
+  ➡️ **Nicht** im Frontend verwenden!
+  ➡️ Nur im Backend in `.env` speichern
+
+- [ ] **Sicherheits-Header aktiviert**
+  ➡️ `helmet` ist standardmäßig in der Middleware aktiviert
+  ➡️ Prüfe die Header mit [SecurityHeaders.com](https://securityheaders.com/)
+
+- [ ] **Logging und Monitoring**
+  ➡️ Prüfe die Logs im `/logs`-Verzeichnis
+  ➡️ Nutze OpenTelemetry für Distributed Tracing (optional)
+
+- [ ] **Health Check prüfen**
+  ➡️ Teste `/health` vor dem Deployment
+
+- [ ] **RBAC-Berechtigungen prüfen**
+  ➡️ Stelle sicher, dass Tabellen-Berechtigungen in NocoDB korrekt sind
+
+### **🔗 Weitere Infos**
+- [OWASP JWT Best Practices](https://cheatsheetseries.owasp.org/cheatsheets/JSON_Web_Token_for_Java_Cheat_Sheet.html)
+
+---
 
 ## Installation
 

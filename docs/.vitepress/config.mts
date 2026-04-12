@@ -20,7 +20,14 @@ export default defineConfig({
 
     // https://vitepress.dev/reference/default-theme-config#sidebar
     sidebar: {
-      '/docs/': [
+      '/': [
+        {
+          text: 'Getting Started',
+          items: [
+            { text: 'Overview', link: '/' },
+            { text: 'Developer Guide', link: '/docs/developer-guide' },
+          ],
+        },
         {
           text: 'Dokumentation',
           items: [
@@ -28,16 +35,6 @@ export default defineConfig({
             { text: 'Developer Guide', link: '/docs/developer-guide' },
             { text: 'Security Audit', link: '/docs/security-audit' },
             { text: 'Produkt Readiness', link: '/docs/product-readiness' },
-          ],
-        },
-      ],
-
-      '/': [
-        {
-          text: 'Getting Started',
-          items: [
-            { text: 'Overview', link: '/' },
-            { text: 'Developer Guide', link: '/docs/developer-guide' },
           ],
         },
       ],
