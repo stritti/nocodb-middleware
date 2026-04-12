@@ -1,537 +1,290 @@
-# **🚀 Entwicklerguide: nocodb-middleware**
+# Entwicklerguide
 
-**Zielgruppe:**
-Entwickler, die NocoDB als Backend für ihre **SPA-App** nutzen möchten und eine **robuste, sichere Middleware** suchen.
+## Zielbild
 
----
+`nocodb-middleware` ist eine NestJS-Schicht zwischen deiner Anwendung und NocoDB.
+Sie übernimmt Authentifizierungsprüfung, Berechtigungen, Rate Limiting, Logging, Caching und eine einheitliche API-Oberfläche.
 
-## **📌 Einführung**
+Sie ist besonders sinnvoll, wenn du:
 
-Die **nocodb-middleware** ist eine **NestJS-basierte Middleware**, die NocoDB als Backend für deine **Single-Page-Application (SPA)** bereitstellt. Sie bietet:
+- NocoDB nicht direkt aus dem Frontend ansprechen willst
+- Rollen und Tabellenrechte zentral erzwingen willst
+- eine dokumentierte REST-API für mehrere Clients brauchst
+- Querschnittsthemen wie Logging, Fehlerformat und Tracing an einer Stelle bündeln willst
 
-| Feature | Beschreibung |
-|---------|-------------|
-| **🔒 JWT-Authentifizierung** | Sichere Authentifizierung für deine API-Endpunkte |
-| **📊 RBAC (Role-Based Access Control)** | Feingranulare Zugriffsrechte auf Tabellenebene |
-| **⚡ Caching** | Schnelle API-Antworten für read-intensive Operationen |
-| **🛡️ Sicherheitsfeatures** | Helmet, Rate Limiting, Input-Validation, OpenAPI/Swagger |
-| **📝 API-Dokumentation** | Automatische Swagger-UI und statische `openapi.yaml` |
-| **🚦 Monitoring** | Logging, Health Checks, OpenTelemetry |
+## Architekturentscheidung: JWT ja, Login nein
 
----
+Die Middleware **validiert** JWTs, stellt sie aber **nicht** selbst aus.
+Es gibt keinen eingebauten Login-Endpoint und keine Session-Verwaltung per Cookie.
 
-## **📌 Warum nocodb-middleware für deine SPA nutzen?**
+Praktisch bedeutet das:
 
-| Vorteil | Beschreibung |
-|---------|-------------|
-| **🔄 Einfache Integration** | Standardisierte RESTful-API für deine Frontend-App |
-| **🔐 Sichere Authentifizierung** | JWT-basierte Authentifizierung mit externem Identity-Provider |
-| **📦 Automatische API-Dokumentation** | Swagger UI für Frontend-Entwickler |
-| **⚡ Bessere Performance** | Caching und Rate Limiting für schnellere API-Antworten |
-| **🛡️ Sicherheit** | Sicherheits-Header, Input-Validation, RBAC |
-| **🔧 Flexibilität** | Einfache Anpassung an deine NocoDB-Tabellen und Rollen |
+- Ein externer Identity Provider oder Auth-Service erzeugt das Access Token.
+- Die Middleware erwartet `Authorization: Bearer <token>`.
+- Das Frontend oder ein BFF/Gateway entscheidet, wie Token bezogen und gespeichert werden.
 
----
+## Empfohlene Integrationsmuster
 
-## **📌 Architekturübersicht**
+### 1. Browser-SPA mit externem IdP-SDK
 
-```mermaid
-graph TD
-    A[Frontend (SPA)] -->|HTTPS| B[NestJS Middleware]
-    B -->|JWT Token| C[Nutzer]
-    B -->|Request| D[NocoDB API]
-    D -->|Response| B
-    B -->|Cached Response| A
-    B -->|Logging| E[Logging]
-    B -->|Health Check| F[/health]
-    B -->|OpenAPI| G[Swagger UI]
-```
+Geeignet für interne Tools oder einfache Architekturen.
 
-**Datenfluss:**
-1. Der Nutzer loggt sich im Frontend ein (z.B. über OAuth oder einen Auth-Service).
-2. Das Frontend erhält ein **JWT-Token** und sendet es mit jeder API-Anfrage an die Middleware.
-3. Die Middleware **validiert das Token**, prüft die Berechtigungen und leitet die Anfrage an NocoDB weiter.
-4. Die Antwort wird an den Nutzer zurückgegeben – ggf. aus dem Cache.
-5. **Logging und Monitoring** erfassen alle Requests und Antworten.
+- Das Frontend nutzt ein SDK wie Auth0, Firebase oder Keycloak JS.
+- Das Access Token wird bevorzugt **nur im Speicher** gehalten.
+- API-Aufrufe schicken das Token als Bearer Header an die Middleware.
 
----
+Vorteil:
+- Direkter und einfacher Aufbau.
 
-## **📌 Schnellstart: Middleware in 5 Minuten einrichten**
+Nachteil:
+- Token ist im Browser-Kontext vorhanden.
+- XSS bleibt das zentrale Risiko.
 
-### **🔹 Voraussetzungen**
-- Node.js (v18+)
-- NestJS (v10+)
-- NocoDB-Instanz (lokal oder cloud)
-- NocoDB-API-Token und Base-ID
+### 2. BFF oder Auth-Gateway
 
-### **🔹 Schritt 1: Middleware klonen und installieren**
+Geeignet für produktive öffentliche Anwendungen.
+
+- Login und Refresh Token laufen über einen separaten Backend-Dienst.
+- Refresh Tokens liegen in `httpOnly` Cookies.
+- Der BFF ruft diese Middleware serverseitig mit Bearer Token auf.
+
+Vorteil:
+- Das Browser-Frontend sieht das Access Token nicht direkt.
+- Token-Rotation und Session-Management bleiben serverseitig.
+
+Nachteil:
+- Zusätzliche Komponente und etwas mehr Betriebsaufwand.
+
+## Was du vermeiden solltest
+
+- `NOCODB_API_TOKEN` im Frontend
+- `CORS_ORIGINS=*` in Produktion
+- JWTs dauerhaft in `localStorage`, wenn das Risiko nicht bewusst akzeptiert ist
+- direkte Kopplung des Frontends an NocoDB ohne zusätzliche Rechteprüfung
+- Annahme, dass diese Middleware Login, Logout und Cookie-Sessions bereits löst
+
+## Schnellstart für lokale Entwicklung
+
+### Voraussetzungen
+
+- Node.js 22 oder kompatibel zur aktuellen Projektkonfiguration
+- laufende NocoDB-Instanz
+- NocoDB API Token
+- Base ID für Meta API v3
+- JWT Secret zur Validierung deiner Access Tokens
+
+### Installation
+
 ```bash
 git clone https://github.com/stritti/nocodb-middleware.git
 cd nocodb-middleware
 npm install
+cp .env.example .env
 ```
 
-### **🔹 Schritt 2: `.env` konfigurieren**
-Erstelle eine `.env`-Datei basierend auf `.env.example`:
+### Minimale `.env`
+
 ```env
-# NocoDB Connection
 NOCODB_API_URL=http://localhost:8080
 NOCODB_API_TOKEN=your_api_token_here
 NOCODB_BASE_ID=your_base_id_here
 
-# JWT Configuration
 JWT_SECRET=your_jwt_secret_here
 JWT_EXPIRES_IN=1d
+CORS_ORIGINS=http://localhost:3000
 
-# CORS Origins (kommagetrennte Liste)
-CORS_ORIGINS=http://localhost:3000,https://deine-spa-app.de
-
-# Server Port
 PORT=3000
+LOG_DIR=logs
 ```
 
-### **🔹 Schritt 3: Middleware starten**
+### Start
+
 ```bash
 npm run start:dev
 ```
-- Die Middleware läuft auf `http://localhost:3000`.
-- **Swagger UI:** [http://localhost:3000/api](http://localhost:3000/api)
 
----
+Danach:
 
-## **📌 Integration in deine SPA-App**
+- Swagger UI unter `http://localhost:3000/api`
+- Health Check unter `http://localhost:3000/health`
 
-### **🔹 Beispiel: React + Next.js**
+## SPA-Anbindung
 
-#### **1. Authentifizierung im Frontend**
-```javascript
-// pages/login.js
-import { useState } from 'react';
-import { useRouter } from 'next/router';
+### Minimales Frontend-API-Client-Beispiel
 
-export default function Login() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const router = useRouter();
-
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    // Externer Auth-Service (z.B. Firebase, Auth0, etc.)
-    const response = await fetch('https://dein-auth-service.com/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
-    });
-    const { token } = await response.json();
-    localStorage.setItem('jwtToken', token);
-    router.push('/dashboard');
-  };
-
-  return (
-    <form onSubmit={handleLogin}>
-      <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-      <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
-      <button type="submit">Login</button>
-    </form>
-  );
-}
-```
-
-#### **2. API-Aufrufe mit JWT**
-```javascript
-// utils/api.js
-export const fetchNocoDB = async (endpoint) => {
-  const token = localStorage.getItem('jwtToken');
-  if (!token) throw new Error('Kein Token vorhanden');
-
-  const response = await fetch(`http://localhost:3000/${endpoint}`, {
+```ts
+export async function apiRequest<T>(path: string, accessToken: string): Promise<T> {
+  const response = await fetch(`http://localhost:3000${path}`, {
     headers: {
-      'Authorization': `Bearer ${token}`,
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
     },
-  });
-  if (!response.ok) throw new Error('API-Aufruf fehlgeschlagen');
-  return await response.json();
-};
+  })
 
-// Beispiel: Nutzerdaten abrufen
-export const getUsers = async () => {
-  return await fetchNocoDB('users');
-};
-```
-
-#### **3. Nutzerdaten anzeigen (React)**
-```javascript
-// components/UserList.js
-import { useEffect, useState } from 'react';
-import { getUsers } from '../utils/api';
-
-export default function UserList() {
-  const [users, setUsers] = useState([]);
-
-  useEffect(() => {
-    getUsers().then(setUsers);
-  }, []);
-
-  return (
-    <ul>
-      {users.map(user => (
-        <li key={user.id}>{user.name}</li>
-      ))}
-    </ul>
-  );
-}
-```
-
----
-
-### **🔹 Beispiel: Vue.js**
-
-#### **1. Authentifizierung (Vuex)**
-```javascript
-// store/auth.js
-export default {
-  actions: {
-    async login({ commit }, { email, password }) {
-      const response = await fetch('https://dein-auth-service.com/login', {
-        method: 'POST',
-        body: JSON.stringify({ email, password }),
-      });
-      const { token } = await response.json();
-      localStorage.setItem('jwtToken', token);
-      commit('SET_TOKEN', token);
-    },
-  },
-};
-```
-
-#### **2. API-Aufrufe (Vue)**
-```javascript
-// services/nocodb.js
-import axios from 'axios';
-
-const api = axios.create({
-  baseURL: 'http://localhost:3000',
-  headers: {
-    'Authorization': `Bearer ${localStorage.getItem('jwtToken')}`,
-  },
-});
-
-export const getUsers = async () => {
-  const response = await api.get('/users');
-  return response.data;
-};
-```
-
----
-
-### **🔹 Beispiel: Angular**
-
-#### **1. Authentifizierung (Angular Service)**
-```typescript
-// auth.service.ts
-import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-
-@Injectable({
-  providedIn: 'root',
-})
-export class AuthService {
-  private token = localStorage.getItem('jwtToken');
-
-  constructor(private http: HttpClient) {}
-
-  async login(email: string, password: string) {
-    const response = await this.http.post<{ token: string }>('https://dein-auth-service.com/login', { email, password }).toPromise();
-    localStorage.setItem('jwtToken', response.token);
+  if (!response.ok) {
+    throw new Error(`API request failed with status ${response.status}`)
   }
+
+  return response.json() as Promise<T>
 }
 ```
 
-#### **2. API-Aufrufe (Angular HttpClient)**
-```typescript
-// nocodb.service.ts
-import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+### React mit In-Memory Token
 
-@Injectable({
-  providedIn: 'root',
-})
-export class NocoDBService {
-  private apiUrl = 'http://localhost:3000';
+```ts
+import { createContext, useContext, useMemo, useState } from 'react'
 
-  constructor(private http: HttpClient) {}
+type AuthContextValue = {
+  accessToken: string | null
+  setAccessToken: (token: string | null) => void
+}
 
-  async getUsers() {
-    return this.http.get(`${this.apiUrl}/users`).toPromise();
-  }
+const AuthContext = createContext<AuthContextValue | null>(null)
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [accessToken, setAccessToken] = useState<string | null>(null)
+  const value = useMemo(() => ({ accessToken, setAccessToken }), [accessToken])
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext)
+  if (!context) throw new Error('useAuth must be used within AuthProvider')
+  return context
 }
 ```
 
----
+Das Beispiel zeigt bewusst nur einen Speicher im laufenden Prozess.
+Für echte Login-Flows sollte das Token aus einem IdP-SDK stammen und erneuert werden, ohne es dauerhaft im Browser abzulegen.
 
-## **📌 Konfiguration und Deployment**
+### Vue mit Axios-Interceptor
 
-### **🔹 NocoDB-Tabellen anbinden**
-Die Middleware nutzt das **Repository-Pattern** für NocoDB. Du kannst eigene Tabellen einbinden, indem du:
+```ts
+import axios from 'axios'
 
-1. **Ein neues Repository erstellen:**
-   ```typescript
-   // src/repositories/user.repository.ts
-   import { Injectable } from '@nestjs/common';
-   import { BaseRepository } from './base.repository';
-   import { NocoDBService } from '../nocodb/nocodb.service';
+export function createApiClient(getAccessToken: () => string | null) {
+  const api = axios.create({
+    baseURL: 'http://localhost:3000',
+  })
 
-   @Injectable()
-   export class UserRepository extends BaseRepository {
-     constructor(private readonly nocodb: NocoDBService) {
-       super(nocodb, 'users'); // 'users' = Tabellenname in NocoDB
-     }
-   }
-   ```
+  api.interceptors.request.use((config) => {
+    const token = getAccessToken()
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+    }
+    return config
+  })
 
-2. **Einen neuen Controller erstellen:**
-   ```typescript
-   // src/users/users.controller.ts
-   import { Controller, Get } from '@nestjs/common';
-   import { UserRepository } from '../repositories/user.repository';
-
-   @Controller('users')
-   export class UsersController {
-     constructor(private readonly userRepo: UserRepository) {}
-
-     @Get()
-     async findAll() {
-       return this.userRepo.findAll();
-     }
-   }
-   ```
-
----
-
-### **🔹 Deployment-Optionen**
-| Option | Beschreibung |
-|--------|-------------|
-| **🐳 Docker** | Einfache Containerisierung für Kubernetes, AWS ECS, etc. |
-| **☁️ Cloud (Vercel, Netlify, Railway)** | Serverless-Deployment mit Edge-Funktionen |
-| **🖥️ VPS (Ubuntu, Debian)** | Traditionelles Deployment auf einem eigenen Server |
-| **🔧 CI/CD (GitHub Actions)** | Automatisierte Deployments |
-
-#### **🔹 Dockerfile (Beispiel)**
-```dockerfile
-# Dockerfile
-FROM node:20-alpine
-
-WORKDIR /app
-COPY package*.json ./
-RUN npm ci
-COPY . .
-
-RUN npm run build
-
-EXPOSE 3000
-CMD ["npm", "run", "start:prod"]
-```
-
-#### **🔹 docker-compose.yml (Beispiel)**
-```yaml
-version: '3.8'
-services:
-  nocodb-middleware:
-    build: .
-    ports:
-      - "3000:3000"
-    environment:
-      - NOCODB_API_URL=http://nocodb:8080
-      - NOCODB_API_TOKEN=${NOCODB_API_TOKEN}
-      - JWT_SECRET=${JWT_SECRET}
-      - CORS_ORIGINS=http://localhost:3000
-    depends_on:
-      - nocodb
-
-  nocodb:
-    image: nocodb/nocodb:latest
-    ports:
-      - "8080:8080"
-    environment:
-      - NC_DB=sqlite:///data/noco.db
-    volumes:
-      - ./data:/data
-```
-
----
-
-## **📌 Best Practices und Sicherheitshinweise**
-
-### **🔹 JWT-Tokens sicher speichern**
-⚠️ **Wichtig:** JWT-Tokens **niemals** im `localStorage` oder `sessionStorage` speichern! Dies öffnet **XSS-Angriffen** Tür und Tor.
-
-🔹 **Empfohlene sichere Speicheroptionen:**
-- **`httpOnly`-Cookies** (nur über HTTP(S) zugänglich, nicht per JavaScript auslesbar)
-  ```javascript
-  // Backend: Setze das Token als httpOnly-Cookie
-  res.cookie('jwtToken', token, {
-    httpOnly: true,
-    secure: true, // Nur über HTTPS
-    sameSite: 'strict', // Schutz vor CSRF
-    maxAge: 24 * 60 * 60 * 1000, // 1 Tag
-  });
-  ```
-
-- **Secure Storage Bibliotheken** (z.B. `@auth0/auth0-react` für React)
-  ```javascript
-  import { useAuth0 } from '@auth0/auth0-react';
-
-  const { getAccessTokenSilently } = useAuth0();
-  const token = await getAccessTokenSilently();
-  ```
-
-- **Angular/NgRx Store** (für Angular-Anwendungen)
-  ```typescript
-  // Store das Token im Service und speichere es in einem verschlüsselten Zustand
-  this.tokenService.setToken(token);
-  ```
-
-📌 **Warum `localStorage` unsicher ist:**
-- **XSS-Angriffe:** Ein bösartiges Skript kann Tokens aus `localStorage` auslesen.
-- **Keine automatische Verschlüsselung:** Tokens sind im Klartext gespeichert.
-- **Keine Kontrolle über die Gültigkeit:** Tokens bleiben bis zum manuellen Löschen gespeichert.
-
-🔹 **Beispiel für eine sichere Frontend-Integration (React mit httpOnly-Cookies):**
-```javascript
-// utils/auth.js
-import axios from 'axios';
-
-// API-Client mit httpOnly-Cookie-Unterstützung
-export const api = axios.create({
-  baseURL: 'http://localhost:3000',
-});
-
-// Beispiel: Login mit httpOnly-Cookie
-const login = async (email, password) => {
-  const response = await fetch('/auth/login', {
-    method: 'POST',
-    credentials: 'include', // Wichtig für Cookies!
-    body: JSON.stringify({ email, password }),
-  });
-  return response;
-};
-
-// Beispiel: API-Aufruf mit httpOnly-Cookie
-export const getUsers = async () => {
-  const response = await api.get('/users', {
-    withCredentials: true, // Sende Cookies mit
-  });
-  return response.data;
-};
-
-// Backend: auth.controller.ts
-import { Controller, Post, Res } from '@nestjs/common';
-import { Response } from 'express';
-
-@Controller('auth')
-export class AuthController {
-  @Post('login')
-  async login(@Body() body: { email: string; password: string }, @Res() res: Response) {
-    const token = await this.authService.validateUser(body.email, body.password);
-    res.cookie('jwtToken', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 24 * 60 * 60 * 1000,
-    });
-    return res.send({ message: 'Login erfolgreich' });
-  }
+  return api
 }
 ```
 
-🔹 **Wichtige Sicherheitshinweise für Cookies:**
-- **`secure: true`** in Produktion (nur über HTTPS)
-- **`sameSite: 'strict'`** oder `'lax'` (Schutz vor CSRF)
-- **`httpOnly: true`** (kein Zugriff per JavaScript)
-- **Kurze Gültigkeit** (z.B. 1 Stunde für Tokens, Refresh-Tokens verwenden)
+### Angular mit HttpInterceptor
 
----
-
-### **🔹 CORS-Origins sicher konfigurieren**
-```env
-CORS_ORIGINS=https://deine-spa-app.de,https://staging.deine-spa-app.de
-```
-- **Vermeide `*` in Produktion!**
-
-### **🔹 Rate Limiting anpassen**
-```typescript
-// src/middleware/rate-limit.middleware.ts
-import { Injectable, NestMiddleware } from '@nestjs/common';
-import { Request, Response, NextFunction } from 'express';
-import rateLimit from 'express-rate-limit';
+```ts
+import { Injectable } from '@angular/core'
+import { HttpInterceptor, HttpRequest, HttpHandler } from '@angular/common/http'
+import { Observable } from 'rxjs'
 
 @Injectable()
-export class RateLimitMiddleware implements NestMiddleware {
-  use(req: Request, res: Response, next: NextFunction) {
-    const limiter = rateLimit({
-      windowMs: 15 * 60 * 1000, // 15 Minuten
-      max: 100, // 100 Anfragen pro Window
-      message: 'Zu viele Anfragen, bitte versuche es später erneut.',
-    });
-    limiter(req, res, next);
+export class AuthInterceptor implements HttpInterceptor {
+  constructor(private readonly authService: AuthService) {}
+
+  intercept(req: HttpRequest<unknown>, next: HttpHandler): Observable<any> {
+    const token = this.authService.getAccessToken()
+
+    if (!token) {
+      return next.handle(req)
+    }
+
+    return next.handle(
+      req.clone({
+        setHeaders: {
+          Authorization: `Bearer ${token}`,
+        },
+      }),
+    )
   }
 }
 ```
 
-### **🔹 Input-Validation erzwingen**
-```typescript
-// src/users/dto/create-user.dto.ts
-import { IsString, IsEmail, IsInt } from 'class-validator';
+## Sicherheit bei Token-Speicherung
 
-export class CreateUserDto {
-  @IsString()
-  name: string;
+### Einordnung
 
-  @IsEmail()
-  email: string;
+Für **diese** Middleware gilt:
 
-  @IsInt()
-  age: number;
+- Sie erwartet standardmäßig Bearer Token im Header.
+- Ein `httpOnly` Cookie allein reicht nicht, solange nicht ein vorgeschalteter BFF oder Proxy daraus serverseitig einen Bearer Header erzeugt.
+- Ein Cookie-Beispiel ohne diese zusätzliche Komponente wäre in dieser Dokumentation irreführend.
+
+### Empfehlung
+
+- Für eine reine Browser-SPA: Token möglichst nur im Speicher halten und das jeweilige IdP-SDK nutzen.
+- Für produktive öffentliche Systeme: BFF oder Auth-Gateway vorsehen.
+- `localStorage` nur dann einsetzen, wenn das XSS-Risiko bewusst bewertet und akzeptiert wurde.
+
+## Eigene Ressourcen ergänzen
+
+Die Middleware nutzt ein Repository-Muster.
+Neue Tabellen bindest du in der Regel so an:
+
+1. Repository ableiten
+2. Service ergänzen
+3. Controller ergänzen
+4. Guards und Rechte prüfen
+5. Swagger-Dekoratoren ergänzen
+
+### Beispiel-Repository
+
+```ts
+import { Injectable } from '@nestjs/common'
+import { BaseRepository } from '../nocodb/repositories/base.repository'
+import { NocoDBService } from '../nocodb/nocodb.service'
+
+@Injectable()
+export class UsersRepository extends BaseRepository {
+  constructor(nocodbService: NocoDBService) {
+    super(nocodbService, 'users')
+  }
 }
 ```
 
-### **🔹 Secrets sicher verwalten**
-- **Nicht in Git committen!** Nutze `.env` und GitHub Secrets.
-- **Beispiel für GitHub Actions:**
-  ```yaml
-  env:
-    NOCODB_API_TOKEN: ${{ secrets.NOCODB_API_TOKEN }}
-    JWT_SECRET: ${{ secrets.JWT_SECRET }}
-  ```
+## Deployment-Varianten
 
----
+### Docker
 
-## **📌 Häufige Fehler und Lösungen**
+Im Repository sind `Dockerfile` und `docker-compose.yml` vorhanden.
+Für lokale und einfache produktive Setups ist das der naheliegende Startpunkt.
 
-| Fehler | Ursache | Lösung |
-|-------|---------|--------|
-| **403 Forbidden** | Falsches JWT oder fehlende Berechtigungen | Prüfe den Token und die RBAC-Konfiguration |
-| **404 Not Found** | Falsche API-URL oder Tabellenname | Prüfe `NOCODB_API_URL` und `NOCODB_BASE_ID` |
-| **CORS-Error** | Falsche `CORS_ORIGINS`-Konfiguration | Aktualisiere `.env` oder die Middleware-Konfiguration |
-| **Rate Limited** | Zu viele Anfragen | Erhöhe die Rate-Limit-Grenzen oder optimiere deine App |
+### VPS oder Container-Plattform
 
----
+Wichtig sind dabei:
 
-## **📌 Nächste Schritte**
+- Reverse Proxy mit HTTPS
+- restriktive CORS-Konfiguration
+- Secret-Verwaltung außerhalb des Repos
+- Logging und Health Checks
+- optional OpenTelemetry
 
-1. **🔧 Middleware testen:** Starte die Middleware lokal und prüfe die Swagger-UI.
-2. **🚀 Frontend integrieren:** Baue die API-Aufrufe in deine SPA-App ein.
-3. **🛡️ Sicherheit prüfen:** Teste die Authentifizierung und RBAC mit verschiedenen Nutzern.
-4. **📦 Deployen:** Stelle die Middleware in deiner bevorzugten Umgebung bereit.
+Details stehen in `docs/deployment.md`.
 
----
+## Fehlerbilder
 
-## **📌 Ressourcen und Links**
-- **[GitHub Repository](https://github.com/stritti/nocodb-middleware)**
-- **[NocoDB Dokumentation](https://docs.nocodb.com/)**
-- **[NestJS Dokumentation](https://docs.nestjs.com/)**
-- **[JWT Best Practices](https://cheatsheetseries.owasp.org/cheatsheets/JSON_Web_Token_for_Java_Cheat_Sheet.html)**
+| Problem | Wahrscheinliche Ursache | Prüfung |
+|---|---|---|
+| 401 Unauthorized | JWT fehlt oder ist ungültig | Bearer Header, Secret, Ablaufzeit |
+| 403 Forbidden | Rolle oder Tabellenrecht fehlt | RBAC-Konfiguration und Guards |
+| 429 Too Many Requests | Rate Limit greift | Lastprofil und Middleware-Konfiguration |
+| 404 Not Found | Falscher Pfad oder Tabellenname | Controller-Route und Repository |
+| CORS-Fehler im Browser | Origin nicht freigegeben | `CORS_ORIGINS` prüfen |
 
----
+## Nächste sinnvolle Doku-Bausteine
 
-**🔹 Brauchst du Hilfe bei der Integration oder hast du Fragen zur Dokumentation?**
-Ich kann dir **konkrete Code-Beispiele** oder **Mermaid-Diagramme** für deine spezifische Use-Case erstellen!
+Aus Sicht von Integratoren fehlen mittelfristig noch:
+
+- konkrete IdP-Beispiele für Auth0, Firebase und Keycloak
+- eine Dokumentation der erforderlichen NocoDB-Tabellen
+- request/response Beispiele pro zentralem Endpoint
+- Hinweise für Multi-Instance-Betrieb mit Redis statt In-Memory-Cache

@@ -4,11 +4,11 @@ layout: home
 hero:
   name: NocoDB Middleware
   text: Robust NestJS middleware for NocoDB
-  tagline: Authentication · Caching · Error Handling · OpenAPI Documentation
+  tagline: Authentication · RBAC · Caching · Error Handling · OpenAPI
   actions:
     - theme: brand
-      text: Get Started
-      link: /middleware
+      text: Developer Guide
+      link: /developer-guide
     - theme: alt
       text: API Reference
       link: /api
@@ -21,47 +21,37 @@ features:
     title: NocoDB Integration
     details: Type-safe repository pattern for NocoDB operations using Meta API v3 and Data API v3.
   - icon: 🔐
-    title: JWT Authentication
-    details: Secure authentication with Passport and JWT. Validates tokens issued by an external identity provider.
+    title: JWT Validation
+    details: Validates externally issued JWTs for protected routes.
   - icon: 🛡️
-    title: Role-Based Access Control
-    details: Table-level CRUD permission guards to protect your resources with fine-grained access control.
+    title: RBAC
+    details: Table-level CRUD permissions enforced in middleware and guards.
   - icon: ⚡
-    title: Caching Layer
-    details: In-memory caching for read-heavy operations with a configurable TTL.
+    title: Caching
+    details: In-memory caching for read-heavy endpoints.
   - icon: 🚦
     title: Rate Limiting
-    details: Protection against abuse with 100 requests per 15-minute window per IP address.
+    details: Protection against abusive traffic on the API boundary.
   - icon: 📖
-    title: OpenAPI / Swagger
-    details: Interactive API documentation plus a static openapi.yaml for offline use or code generation.
+    title: OpenAPI
+    details: Swagger UI and static openapi.yaml for consumers.
   - icon: 🩺
     title: Health Check
-    details: Service health monitoring endpoint ready for container orchestration probes.
+    details: Ready for orchestration and monitoring probes.
   - icon: 🔭
-    title: Distributed Tracing
-    details: Optional OpenTelemetry integration for end-to-end request visibility.
+    title: Tracing
+    details: Optional OpenTelemetry integration.
 ---
 
-<script setup lang="ts">
-import { computed } from 'vue'
-import { useData } from 'vitepress'
+## Dokumentation
 
-const { site } = useData()
-const currentVersion = computed(() => site.value.themeConfig.semver.version)
-</script>
-
-
-Aktuelle Version (Semver Major.Minor.Patch): **{{ currentVersion }}**
-
-## Inhalte
-
+- [Developer Guide](./developer-guide.md)
+- [Security](./security.md)
+- [Deployment](./deployment.md)
 - [API](./api.md)
 - [Middleware](./middleware.md)
 - [Error Handling](./error-handling.md)
 - [Caching](./caching.md)
-- [RBAC API](./rbac-api.md)
-- [NocoDB v3 Beispiele](./nocodb-v3-usage-examples.md)
 - [Testing](./testing.md)
-- [TODO](./TODO-NocoDB-Middleware.md)
-- [OpenSpec](./openspec/index.md)
+- [Product Readiness](./product-readiness.md)
+- [Versioning](./versioning.md)

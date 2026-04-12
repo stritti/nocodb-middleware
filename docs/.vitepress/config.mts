@@ -3,48 +3,48 @@ import { defineConfig } from 'vitepress'
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
   title: 'nocodb-middleware',
-  description: 'A robust NestJS middleware for NocoDB with comprehensive authentication, caching, error handling, and API documentation.',
-
-  // https://vitepress.dev/reference/site-config#base
+  description:
+    'A robust NestJS middleware for NocoDB with authentication, RBAC, caching, error handling, and API documentation.',
   base: '/nocodb-middleware/',
 
-  // https://vitepress.dev/reference/default-theme-config
   themeConfig: {
-    // https://vitepress.dev/reference/default-theme-config#nav
     nav: [
       { text: 'Home', link: '/' },
-      { text: 'Developer Guide', link: '/docs/developer-guide' },
+      { text: 'Developer Guide', link: '/developer-guide' },
+      { text: 'Security', link: '/security' },
+      { text: 'Deployment', link: '/deployment' },
       { text: 'API', link: '/api' },
-      { text: 'Security', link: '/docs/security-audit' },
     ],
 
-    // https://vitepress.dev/reference/default-theme-config#sidebar
     sidebar: {
       '/': [
         {
           text: 'Getting Started',
           items: [
             { text: 'Overview', link: '/' },
-            { text: 'Developer Guide', link: '/docs/developer-guide' },
+            { text: 'Developer Guide', link: '/developer-guide' },
+            { text: 'Security', link: '/security' },
+            { text: 'Deployment', link: '/deployment' },
           ],
         },
         {
-          text: 'Dokumentation',
+          text: 'Reference',
           items: [
-            { text: 'API-Dokumentation', link: '/api' },
-            { text: 'Developer Guide', link: '/docs/developer-guide' },
-            { text: 'Security Audit', link: '/docs/security-audit' },
-            { text: 'Produkt Readiness', link: '/docs/product-readiness' },
+            { text: 'API', link: '/api' },
+            { text: 'Middleware', link: '/middleware' },
+            { text: 'Error Handling', link: '/error-handling' },
+            { text: 'Caching', link: '/caching' },
+            { text: 'Testing', link: '/testing' },
+            { text: 'Product Readiness', link: '/product-readiness' },
+            { text: 'Versioning', link: '/versioning' },
           ],
         },
       ],
     },
 
-    // https://vitepress.dev/reference/default-theme-config#sociallinks
     socialLinks: [{ icon: 'github', link: 'https://github.com/stritti/nocodb-middleware' }],
   },
 
-  // https://vitepress.dev/reference/site-config#markdown
   markdown: {
     theme: 'github-dark',
     lineNumbers: true,

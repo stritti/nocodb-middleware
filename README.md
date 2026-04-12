@@ -4,290 +4,175 @@
 [![Coverage](https://raw.githubusercontent.com/stritti/nocodb-middleware/badges/coverage.svg)](https://github.com/stritti/nocodb-middleware/actions/workflows/ci.yml)
 [![Release](https://github.com/stritti/nocodb-middleware/actions/workflows/release.yml/badge.svg)](https://github.com/stritti/nocodb-middleware/actions/workflows/release.yml)
 
-A robust NestJS middleware for NocoDB with comprehensive authentication, caching, error handling, and API documentation.
+A NestJS middleware layer for NocoDB with JWT validation, role-based access control, caching, rate limiting, structured error handling, Swagger/OpenAPI, and optional OpenTelemetry tracing.
+
+## What this project is
+
+This project sits between your frontend or backend clients and NocoDB.
+It adds application-level concerns that you typically do not want to solve directly in NocoDB:
+
+- JWT validation for protected endpoints
+- role and table permissions
+- request logging and health checks
+- rate limiting and security headers
+- centralized validation and error handling
+- cache support for read-heavy endpoints
+- OpenAPI documentation for consumers
+
+## What this project is not
+
+This project validates JWTs, but it does **not** issue them.
+There is no built-in login flow, no built-in identity provider, and no built-in cookie session handling.
+
+You need one of these architectures:
+
+1. A SPA that receives access tokens from an external IdP SDK and sends them as `Authorization: Bearer <token>`.
+2. A backend-for-frontend or auth gateway that manages login, stores refresh tokens, and forwards access tokens to this middleware.
+
+That distinction matters for security. A browser-only SPA should not be told to store tokens in `localStorage` unless you consciously accept the XSS tradeoff. The recommended production patterns are documented in `docs/developer-guide.md` and `docs/security.md`.
 
 ## Features
 
-✅ **NocoDB Integration** - Type-safe repository pattern for NocoDB operations  
-✅ **JWT Authentication** - Secure authentication with Passport and JWT  
-✅ **Role-Based Access Control** - Table-level CRUD permission guards  
-✅ **Request Context Middleware** - User context enrichment  
-✅ **Rate Limiting** - Protection against abuse (100 requests per 15 minutes)  
-✅ **Logging Middleware** - Request/response logging with duration to console and files (`/logs` directory)
-✅ **Caching Layer** - In-memory caching for read-heavy operations  
-✅ **Error Handling** - Structured error responses with custom exceptions  
-✅ **Security Headers** - `helmet` applied to every response  
-✅ **OpenAPI/Swagger** - Interactive API documentation + static `openapi.yaml`  
-✅ **Global Validation** - Automatic request validation with class-validator  
-✅ **Health Check** - Service health monitoring  
-✅ **Distributed Tracing** - Optional OpenTelemetry integration  
-✅ **Testing** - Unit tests and E2E smoke testing  
+- Type-safe repository pattern for NocoDB access
+- JWT authentication with Passport
+- Role-based access control for table-level CRUD operations
+- Request context middleware
+- IP-based rate limiting
+- Logging to console and files
+- In-memory caching for GET-heavy workloads
+- Structured exception handling
+- `helmet` security headers
+- Swagger UI and static `openapi.yaml`
+- Global DTO validation with `class-validator`
+- `/health` endpoint
+- Optional OpenTelemetry tracing
+- Unit and E2E test setup
 
-## ⚡ Erste Schritte in 5 Minuten
+## Quick start
 
-### **1️⃣ Middleware klonen und installieren**
+### 1. Install dependencies
+
 ```bash
 git clone https://github.com/stritti/nocodb-middleware.git
 cd nocodb-middleware
 npm install
 ```
 
-### **2️⃣ `.env` konfigurieren**
-Kopiere die `.env.example` und passe sie an:
+### 2. Create `.env`
+
+Use `.env.example` as the source of truth.
+
 ```env
-# NocoDB Connection
 NOCODB_API_URL=http://localhost:8080
 NOCODB_API_TOKEN=your_api_token_here
-NOCODB_BASE_ID=your_base_id_here       # required for Meta API v3
-
-# Optional table prefix (e.g. 'app_' → tables become 'app_users', 'app_roles')
+NOCODB_BASE_ID=your_base_id_here
 NOCODB_TABLE_PREFIX=
 
-# JWT – the middleware validates tokens; it does NOT issue them
 JWT_SECRET=your_jwt_secret_here
 JWT_EXPIRES_IN=1d
 
-# CORS – comma-separated list of allowed origins
 CORS_ORIGINS=http://localhost:3000
 
-# Server
-PORT=3000
-```
-
-> **📌 Hinweis zur Authentifizierung:**
-> Diese Middleware **validiert** JWT-Tokens, die von einem **externen Identity-Provider** ausgestellt werden.  
-> Sie enthält **keinen eigenen Login-Endpoint**. Dein Frontend oder Auth-Service muss das JWT erstellen und als `Authorization: Bearer <token>` weitergeben.
-
-### **3️⃣ Middleware starten**
-```bash
-# Entwicklungsmodus
-npm run start:dev
-
-# Produktionsmodus
-npm run build
-npm run start:prod
-```
-- Die Middleware läuft auf `http://localhost:3000`
-- **Swagger UI:** [http://localhost:3000/api](http://localhost:3000/api)
-- **Health Check:** [http://localhost:3000/health](http://localhost:3000/health)
-
-### **4️⃣ API-Aufruf testen**
-```bash
-# Nutzerdaten abrufen (mit JWT-Token)
-curl -X GET http://localhost:3000/users \
-  -H "Authorization: Bearer DEIN_JWT_TOKEN"
-```
-
-## 🔐 Sicherheit: Checkliste vor dem Deployment
-
-⚠️ **Wichtig:** Bevor du die Middleware in Produktion bringst, prüfe folgende Sicherheitsaspekte:
-
-### **📋 Checkliste**
-- [ ] **JWT-Tokens sicher speichern**
-  ➡️ Nutze **`httpOnly`-Cookies** oder sichere Storage-Lösungen (z.B. `@auth0/auth0-react`).
-  ➡️ **Nicht** im `localStorage` oder `sessionStorage`!
-
-- [ ] **CORS-Origins korrekt konfiguriert**
-  ➡️ `CORS_ORIGINS=https://deine-spa-app.de,https://staging.deine-spa-app.de`
-  ➡️ **Kein `*` in Produktion!**
-
-- [ ] **Rate Limiting aktiviert**
-  ➡️ Standard: 100 Anfragen/15 Minuten
-  ➡️ Für Produktion: Erhöhe auf z.B. 1000 Anfragen/15 Minuten
-
-- [ ] **Input-Validation erzwungen**
-  ➡️ Nutze `class-validator` für alle DTOs
-  ➡️ Aktiviere globale Validierung in `main.ts`
-
-- [ ] **Secrets sicher verwaltet**
-  ➡️ Nutze `.env` (nicht committed!)
-  ➡️ Speichere Secrets in GitHub Secrets
-  ➡️ Rotieren Sie NocoDB-API-Tokens regelmäßig
-
-- [ ] **NocoDB-API-Token sicher**
-  ➡️ **Nicht** im Frontend verwenden!
-  ➡️ Nur im Backend in `.env` speichern
-
-- [ ] **Sicherheits-Header aktiviert**
-  ➡️ `helmet` ist standardmäßig in der Middleware aktiviert
-  ➡️ Prüfe die Header mit [SecurityHeaders.com](https://securityheaders.com/)
-
-- [ ] **Logging und Monitoring**
-  ➡️ Prüfe die Logs im `/logs`-Verzeichnis
-  ➡️ Nutze OpenTelemetry für Distributed Tracing (optional)
-
-- [ ] **Health Check prüfen**
-  ➡️ Teste `/health` vor dem Deployment
-
-- [ ] **RBAC-Berechtigungen prüfen**
-  ➡️ Stelle sicher, dass Tabellen-Berechtigungen in NocoDB korrekt sind
-
-### **🔗 Weitere Infos**
-- [OWASP JWT Best Practices](https://cheatsheetseries.owasp.org/cheatsheets/JSON_Web_Token_for_Java_Cheat_Sheet.html)
-
----
-
-## Installation
-
-```bash
-npm install
-```
-
-## Configuration
-
-Create a `.env` file in the root directory (use `.env.example` as a template):
-
-```env
-# NocoDB connection
-NOCODB_API_URL=http://localhost:8080
-NOCODB_API_TOKEN=your_api_token_here
-
-NOCODB_BOOTSTRAP_ADMIN_USERNAME=admin
-
-NOCODB_BASE_ID=your_base_id_here       # required for Meta API v3
-
-# Optional table prefix (e.g. 'app_' → tables become 'app_users', 'app_roles')
-NOCODB_TABLE_PREFIX=
-
-# JWT – the middleware validates tokens; it does NOT issue them
-JWT_SECRET=your_jwt_secret_here
-JWT_EXPIRES_IN=1d
-
-# CORS – comma-separated list of allowed origins
-CORS_ORIGINS=http://localhost:3000
-
-# Server
 PORT=3000
 LOG_DIR=logs
 ```
 
-> **Note on authentication:** This middleware validates JWT tokens that are issued by an
-> external identity provider.  It does not include a login endpoint.  Your frontend or
-> auth service must mint the JWT and pass it as `Authorization: Bearer <token>`.
+Additional variables such as `BOOTSTRAP_ADMIN_TOKEN`, `NOCODB_BOOTSTRAP_ADMIN_USERNAME`, `OTEL_ENABLED`, `OTEL_SERVICE_NAME`, `OTEL_EXPORTER_OTLP_ENDPOINT`, and `LOG_LEVEL` are documented in `.env.example`.
 
-See `.env.example` for all variables including OpenTelemetry settings.
-
-## Running the Application
-
-### Development
+### 3. Run the application
 
 ```bash
 npm run start:dev
 ```
 
-### Production
+For production:
 
 ```bash
 npm run build
 npm run start:prod
 ```
 
-### Testing
-
-```bash
-# Unit tests
-npm test
-
-# E2E tests
-npm run test:e2e
-
-# Test coverage
-npm run test:cov
-```
-
-### Generate static OpenAPI spec
-```bash
-npm run build
-npm run generate:openapi   # writes openapi.yaml to the project root
-```
-
-> **Note**: The project maintains >80% test coverage on critical business logic services.
-
-### CI/CD
-
-Automated testing is configured via GitHub Actions.
-
-## API Documentation
-
-Once the application is running, access the interactive Swagger UI at:
-
-**🎯 [http://localhost:3000/api](http://localhost:3000/api)**
-
-A committed `openapi.yaml` is available in the project root for offline use, code generation, or import into Postman/Insomnia.
-
-## Architecture Overview
-
-```
-Request
-  │
-  ├── LoggingMiddleware        (logs method, URL, status, duration)
-  ├── RateLimitMiddleware      (100 req / 15 min per IP)
-  ├── JwtAuthGuard             (validates Bearer token)
-  ├── NocoDbContextMiddleware  (enriches headers with user info + request-id)
-  ├── PermissionsGuard         (table-level CRUD permission check)
-  └── CacheInterceptor         (caches GET responses, 60 s TTL)
-        │
-        ▼
-  Controller → Service → BaseRepository → NocoDBService → NocoDB API
-```
-
-## Project Structure
-
-```
-src/
-├── auth/                 # JWT strategy & guards
-├── config/              # Environment-based configuration
-├── examples/            # Example REST resource (template for your own resources)
-├── health/              # Health check endpoint
-├── nocodb/
-│   ├── cache/           # Cache service wrapper
-│   ├── dto/             # Pagination DTOs
-│   ├── exceptions/      # Custom NocoDBException
-│   ├── filters/         # Global exception filter
-│   ├── interceptors/    # GET caching interceptor
-│   ├── middleware/      # Logging, rate-limit, context middleware
-│   └── repositories/    # Abstract BaseRepository + example implementation
-├── permissions/         # RBAC – guards, decorators, management endpoints
-├── roles/               # Role CRUD service
-├── tracing/             # OpenTelemetry bootstrap
-└── users/               # User-role assignment service
-```
-
-## Documentation
-
-Detailed documentation is available in the `docs/` directory:
-
-- [Product Readiness Analysis](docs/product-readiness.md) – gaps, recommendations, action plan
-- [API Documentation](docs/api.md)
-- [Middleware Documentation](docs/middleware.md)
-- [Error Handling](docs/error-handling.md)
-- [Caching](docs/caching.md)
-- [Testing](docs/testing.md)
-- [Versioning Strategy](docs/versioning.md)
-
-## Versioning
-
-This project uses **Semantic Versioning** (SemVer) driven by [Conventional Commits](https://www.conventionalcommits.org/).
-
-| Commit prefix | Release type |
-|---------------|-------------|
-| `fix:`, `perf:`, `refactor:` | **patch** – `0.0.x` |
-| `feat:` | **minor** – `0.x.0` |
-| `type!:` / `BREAKING CHANGE:` | **major** – `x.0.0` |
-| `docs:`, `chore:`, `ci:` | _(no release)_ |
-
-Releases are created automatically on every push to `main` when a releasable commit is detected, or manually via **Actions → Release → Run workflow**.  
-See [docs/versioning.md](docs/versioning.md) for the full strategy.
-
-## Health Check
-
-Check service health:
+### 4. Verify the service
 
 ```bash
 curl http://localhost:3000/health
 ```
 
-Response:
+Swagger UI is available at:
+
+```text
+http://localhost:3000/api
+```
+
+### 5. Call a protected endpoint
+
+```bash
+curl -X GET http://localhost:3000/users \
+  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+```
+
+## Architecture overview
+
+```text
+Request
+  │
+  ├── LoggingMiddleware        logs method, URL, status, duration
+  ├── RateLimitMiddleware      limits abusive traffic
+  ├── JwtAuthGuard             validates Bearer token
+  ├── NocoDbContextMiddleware  enriches request context
+  ├── PermissionsGuard         enforces table-level CRUD permissions
+  └── CacheInterceptor         caches GET responses
+        │
+        ▼
+  Controller → Service → BaseRepository → NocoDBService → NocoDB API
+```
+
+## Security notes
+
+Before deployment, check these points:
+
+- Do not expose `NOCODB_API_TOKEN` to the browser.
+- Restrict `CORS_ORIGINS` to trusted origins.
+- Use HTTPS in every non-local environment.
+- Validate how access tokens are stored in the frontend architecture.
+- Review RBAC defaults before exposing admin routes.
+- Rotate secrets and bootstrap tokens.
+- Confirm that `/health` and `/api` exposure matches your environment.
+
+A more detailed checklist is in `docs/security.md`.
+
+## Deployment
+
+The repository already contains:
+
+- `Dockerfile`
+- `docker-compose.yml`
+- GitHub Actions workflows for CI and release automation
+
+Deployment guidance for local Docker, VPS, reverse proxy, observability, and production hardening is documented in `docs/deployment.md`.
+
+## Documentation
+
+- `docs/developer-guide.md` for SPA integration and extension patterns
+- `docs/security.md` for token handling, CORS, secrets, and production security checks
+- `docs/deployment.md` for Docker and operational deployment guidance
+- `docs/product-readiness.md` for gaps and readiness assessment
+- `docs/api.md` for the current API overview
+- `docs/error-handling.md` for the error model
+- `docs/caching.md` for caching behavior
+- `docs/testing.md` for test strategy
+- `docs/versioning.md` for release semantics
+
+## Generate static OpenAPI spec
+
+```bash
+npm run build
+npm run generate:openapi
+```
+
+This writes `openapi.yaml` to the project root.
+
+## Health check response
 
 ```json
 {
