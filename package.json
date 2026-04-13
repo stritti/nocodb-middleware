@@ -64,7 +64,7 @@
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@nestjs/cli": "^11.0.19",
     "@nestjs/schematics": "^11.0.10",
-    "@nestjs/testing": "^11.1.18",
+    "@nestjs/testing": "^11.1.19",
     "@rollup/plugin-yaml": "^4.1.2",
     "@stritti/vitepress-plugin-openspec": "0.7.0",
     "@types/express": "^5.0.6",
