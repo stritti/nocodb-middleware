@@ -13,6 +13,7 @@ Er enthält jetzt konkrete Überarbeitungen an der eigentlichen Dokumentation.
 - Developer Guide auf SPA-Integration und Erweiterbarkeit fokussiert
 - VitePress-Navigation auf reale Seiten und korrekte Routen umgestellt
 - neue Seiten für Security und Deployment ergänzt
+- Dokumentation der erforderlichen NocoDB-Tabellen ergänzt
 
 ## Erledigt
 
@@ -23,6 +24,7 @@ Er enthält jetzt konkrete Überarbeitungen an der eigentlichen Dokumentation.
 - [x] klare Beschreibung der Authentifizierungsarchitektur
 - [x] Korrektur der widersprüchlichen JWT-Speicherempfehlungen
 - [x] Bereinigung der VitePress-Navigation
+- [x] Dokumentation der erforderlichen NocoDB-Tabellen und Beziehungen
 
 ### Mittlere Priorität
 
@@ -35,7 +37,6 @@ Er enthält jetzt konkrete Überarbeitungen an der eigentlichen Dokumentation.
 ### Nächste sinnvolle Schritte
 
 - [ ] konkrete IdP-Beispiele für Auth0, Firebase und Keycloak
-- [ ] Dokumentation der erforderlichen NocoDB-Tabellen
 - [ ] Request- und Response-Beispiele für zentrale Endpunkte
 - [ ] Hinweise für Multi-Instance-Betrieb mit Redis
 - [ ] Audit Logging und Sanitization in der Produktdoku nachziehen
@@ -48,5 +49,9 @@ Die ursprüngliche Version dieses PRs hatte drei zentrale Schwächen:
 1. Sie ergänzte Tracking, aber nur teilweise echte Doku.
 2. Sie zeigte weiterhin `localStorage`-basierte SPA-Beispiele, obwohl später davon abgeraten wurde.
 3. Sie verlinkte in VitePress auf Pfade und Seiten, die so nicht konsistent oder nicht vorhanden waren.
+
+Danach fehlte noch ein weiterer zentraler Baustein:
+
+4. Die erforderlichen NocoDB-Tabellen und Link-Beziehungen waren nicht als eigene Referenz dokumentiert.
 
 Diese Punkte sind in diesem PR bereinigt.

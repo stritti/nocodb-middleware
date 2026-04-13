@@ -156,6 +156,7 @@ Deployment guidance for local Docker, VPS, reverse proxy, observability, and pro
 - `docs/developer-guide.md` for SPA integration and extension patterns
 - `docs/security.md` for token handling, CORS, secrets, and production security checks
 - `docs/deployment.md` for Docker and operational deployment guidance
+- `docs/database-schema.md` for the required NocoDB tables and relations
 - `docs/product-readiness.md` for gaps and readiness assessment
 - `docs/api.md` for the current API overview
 - `docs/error-handling.md` for the error model

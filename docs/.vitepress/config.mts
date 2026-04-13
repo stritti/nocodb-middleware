@@ -25,6 +25,7 @@ export default defineConfig({
             { text: 'Developer Guide', link: '/developer-guide' },
             { text: 'Security', link: '/security' },
             { text: 'Deployment', link: '/deployment' },
+            { text: 'Database Schema', link: '/database-schema' },
           ],
         },
         {

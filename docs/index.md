@@ -48,6 +48,7 @@ features:
 - [Developer Guide](./developer-guide.md)
 - [Security](./security.md)
 - [Deployment](./deployment.md)
+- [Database Schema](./database-schema.md)
 - [API](./api.md)
 - [Middleware](./middleware.md)
 - [Error Handling](./error-handling.md)
