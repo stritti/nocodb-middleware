@@ -44,7 +44,7 @@ That distinction matters for security. A browser-only SPA should not be told to 
 - `helmet` security headers
 - Swagger UI and static `openapi.yaml`
 - Global DTO validation with `class-validator`
-- `/health` endpoint
+- `/api/health` endpoint
 - Optional OpenTelemetry tracing
 - Unit and E2E test setup
 
@@ -95,10 +95,16 @@ npm run start:prod
 ### 4. Verify the service
 
 ```bash
-curl http://localhost:3000/health
+curl http://localhost:3000/api/health
 ```
 
 Swagger UI is available at:
+
+```text
+http://localhost:3000/api/docs
+```
+
+API info endpoint:
 
 ```text
 http://localhost:3000/api
@@ -107,7 +113,7 @@ http://localhost:3000/api
 ### 5. Call a protected endpoint
 
 ```bash
-curl -X GET http://localhost:3000/users \
+curl -X GET http://localhost:3000/api/examples \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
@@ -137,7 +143,7 @@ Before deployment, check these points:
 - Validate how access tokens are stored in the frontend architecture.
 - Review RBAC defaults before exposing admin routes.
 - Rotate secrets and bootstrap tokens.
-- Confirm that `/health` and `/api` exposure matches your environment.
+- Confirm that `/api/health`, `/api/docs`, and admin endpoints exposure matches your environment.
 
 A more detailed checklist is in `docs/security.md`.
 
@@ -159,6 +165,8 @@ Deployment guidance for local Docker, VPS, reverse proxy, observability, and pro
 - `docs/database-schema.md` for the required NocoDB tables and relations
 - `docs/product-readiness.md` for gaps and readiness assessment
 - `docs/api.md` for the current API overview
+- `docs/rbac-api.md` for focused permissions endpoint reference
+- `docs/openapi-spec.md` for the rendered OpenAPI specification
 - `docs/error-handling.md` for the error model
 - `docs/caching.md` for caching behavior
 - `docs/testing.md` for test strategy

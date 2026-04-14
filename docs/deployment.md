@@ -25,20 +25,22 @@ Danach:
 
 - Middleware auf `http://localhost:3000`
 - NocoDB auf `http://localhost:8080`
+- Swagger UI auf `http://localhost:3000/api/docs`
+- Health Probe auf `http://localhost:3000/api/health`
 
 ## Wichtige Umgebungsvariablen
 
-| Variable | Zweck |
-|---|---|
-| `NOCODB_API_URL` | URL der NocoDB-Instanz |
-| `NOCODB_API_TOKEN` | Backend-Secret für NocoDB |
-| `NOCODB_BASE_ID` | Base ID für Meta API v3 |
-| `JWT_SECRET` | Secret zur JWT-Validierung |
-| `CORS_ORIGINS` | erlaubte Browser-Origin-Liste |
-| `PORT` | Port der Middleware |
-| `LOG_DIR` | Ziel für Log-Dateien |
-| `OTEL_ENABLED` | Tracing an oder aus |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP-Ziel für Spans |
+| Variable                      | Zweck                         |
+| ----------------------------- | ----------------------------- |
+| `NOCODB_API_URL`              | URL der NocoDB-Instanz        |
+| `NOCODB_API_TOKEN`            | Backend-Secret für NocoDB     |
+| `NOCODB_BASE_ID`              | Base ID für Meta API v3       |
+| `JWT_SECRET`                  | Secret zur JWT-Validierung    |
+| `CORS_ORIGINS`                | erlaubte Browser-Origin-Liste |
+| `PORT`                        | Port der Middleware           |
+| `LOG_DIR`                     | Ziel für Log-Dateien          |
+| `OTEL_ENABLED`                | Tracing an oder aus           |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP-Ziel für Spans           |
 
 ## Reverse Proxy
 
@@ -70,7 +72,7 @@ Ziele:
 
 ### Beobachtbarkeit
 
-- [ ] `/health` in Monitoring integrieren
+- [ ] `/api/health` in Monitoring integrieren
 - [ ] Logs zentral auswerten
 - [ ] OpenTelemetry aktivieren, wenn Tracing benötigt wird
 - [ ] Alerts für 5xx, 401/403-Spitzen und Upstream-Fehler definieren

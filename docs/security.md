@@ -63,11 +63,11 @@ Geeignet für öffentliche produktive Systeme.
 
 ### Anwendung
 
-- [ ] Swagger- und Admin-Endpunkte bewusst freigegeben oder geschützt
+- [ ] Swagger- und Admin-Endpunkte bewusst freigegeben oder geschützt (`/api/docs`, `/api/admin/*`)
 - [ ] RBAC-Rollen und Tabellenrechte geprüft
 - [ ] Rate Limits an erwartete Last angepasst
 - [ ] Logging aktiviert
-- [ ] `/health` in Monitoring eingebunden
+- [ ] `/api/health` in Monitoring eingebunden
 
 ### Betrieb
 

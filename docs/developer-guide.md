@@ -34,9 +34,11 @@ Geeignet für interne Tools oder einfache Architekturen.
 - API-Aufrufe schicken das Token als Bearer Header an die Middleware.
 
 Vorteil:
+
 - Direkter und einfacher Aufbau.
 
 Nachteil:
+
 - Token ist im Browser-Kontext vorhanden.
 - XSS bleibt das zentrale Risiko.
 
@@ -49,10 +51,12 @@ Geeignet für produktive öffentliche Anwendungen.
 - Der BFF ruft diese Middleware serverseitig mit Bearer Token auf.
 
 Vorteil:
+
 - Das Browser-Frontend sieht das Access Token nicht direkt.
 - Token-Rotation und Session-Management bleiben serverseitig.
 
 Nachteil:
+
 - Zusätzliche Komponente und etwas mehr Betriebsaufwand.
 
 ## Was du vermeiden solltest
@@ -105,27 +109,31 @@ npm run start:dev
 
 Danach:
 
-- Swagger UI unter `http://localhost:3000/api`
-- Health Check unter `http://localhost:3000/health`
+- Swagger UI unter `http://localhost:3000/api/docs`
+- API-Info unter `http://localhost:3000/api`
+- Health Check unter `http://localhost:3000/api/health`
 
 ## SPA-Anbindung
 
 ### Minimales Frontend-API-Client-Beispiel
 
 ```ts
-export async function apiRequest<T>(path: string, accessToken: string): Promise<T> {
+export async function apiRequest<T>(
+  path: string,
+  accessToken: string,
+): Promise<T> {
   const response = await fetch(`http://localhost:3000${path}`, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
     },
-  })
+  });
 
   if (!response.ok) {
-    throw new Error(`API request failed with status ${response.status}`)
+    throw new Error(`API request failed with status ${response.status}`);
   }
 
-  return response.json() as Promise<T>
+  return response.json() as Promise<T>;
 }
 ```
 
@@ -161,41 +169,45 @@ Für echte Login-Flows sollte das Token aus einem IdP-SDK stammen und erneuert w
 ### Vue mit Axios-Interceptor
 
 ```ts
-import axios from 'axios'
+import axios from 'axios';
 
 export function createApiClient(getAccessToken: () => string | null) {
   const api = axios.create({
     baseURL: 'http://localhost:3000',
-  })
+  });
 
   api.interceptors.request.use((config) => {
-    const token = getAccessToken()
+    const token = getAccessToken();
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`
+      config.headers.Authorization = `Bearer ${token}`;
     }
-    return config
-  })
+    return config;
+  });
 
-  return api
+  return api;
 }
 ```
 
 ### Angular mit HttpInterceptor
 
 ```ts
-import { Injectable } from '@angular/core'
-import { HttpInterceptor, HttpRequest, HttpHandler } from '@angular/common/http'
-import { Observable } from 'rxjs'
+import { Injectable } from '@angular/core';
+import {
+  HttpInterceptor,
+  HttpRequest,
+  HttpHandler,
+} from '@angular/common/http';
+import { Observable } from 'rxjs';
 
 @Injectable()
 export class AuthInterceptor implements HttpInterceptor {
   constructor(private readonly authService: AuthService) {}
 
   intercept(req: HttpRequest<unknown>, next: HttpHandler): Observable<any> {
-    const token = this.authService.getAccessToken()
+    const token = this.authService.getAccessToken();
 
     if (!token) {
-      return next.handle(req)
+      return next.handle(req);
     }
 
     return next.handle(
@@ -204,7 +216,7 @@ export class AuthInterceptor implements HttpInterceptor {
           Authorization: `Bearer ${token}`,
         },
       }),
-    )
+    );
   }
 }
 ```
@@ -239,14 +251,14 @@ Neue Tabellen bindest du in der Regel so an:
 ### Beispiel-Repository
 
 ```ts
-import { Injectable } from '@nestjs/common'
-import { BaseRepository } from '../nocodb/repositories/base.repository'
-import { NocoDBService } from '../nocodb/nocodb.service'
+import { Injectable } from '@nestjs/common';
+import { BaseRepository } from '../nocodb/repositories/base.repository';
+import { NocoDBService } from '../nocodb/nocodb.service';
 
 @Injectable()
 export class UsersRepository extends BaseRepository {
   constructor(nocodbService: NocoDBService) {
-    super(nocodbService, 'users')
+    super(nocodbService, 'users');
   }
 }
 ```
@@ -272,13 +284,13 @@ Details stehen in `docs/deployment.md`.
 
 ## Fehlerbilder
 
-| Problem | Wahrscheinliche Ursache | Prüfung |
-|---|---|---|
-| 401 Unauthorized | JWT fehlt oder ist ungültig | Bearer Header, Secret, Ablaufzeit |
-| 403 Forbidden | Rolle oder Tabellenrecht fehlt | RBAC-Konfiguration und Guards |
-| 429 Too Many Requests | Rate Limit greift | Lastprofil und Middleware-Konfiguration |
-| 404 Not Found | Falscher Pfad oder Tabellenname | Controller-Route und Repository |
-| CORS-Fehler im Browser | Origin nicht freigegeben | `CORS_ORIGINS` prüfen |
+| Problem                | Wahrscheinliche Ursache         | Prüfung                                 |
+| ---------------------- | ------------------------------- | --------------------------------------- |
+| 401 Unauthorized       | JWT fehlt oder ist ungültig     | Bearer Header, Secret, Ablaufzeit       |
+| 403 Forbidden          | Rolle oder Tabellenrecht fehlt  | RBAC-Konfiguration und Guards           |
+| 429 Too Many Requests  | Rate Limit greift               | Lastprofil und Middleware-Konfiguration |
+| 404 Not Found          | Falscher Pfad oder Tabellenname | Controller-Route und Repository         |
+| CORS-Fehler im Browser | Origin nicht freigegeben        | `CORS_ORIGINS` prüfen                   |
 
 ## Nächste sinnvolle Doku-Bausteine
 
@@ -288,3 +300,7 @@ Aus Sicht von Integratoren fehlen mittelfristig noch:
 - eine Dokumentation der erforderlichen NocoDB-Tabellen
 - request/response Beispiele pro zentralem Endpoint
 - Hinweise für Multi-Instance-Betrieb mit Redis statt In-Memory-Cache
+
+## API-Referenz
+
+Für konkrete Endpoint-Beispiele und Payloads siehe `docs/api.md`.

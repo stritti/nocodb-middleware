@@ -37,10 +37,16 @@ Er enthält jetzt konkrete Überarbeitungen an der eigentlichen Dokumentation.
 ### Nächste sinnvolle Schritte
 
 - [ ] konkrete IdP-Beispiele für Auth0, Firebase und Keycloak
-- [ ] Request- und Response-Beispiele für zentrale Endpunkte
+- [x] Request- und Response-Beispiele für zentrale Endpunkte
 - [ ] Hinweise für Multi-Instance-Betrieb mit Redis
 - [ ] Audit Logging und Sanitization in der Produktdoku nachziehen
 - [ ] optional Beispielprojekt für eine Referenz-SPA
+
+## Nachgezogen in dieser Vervollständigung
+
+- API-Doku um konkrete cURL-Beispiele und Beispielantworten ergänzt
+- Bootstrap-Admin-Authentifizierung (`x-bootstrap-token`) explizit dokumentiert
+- URL-Konsistenz in README/Guides korrigiert (`/api/docs`, `/api/health`, `/api/...`)
 
 ## Begründung für die Änderungen
 
