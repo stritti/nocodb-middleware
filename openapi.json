@@ -1,0 +1,734 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/": {
+      "get": {
+        "operationId": "AppController_getHello",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "API Information",
+        "tags": [
+          "info"
+        ]
+      }
+    },
+    "/meta/tables": {
+      "get": {
+        "operationId": "TableCatalogController_listTables",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "TableCatalog"
+        ]
+      }
+    },
+    "/bootstrap/admin": {
+      "post": {
+        "operationId": "BootstrapAdminController_bootstrapAdmin",
+        "parameters": [
+          {
+            "name": "x-bootstrap-token",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BootstrapAdminDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "BootstrapAdmin"
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "HealthController_check",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Service is healthy"
+          }
+        },
+        "summary": "Health check endpoint",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/admin/permissions/roles": {
+      "post": {
+        "operationId": "PermissionsManagementController_createRole",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRoleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Role created successfully"
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden – insufficient permissions"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a new role",
+        "tags": [
+          "admin / permissions"
+        ]
+      },
+      "get": {
+        "operationId": "PermissionsManagementController_getAllRoles",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "List of roles"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden – insufficient permissions"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List all roles",
+        "tags": [
+          "admin / permissions"
+        ]
+      }
+    },
+    "/admin/permissions/roles/{roleId}": {
+      "delete": {
+        "operationId": "PermissionsManagementController_deleteRole",
+        "parameters": [
+          {
+            "name": "roleId",
+            "required": true,
+            "in": "path",
+            "description": "Numeric role ID",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Role deleted"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden – insufficient permissions"
+          },
+          "404": {
+            "description": "Role not found"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete a role by ID",
+        "tags": [
+          "admin / permissions"
+        ]
+      }
+    },
+    "/admin/permissions/table-permissions": {
+      "post": {
+        "operationId": "PermissionsManagementController_setTablePermissions",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetTablePermissionsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Permissions set"
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden – insufficient permissions"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Set permissions for a role on a specific table",
+        "tags": [
+          "admin / permissions"
+        ]
+      }
+    },
+    "/admin/permissions/table-permissions/batch": {
+      "post": {
+        "operationId": "PermissionsManagementController_batchSetPermissions",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchSetPermissionsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Batch permissions set"
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden – insufficient permissions"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Batch-set permissions for a role across multiple tables",
+        "tags": [
+          "admin / permissions"
+        ]
+      }
+    },
+    "/admin/permissions/roles/{roleId}/permissions": {
+      "get": {
+        "operationId": "PermissionsManagementController_getRolePermissions",
+        "parameters": [
+          {
+            "name": "roleId",
+            "required": true,
+            "in": "path",
+            "description": "Numeric role ID",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Role permissions"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden – insufficient permissions"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get all table permissions for a role",
+        "tags": [
+          "admin / permissions"
+        ]
+      },
+      "delete": {
+        "operationId": "PermissionsManagementController_deleteRolePermissions",
+        "parameters": [
+          {
+            "name": "roleId",
+            "required": true,
+            "in": "path",
+            "description": "Numeric role ID",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Permissions deleted"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden – insufficient permissions"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete all table permissions for a role",
+        "tags": [
+          "admin / permissions"
+        ]
+      }
+    },
+    "/admin/permissions/roles/{sourceRoleId}/copy-to/{targetRoleId}": {
+      "post": {
+        "operationId": "PermissionsManagementController_copyPermissions",
+        "parameters": [
+          {
+            "name": "sourceRoleId",
+            "required": true,
+            "in": "path",
+            "description": "Source role ID",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "targetRoleId",
+            "required": true,
+            "in": "path",
+            "description": "Target role ID",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Permissions copied"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden – insufficient permissions"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Copy all permissions from one role to another",
+        "tags": [
+          "admin / permissions"
+        ]
+      }
+    },
+    "/admin/permissions/user-roles/assign": {
+      "post": {
+        "operationId": "PermissionsManagementController_assignRole",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignRoleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Role assigned"
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden – insufficient permissions"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Assign a role to a user",
+        "tags": [
+          "admin / permissions"
+        ]
+      }
+    },
+    "/admin/permissions/user-roles/assign-multiple": {
+      "post": {
+        "operationId": "PermissionsManagementController_assignMultipleRoles",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignMultipleRolesDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Roles assigned"
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden – insufficient permissions"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Assign multiple roles to a user",
+        "tags": [
+          "admin / permissions"
+        ]
+      }
+    },
+    "/admin/permissions/user-roles/users/{userId}/roles/{roleId}": {
+      "delete": {
+        "operationId": "PermissionsManagementController_removeRole",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "description": "Numeric user ID",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "roleId",
+            "required": true,
+            "in": "path",
+            "description": "Numeric role ID",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Role removed"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden – insufficient permissions"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Remove a role from a user",
+        "tags": [
+          "admin / permissions"
+        ]
+      }
+    },
+    "/admin/permissions/users/{userId}/roles": {
+      "get": {
+        "operationId": "PermissionsManagementController_getUserRoles",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "description": "Numeric user ID",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User roles"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden – insufficient permissions"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get all roles assigned to a user",
+        "tags": [
+          "admin / permissions"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "NocoDB Middleware API",
+    "description": "REST API for the NocoDB Middleware – provides JWT-secured access to NocoDB with role-based permissions, caching, rate limiting, and distributed tracing.",
+    "version": "0.0.1",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Local"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      }
+    },
+    "schemas": {
+      "BootstrapAdminDto": {
+        "type": "object",
+        "properties": {}
+      },
+      "CreateRoleDto": {
+        "type": "object",
+        "properties": {
+          "roleName": {
+            "type": "string",
+            "example": "content-editor",
+            "description": "Unique role name (3–50 chars, alphanumeric/spaces/underscores/hyphens)"
+          },
+          "description": {
+            "type": "string",
+            "example": "Can create and edit content, but not delete",
+            "description": "Optional human-readable description (max 255 chars)"
+          },
+          "isSystemRole": {
+            "type": "boolean",
+            "example": false,
+            "default": false,
+            "description": "Mark as a built-in system role that cannot be deleted"
+          }
+        },
+        "required": [
+          "roleName"
+        ]
+      },
+      "SetTablePermissionsDto": {
+        "type": "object",
+        "properties": {
+          "roleId": {
+            "type": "number",
+            "example": 1,
+            "description": "Numeric role ID"
+          },
+          "tableName": {
+            "type": "string",
+            "example": "products",
+            "description": "Table name (alphanumeric, underscores, hyphens)"
+          },
+          "canCreate": {
+            "type": "boolean",
+            "example": true,
+            "description": "Allow CREATE operations"
+          },
+          "canRead": {
+            "type": "boolean",
+            "example": true,
+            "description": "Allow READ operations"
+          },
+          "canUpdate": {
+            "type": "boolean",
+            "example": true,
+            "description": "Allow UPDATE operations"
+          },
+          "canDelete": {
+            "type": "boolean",
+            "example": false,
+            "description": "Allow DELETE operations"
+          }
+        },
+        "required": [
+          "roleId",
+          "tableName",
+          "canCreate",
+          "canRead",
+          "canUpdate",
+          "canDelete"
+        ]
+      },
+      "TablePermissionItem": {
+        "type": "object",
+        "properties": {
+          "tableName": {
+            "type": "string",
+            "example": "products",
+            "description": "Table name (alphanumeric, underscores, hyphens)"
+          },
+          "canCreate": {
+            "type": "boolean",
+            "example": true,
+            "description": "Allow CREATE operations"
+          },
+          "canRead": {
+            "type": "boolean",
+            "example": true,
+            "description": "Allow READ operations"
+          },
+          "canUpdate": {
+            "type": "boolean",
+            "example": true,
+            "description": "Allow UPDATE operations"
+          },
+          "canDelete": {
+            "type": "boolean",
+            "example": false,
+            "description": "Allow DELETE operations"
+          }
+        },
+        "required": [
+          "tableName",
+          "canCreate",
+          "canRead",
+          "canUpdate",
+          "canDelete"
+        ]
+      },
+      "BatchSetPermissionsDto": {
+        "type": "object",
+        "properties": {
+          "roleId": {
+            "type": "number",
+            "example": 1,
+            "description": "Numeric role ID"
+          },
+          "permissions": {
+            "description": "List of table permission entries",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TablePermissionItem"
+            }
+          }
+        },
+        "required": [
+          "roleId",
+          "permissions"
+        ]
+      },
+      "AssignRoleDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "number",
+            "example": 42,
+            "description": "Numeric user ID"
+          },
+          "roleId": {
+            "type": "number",
+            "example": 1,
+            "description": "Numeric role ID"
+          }
+        },
+        "required": [
+          "userId",
+          "roleId"
+        ]
+      },
+      "AssignMultipleRolesDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "number",
+            "example": 42,
+            "description": "Numeric user ID"
+          },
+          "roleIds": {
+            "example": [
+              1,
+              2,
+              3
+            ],
+            "description": "Array of numeric role IDs to assign",
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          }
+        },
+        "required": [
+          "userId",
+          "roleIds"
+        ]
+      }
+    }
+  }
+}

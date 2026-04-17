@@ -1,9 +1,16 @@
-import { defineConfig } from 'vitepress'
+import { defineConfig } from 'vitepress';
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
   title: 'nocodb-middleware',
-  description: 'A robust NestJS middleware for NocoDB with comprehensive authentication, caching, error handling, and API documentation.',
+  description:
+    'A robust NestJS middleware for NocoDB with comprehensive authentication, caching, error handling, and API documentation.',
+
+  // Exclude openapi.yaml from processing
+  ignore: ['**/openapi.yaml', '**/openapi.yaml/**'],
+
+  // Ignore localhost links in docs
+  ignoreDeadLinks: ['localhost:3000'],
 
   // https://vitepress.dev/reference/site-config#base
   base: '/nocodb-middleware/',
@@ -44,7 +51,9 @@ export default defineConfig({
     },
 
     // https://vitepress.dev/reference/default-theme-config#sociallinks
-    socialLinks: [{ icon: 'github', link: 'https://github.com/stritti/nocodb-middleware' }],
+    socialLinks: [
+      { icon: 'github', link: 'https://github.com/stritti/nocodb-middleware' },
+    ],
   },
 
   // https://vitepress.dev/reference/site-config#markdown
@@ -52,4 +61,4 @@ export default defineConfig({
     theme: 'github-dark',
     lineNumbers: true,
   },
-})
+});

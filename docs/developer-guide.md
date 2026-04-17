@@ -132,7 +132,7 @@ npm run start:dev
 ```
 
 - Die Middleware läuft auf `http://localhost:3000`.
-- **Swagger UI:** [http://localhost:3000/api](http://localhost:3000/api)
+- **Swagger UI:** `http://localhost:3000/api`
 
 ---
 
