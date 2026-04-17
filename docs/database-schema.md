@@ -1,277 +1,227 @@
-# Datenbankschema – NocoDB Middleware
+# NocoDB Tabellen-Schema
 
-Dieses Dokument beschreibt alle NocoDB-Tabellen, Spalten und Beziehungen, die von der
-NocoDB Middleware vorausgesetzt werden. Die Tabellen werden beim Start der Anwendung durch
-den `DatabaseInitializationService` automatisch angelegt (falls noch nicht vorhanden).
-**Verknüpfungsspalten (Link-Columns) müssen jedoch manuell in der NocoDB-UI erstellt
-werden** – siehe [Manuelle Einrichtung der Link-Columns](#manuelle-einrichtung-der-link-columns).
+## Zweck
 
----
+Diese Middleware benötigt ein kleines Set an NocoDB-Tabellen für Benutzer, Rollen und Tabellenrechte.
+Ohne diese Tabellen funktionieren RBAC, Rollen-Zuweisungen und Teile des Bootstrap-Prozesses nicht.
 
-## Inhaltsverzeichnis
+Die Tabellen werden beim Start durch `DatabaseInitializationService` grundsätzlich angelegt.
+Wichtig ist aber ein technisches Detail:
 
-1. [Überblick](#überblick)
-2. [Tabelle: `users`](#tabelle-users)
-3. [Tabelle: `roles`](#tabelle-roles)
-4. [Tabelle: `user_roles`](#tabelle-user_roles)
-5. [Tabelle: `table_permissions`](#tabelle-table_permissions)
-6. [Beziehungsdiagramm](#beziehungsdiagramm)
-7. [Manuelle Einrichtung der Link-Columns](#manuelle-einrichtung-der-link-columns)
-8. [Standard-Seed-Daten](#standard-seed-daten)
-9. [Tabellen-Präfix](#tabellen-präfix)
-10. [Hinweise zur Produktionsreife](#hinweise-zur-produktionsreife)
-
----
+**Link-Spalten werden nicht in jedem Fall automatisch erstellt.**
+Wenn die NocoDB Meta API die Link-Erzeugung nicht sauber abbildet, müssen diese Beziehungen in der NocoDB-Oberfläche manuell ergänzt werden.
 
 ## Überblick
 
-Das Berechtigungssystem der Middleware basiert auf vier NocoDB-Tabellen:
+Erforderlich sind diese vier Tabellen:
 
-| Tabelle             | Titel             | Zweck                                                         |
-|---------------------|-------------------|---------------------------------------------------------------|
-| `users`             | Users             | Benutzerkonten                                                |
-| `roles`             | Roles             | Rollendefinitionen                                            |
-| `user_roles`        | User Roles        | Many-to-Many-Verknüpfung zwischen Benutzern und Rollen        |
-| `table_permissions` | Table Permissions | CRUD-Berechtigungen einer Rolle für eine bestimmte Tabelle    |
+1. `users`
+2. `roles`
+3. `user_roles`
+4. `table_permissions`
 
----
+## Tabellen im Detail
 
-## Tabelle: `users`
+### `users`
 
-Speichert alle Benutzerkonten, die sich gegenüber der Middleware authentifizieren können.
+Zweck:
 
-| Spaltenname     | Titel           | NocoDB-Typ       | Pflicht | Beschreibung                                                  |
-|-----------------|-----------------|------------------|---------|---------------------------------------------------------------|
-| `id`            | Id              | (Auto, NocoDB)   | –       | Automatisch generierter numerischer Primärschlüssel           |
-| `username`      | Username        | SingleLineText   | ✅      | Eindeutiger Benutzername                                      |
-| `email`         | Email           | Email            | ✅      | E-Mail-Adresse des Benutzers                                  |
-| `password_hash` | Password Hash   | LongText         | ✅      | Gehashtes Passwort (SHA-256; in Produktion: bcrypt verwenden) |
-| `is_active`     | Is Active       | Checkbox         | –       | `true` = Konto aktiv; `false` = Konto gesperrt                |
+- Benutzerstammdaten für die Rechteauflösung
+- Referenzziel für Rollen-Zuweisungen
+- Bootstrap-Admin-Benutzer
 
-**Eindeutigkeits-Constraints:** `username` und `email` müssen jeweils eindeutig sein (wird
-von der Anwendungslogik sichergestellt, nicht durch NocoDB selbst).
+Erforderliche Spalten:
 
----
+| Spalte | Typ | Pflicht | Zweck |
+|---|---|---:|---|
+| `username` | SingleLineText | ja | Benutzername, wird bei der Rechteauflösung verwendet |
+| `email` | Email | nein | Kontaktfeld für den Benutzer |
+| `password_hash` | LongText | nein | aktuell nur als Datenfeld für Bootstrap/Altbestand, nicht für einen Login-Flow dieser Middleware |
+| `is_active` | Checkbox | nein | Kennzeichnung aktiver Benutzer |
 
-## Tabelle: `roles`
+Hinweise:
 
-Speichert die definierten Rollen im System.
+- Die JWT-Strategie erwartet im Token `sub` und `username`.
+- Für die eigentliche Rechteauflösung arbeitet die Middleware mit der numerischen User-ID und dem Feld `username`.
+- Diese Middleware bietet keinen eigenen Login. `password_hash` ist daher **kein** Hinweis auf einen eingebauten Passwort-Login.
 
-| Spaltenname      | Titel           | NocoDB-Typ       | Pflicht | Beschreibung                                                              |
-|------------------|-----------------|------------------|---------|---------------------------------------------------------------------------|
-| `id`             | Id              | (Auto, NocoDB)   | –       | Automatisch generierter numerischer Primärschlüssel                       |
-| `role_name`      | Role Name       | SingleLineText   | ✅      | Eindeutiger Rollenname (3–50 Zeichen, alphanumerisch, Leerzeichen, `_`, `-`) |
-| `description`    | Description     | LongText         | –       | Optionale Beschreibung der Rolle (max. 255 Zeichen)                       |
-| `is_system_role` | Is System Role  | Checkbox         | –       | `true` = Systemrolle, die nicht gelöscht werden darf                      |
+### `roles`
 
-**Eindeutigkeits-Constraint:** `role_name` muss eindeutig sein (wird von der
-Anwendungslogik sichergestellt).
+Zweck:
 
----
+- Definition fachlicher oder technischer Rollen
+- Grundlage für Tabellenberechtigungen
 
-## Tabelle: `user_roles`
+Erforderliche Spalten:
 
-Verknüpfungstabelle (Junction Table) für die Many-to-Many-Beziehung zwischen `users` und
-`roles`.
+| Spalte | Typ | Pflicht | Zweck |
+|---|---|---:|---|
+| `role_name` | SingleLineText | ja | eindeutiger Rollenname |
+| `description` | LongText | nein | lesbare Beschreibung |
+| `is_system_role` | Checkbox | nein | Kennzeichnung von Systemrollen |
 
-| Spaltenname   | Titel       | NocoDB-Typ           | Pflicht | Beschreibung                                                              |
-|---------------|-------------|----------------------|---------|---------------------------------------------------------------------------|
-| `id`          | Id          | (Auto, NocoDB)       | –       | Automatisch generierter numerischer Primärschlüssel                       |
-| `user`        | User        | LinkToAnotherRecord  | ✅      | **Manuell anlegen** – Verknüpfung zur Tabelle `users`                     |
-| `role`        | Role        | LinkToAnotherRecord  | ✅      | **Manuell anlegen** – Verknüpfung zur Tabelle `roles`                     |
-| `assigned_at` | Assigned At | DateTime             | –       | Zeitstempel der Rollenzuweisung (ISO 8601)                                |
+Hinweise:
 
-> ⚠️ Die Spalten `user` und `role` sind **LinkToAnotherRecord**-Spalten und müssen **manuell
-> in der NocoDB-UI** angelegt werden. Weitere Schritte siehe
-> [Manuelle Einrichtung der Link-Columns](#manuelle-einrichtung-der-link-columns).
+- Beim Start wird mindestens die Rolle `admin` sichergestellt.
+- Die API prüft Rollen primär über die numerische Rollen-ID, für Lesbarkeit und Verwaltung ist `role_name` entscheidend.
 
----
+### `user_roles`
 
-## Tabelle: `table_permissions`
+Zweck:
 
-Definiert, welche CRUD-Operationen eine Rolle auf einer bestimmten Tabelle ausführen darf.
+- Zuordnung zwischen Benutzern und Rollen
+- Many-to-many-Verknüpfung von `users` und `roles`
 
-| Spaltenname  | Titel        | NocoDB-Typ           | Pflicht | Beschreibung                                              |
-|--------------|--------------|----------------------|---------|-----------------------------------------------------------|
-| `id`         | Id           | (Auto, NocoDB)       | –       | Automatisch generierter numerischer Primärschlüssel       |
-| `role`       | Role         | LinkToAnotherRecord  | ✅      | **Manuell anlegen** – Verknüpfung zur Tabelle `roles`     |
-| `table_name` | Table Name   | SingleLineText       | ✅      | Name der Zieltabelle (z. B. `products`, `orders`)         |
-| `can_create` | Can Create   | Checkbox             | –       | Erstellberechtigung – CREATE erlaubt (Standard: `false`)  |
-| `can_read`   | Can Read     | Checkbox             | –       | Leseberechtigung – READ erlaubt (Standard: `false`)       |
-| `can_update` | Can Update   | Checkbox             | –       | Schreibberechtigung – UPDATE erlaubt (Standard: `false`)  |
-| `can_delete` | Can Delete   | Checkbox             | –       | Löschberechtigung – DELETE erlaubt (Standard: `false`)    |
+Erforderliche Spalten:
 
-> ⚠️ Die Spalte `role` ist eine **LinkToAnotherRecord**-Spalte und muss **manuell in der
-> NocoDB-UI** angelegt werden. Weitere Schritte siehe
-> [Manuelle Einrichtung der Link-Columns](#manuelle-einrichtung-der-link-columns).
->
-> Alle Checkbox-Spalten sind standardmäßig `false` (Deny-by-default-Prinzip).
+| Spalte | Typ | Pflicht | Zweck |
+|---|---|---:|---|
+| `user` | Link to another record | ja | Verweis auf `users` |
+| `role` | Link to another record | ja | Verweis auf `roles` |
+| `assigned_at` | DateTime | nein | Zeitpunkt der Zuweisung |
 
----
+**Kritisch:**
 
-## Beziehungsdiagramm
+Die Link-Spalten `user` und `role` sind funktional zwingend. Ohne sie schlagen Rollen-Zuweisung und Rechteauflösung fehl.
 
-```mermaid
-erDiagram
-    users {
-        int id PK
-        string username
-        string email
-        string password_hash
-        boolean is_active
-    }
-    roles {
-        int id PK
-        string role_name
-        string description
-        boolean is_system_role
-    }
-    user_roles {
-        int id PK
-        int user FK
-        int role FK
-        datetime assigned_at
-    }
-    table_permissions {
-        int id PK
-        int role FK
-        string table_name
-        boolean can_create
-        boolean can_read
-        boolean can_update
-        boolean can_delete
-    }
+Erwartete Beziehungen:
 
-    users ||--o{ user_roles : "hat"
-    roles ||--o{ user_roles : "zugewiesen an"
-    roles ||--o{ table_permissions : "hat"
+- `user_roles.user` → `users`
+- `user_roles.role` → `roles`
+
+### `table_permissions`
+
+Zweck:
+
+- CRUD-Berechtigungen je Rolle und Zieltabelle
+
+Erforderliche Spalten:
+
+| Spalte | Typ | Pflicht | Zweck |
+|---|---|---:|---|
+| `role` | Link to another record | ja | Verweis auf `roles` |
+| `table_name` | SingleLineText | ja | Name der NocoDB-Tabelle, für die die Rechte gelten |
+| `can_create` | Checkbox | nein | CREATE erlaubt |
+| `can_read` | Checkbox | nein | READ erlaubt |
+| `can_update` | Checkbox | nein | UPDATE erlaubt |
+| `can_delete` | Checkbox | nein | DELETE erlaubt |
+
+Erwartete Beziehung:
+
+- `table_permissions.role` → `roles`
+
+Hinweise:
+
+- Die Rechte werden nicht gegen Tabellen-IDs, sondern gegen `table_name` aufgelöst.
+- Der Wert in `table_name` muss zu dem Tabellennamen passen, den die Middleware im Workspace sieht.
+
+## Beziehungen
+
+```text
+users (1) ───< user_roles >─── (1) roles
+roles (1) ───< table_permissions
 ```
 
-**Beziehungen im Detail:**
+Praktisch bedeutet das:
 
-| Von                  | Nach                | Typ           | Beschreibung                                               |
-|----------------------|---------------------|---------------|------------------------------------------------------------|
-| `users`              | `user_roles`        | One-to-Many   | Ein Benutzer kann mehrere Rollenzuweisungen haben          |
-| `roles`              | `user_roles`        | One-to-Many   | Eine Rolle kann mehreren Benutzern zugewiesen sein         |
-| `users` ↔ `roles`   | via `user_roles`    | Many-to-Many  | Benutzer und Rollen sind über `user_roles` verknüpft       |
-| `roles`              | `table_permissions` | One-to-Many   | Eine Rolle kann Berechtigungen für mehrere Tabellen haben  |
+- Ein Benutzer kann mehrere Rollen haben.
+- Eine Rolle kann mehreren Benutzern zugewiesen sein.
+- Eine Rolle kann für viele Tabellen ein eigenes CRUD-Rechteset haben.
 
----
+## Verhalten beim Start
 
-## Manuelle Einrichtung der Link-Columns
+Beim Start versucht `DatabaseInitializationService` Folgendes:
 
-Link-Columns (Typ `LinkToAnotherRecord`) können **nicht über die NocoDB-API** angelegt
-werden und müssen einmalig manuell in der NocoDB-UI erstellt werden.
+1. Basistabellen `users` und `roles` anlegen
+2. Tabellen `user_roles` und `table_permissions` anlegen
+3. erforderliche Link-Spalten prüfen
+4. Rolle `admin` sicherstellen
+5. Bootstrap-Benutzer sicherstellen
+6. Bootstrap-Benutzer der Rolle `admin` zuordnen
 
-### Erforderliche Link-Columns
+## Manuelle Schritte in NocoDB
 
-| Tabelle             | Spaltenname | Ziel-Tabelle | Beschreibung                        |
-|---------------------|-------------|--------------|-------------------------------------|
-| `user_roles`        | `user`      | `users`      | Verknüpft Zuweisung mit Benutzer    |
-| `user_roles`        | `role`      | `roles`      | Verknüpft Zuweisung mit Rolle       |
-| `table_permissions` | `role`      | `roles`      | Verknüpft Berechtigung mit Rolle    |
+Prüfe nach dem ersten Start in NocoDB diese Punkte:
 
-### Schritt-für-Schritt-Anleitung
+### 1. Sind alle vier Tabellen vorhanden?
 
-1. Öffne die NocoDB-UI im Browser (Standard: `http://localhost:8080`).
-2. Navigiere zu deiner Base (Datenbank).
-3. **Für `user_roles.user → users`:**
-   - Öffne die Tabelle **User Roles**.
-   - Klicke auf **+ Spalte hinzufügen**.
-   - Wähle als Typ **Links** (= `LinkToAnotherRecord`).
-   - Setze den Spaltennamen auf `user`.
-   - Wähle als Ziel-Tabelle **Users**.
-   - Wähle den Beziehungstyp **Has Many** (User hat viele User-Roles).
-   - Klicke **Speichern**.
-4. **Für `user_roles.role → roles`:**
-   - Öffne die Tabelle **User Roles**.
-   - Klicke auf **+ Spalte hinzufügen**.
-   - Wähle als Typ **Links**.
-   - Setze den Spaltennamen auf `role`.
-   - Wähle als Ziel-Tabelle **Roles**.
-   - Wähle den Beziehungstyp **Has Many** (Role hat viele User-Roles).
-   - Klicke **Speichern**.
-5. **Für `table_permissions.role → roles`:**
-   - Öffne die Tabelle **Table Permissions**.
-   - Klicke auf **+ Spalte hinzufügen**.
-   - Wähle als Typ **Links**.
-   - Setze den Spaltennamen auf `role`.
-   - Wähle als Ziel-Tabelle **Roles**.
-   - Wähle den Beziehungstyp **Has Many** (Role hat viele Table-Permissions).
-   - Klicke **Speichern**.
-6. Starte die Anwendung neu. Der `DatabaseInitializationService` prüft beim Start, ob alle
-   Link-Columns vorhanden sind, und gibt eine Fehlermeldung aus, wenn noch welche fehlen.
+- `users`
+- `roles`
+- `user_roles`
+- `table_permissions`
 
-> **Tipp:** Wenn Link-Columns fehlen, gibt die Anwendung beim Start eine detaillierte
-> Fehlermeldung mit konkreten Anweisungen aus (erkennbar an `⚠️ MISSING LINK COLUMNS`).
+### 2. Sind die Link-Spalten vorhanden?
 
----
+In `user_roles`:
 
-## Standard-Seed-Daten
+- `user` als Link auf `users`
+- `role` als Link auf `roles`
 
-Der `DatabaseInitializationService` legt beim ersten Start automatisch folgende Datensätze
-an, sofern sie noch nicht existieren:
+In `table_permissions`:
 
-### Admin-Rolle
+- `role` als Link auf `roles`
 
-| Feld             | Wert                    |
-|------------------|-------------------------|
-| `role_name`      | `admin`                 |
-| `description`    | `System Administrator`  |
-| `is_system_role` | `true`                  |
+### 3. Stimmen die Spaltennamen exakt?
 
-### Admin-Benutzer
+Die Middleware arbeitet mit festen Feldnamen. Besonders kritisch sind:
 
-| Feld            | Wert                                        |
-|-----------------|---------------------------------------------|
-| `username`      | `admin`                                     |
-| `email`         | `admin@example.com`                         |
-| `password_hash` | SHA-256-Hash von `password123` (⚠️ ändern!) |
-| `is_active`     | `true`                                      |
+- `username`
+- `role_name`
+- `table_name`
+- `user`
+- `role`
+- `can_create`
+- `can_read`
+- `can_update`
+- `can_delete`
 
-> ⚠️ **Sicherheitshinweis:** Das Standard-Passwort `password123` muss vor dem
-> Produktions-Deployment geändert werden. Außerdem sollte `password_hash` in der Produktion
-> mit **bcrypt** (konfigurierbar über `BCRYPT_ROUNDS`, mind. 12 Runden) statt SHA-256
-> gehasht werden.
+Abweichende Namen führen zu Laufzeitfehlern oder leeren Berechtigungsmengen.
 
-### Rollenzuweisung
+## Beispiel-Datensätze
 
-Dem Admin-Benutzer wird beim Seeding automatisch die Admin-Rolle zugewiesen
-(`user_roles`-Eintrag).
+### Rolle `admin`
 
----
+| role_name | description | is_system_role |
+|---|---|---:|
+| `admin` | System Administrator | true |
 
-## Tabellen-Präfix
+### Benutzer-Zuweisung
 
-Alle Tabellennamen können optional mit einem Präfix versehen werden, um Namenskollisionen
-in einer gemeinsam genutzten NocoDB-Base zu vermeiden.
+`user_roles`:
 
-**Konfiguration:** Umgebungsvariable `NOCODB_TABLE_PREFIX`
+| user | role | assigned_at |
+|---|---|---|
+| Benutzer-ID 1 | Rollen-ID 1 | 2026-04-12T10:00:00.000Z |
 
-```env
-NOCODB_TABLE_PREFIX=myapp_
-```
+### Tabellenrechte
 
-Mit diesem Präfix lauten die Tabellennamen:
+`table_permissions`:
 
-| Logischer Name      | Tatsächlicher Tabellenname |
-|---------------------|---------------------------|
-| `users`             | `myapp_users`             |
-| `roles`             | `myapp_roles`             |
-| `user_roles`        | `myapp_user_roles`        |
-| `table_permissions` | `myapp_table_permissions` |
+| role | table_name | can_create | can_read | can_update | can_delete |
+|---|---|---:|---:|---:|---:|
+| Rollen-ID 1 | `users` | true | true | true | true |
+| Rollen-ID 1 | `roles` | true | true | true | true |
+| Rollen-ID 1 | `table_permissions` | true | true | true | true |
+| Rollen-ID 1 | `user_roles` | true | true | true | true |
 
-> **Hinweis:** Die Anwendung behandelt den Präfix intern transparent. Alle API-Aufrufe und
-> Konfigurationen verwenden weiterhin die logischen Namen ohne Präfix.
+## Table Prefix beachten
 
----
+Wenn `NOCODB_TABLE_PREFIX` gesetzt ist, verwendet die Middleware intern weiterhin die logischen Namen wie `users` oder `roles`, sucht in NocoDB aber die physisch präfixierten Tabellen.
 
-## Hinweise zur Produktionsreife
+Beispiel:
 
-| Punkt                   | Status    | Empfehlung                                                                     |
-|-------------------------|-----------|--------------------------------------------------------------------------------|
-| Passwort-Hashing        | ⚠️ Offen  | SHA-256 durch **bcrypt** ersetzen; Anzahl der Runden über `BCRYPT_ROUNDS` (mind. 12) konfigurieren |
-| Link-Columns            | ⚠️ Manuell | Einmalig in der NocoDB-UI anlegen (siehe Anleitung oben)                      |
-| Standard-Passwort       | ⚠️ Offen  | `password123` des Admin-Benutzers nach dem ersten Start ändern                |
-| Eindeutigkeits-Indizes  | ⚠️ Offen  | NocoDB unterstützt keine nativen Unique-Constraints; Duplikate werden per Code verhindert |
-| Automatisches Setup     | 💡 Geplant | Bootstrap-Skript oder erweiterter `DatabaseInitializationService` mit Link-Column-Erstellung |
+- Konfiguration: `NOCODB_TABLE_PREFIX=app_`
+- Physische Tabellen: `app_users`, `app_roles`, `app_user_roles`, `app_table_permissions`
+
+Die Dokumentation in diesem Kapitel verwendet die **logischen** Namen ohne Präfix.
+
+## Bekannte Grenze
+
+Die Middleware prüft beim Start, ob die benötigten Link-Spalten existieren, und loggt fehlende Beziehungen. Sie beendet den Start dabei nicht zwingend mit einem Fehler.
+
+Das bedeutet:
+
+- Die Anwendung kann hochfahren.
+- Rollen- und Berechtigungsfunktionen können trotzdem später fehlschlagen.
+
+Deshalb sollte die Tabellenstruktur nach der Initialisierung immer einmal in NocoDB verifiziert werden.

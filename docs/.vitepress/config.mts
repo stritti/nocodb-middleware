@@ -1,62 +1,61 @@
 import { defineConfig } from 'vitepress';
+import yamlPlugin from '@rollup/plugin-yaml';
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
   title: 'nocodb-middleware',
   description:
-    'A robust NestJS middleware for NocoDB with comprehensive authentication, caching, error handling, and API documentation.',
-
-  // Exclude openapi.yaml from processing
-  ignore: ['**/openapi.yaml', '**/openapi.yaml/**'],
-
-  // Ignore localhost links in docs
-  ignoreDeadLinks: ['localhost:3000'],
-
-  // https://vitepress.dev/reference/site-config#base
+    'A robust NestJS middleware for NocoDB with authentication, RBAC, caching, error handling, and API documentation.',
   base: '/nocodb-middleware/',
 
-  // https://vitepress.dev/reference/default-theme-config
+  vite: {
+    plugins: [yamlPlugin()],
+  },
+
   themeConfig: {
-    // https://vitepress.dev/reference/default-theme-config#nav
     nav: [
       { text: 'Home', link: '/' },
-      { text: 'Developer Guide', link: '/docs/developer-guide' },
+      { text: 'Developer Guide', link: '/developer-guide' },
+      { text: 'Security', link: '/security' },
+      { text: 'Deployment', link: '/deployment' },
       { text: 'API', link: '/api' },
-      { text: 'Security', link: '/docs/security-audit' },
+      { text: 'OpenAPI', link: '/openapi-spec' },
     ],
 
-    // https://vitepress.dev/reference/default-theme-config#sidebar
     sidebar: {
-      '/docs/': [
-        {
-          text: 'Dokumentation',
-          items: [
-            { text: 'API-Dokumentation', link: '/api' },
-            { text: 'Developer Guide', link: '/docs/developer-guide' },
-            { text: 'Security Audit', link: '/docs/security-audit' },
-            { text: 'Produkt Readiness', link: '/docs/product-readiness' },
-          ],
-        },
-      ],
-
       '/': [
         {
           text: 'Getting Started',
           items: [
             { text: 'Overview', link: '/' },
-            { text: 'Developer Guide', link: '/docs/developer-guide' },
+            { text: 'Developer Guide', link: '/developer-guide' },
+            { text: 'Security', link: '/security' },
+            { text: 'Deployment', link: '/deployment' },
+            { text: 'Database Schema', link: '/database-schema' },
+          ],
+        },
+        {
+          text: 'Reference',
+          items: [
+            { text: 'API', link: '/api' },
+            { text: 'RBAC API', link: '/rbac-api' },
+            { text: 'OpenAPI Spec', link: '/openapi-spec' },
+            { text: 'Middleware', link: '/middleware' },
+            { text: 'Error Handling', link: '/error-handling' },
+            { text: 'Caching', link: '/caching' },
+            { text: 'Testing', link: '/testing' },
+            { text: 'Product Readiness', link: '/product-readiness' },
+            { text: 'Versioning', link: '/versioning' },
           ],
         },
       ],
     },
 
-    // https://vitepress.dev/reference/default-theme-config#sociallinks
     socialLinks: [
       { icon: 'github', link: 'https://github.com/stritti/nocodb-middleware' },
     ],
   },
 
-  // https://vitepress.dev/reference/site-config#markdown
   markdown: {
     theme: 'github-dark',
     lineNumbers: true,
