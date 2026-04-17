@@ -9,27 +9,57 @@ Entwickler, die NocoDB als Backend für ihre **SPA-App** nutzen möchten und ein
 
 Die **nocodb-middleware** ist eine **NestJS-basierte Middleware**, die NocoDB als Backend für deine **Single-Page-Application (SPA)** bereitstellt. Sie bietet:
 
-| Feature | Beschreibung |
-|---------|-------------|
-| **🔒 JWT-Authentifizierung** | Sichere Authentifizierung für deine API-Endpunkte |
-| **📊 RBAC (Role-Based Access Control)** | Feingranulare Zugriffsrechte auf Tabellenebene |
-| **⚡ Caching** | Schnelle API-Antworten für read-intensive Operationen |
-| **🛡️ Sicherheitsfeatures** | Helmet, Rate Limiting, Input-Validation, OpenAPI/Swagger |
-| **📝 API-Dokumentation** | Automatische Swagger-UI und statische `openapi.yaml` |
-| **🚦 Monitoring** | Logging, Health Checks, OpenTelemetry |
+| Feature                                 | Beschreibung                                             |
+| --------------------------------------- | -------------------------------------------------------- |
+| **🔒 JWT-Authentifizierung**            | Sichere Authentifizierung für deine API-Endpunkte        |
+| **📊 RBAC (Role-Based Access Control)** | Feingranulare Zugriffsrechte auf Tabellenebene           |
+| **⚡ Caching**                          | Schnelle API-Antworten für read-intensive Operationen    |
+| **🛡️ Sicherheitsfeatures**              | Helmet, Rate Limiting, Input-Validation, OpenAPI/Swagger |
+| **📝 API-Dokumentation**                | Automatische Swagger-UI und statische `openapi.yaml`     |
+| **🚦 Monitoring**                       | Logging, Health Checks, OpenTelemetry                    |
 
 ---
 
 ## **📌 Warum nocodb-middleware für deine SPA nutzen?**
 
-| Vorteil | Beschreibung |
-|---------|-------------|
-| **🔄 Einfache Integration** | Standardisierte RESTful-API für deine Frontend-App |
-| **🔐 Sichere Authentifizierung** | JWT-basierte Authentifizierung mit externem Identity-Provider |
-| **📦 Automatische API-Dokumentation** | Swagger UI für Frontend-Entwickler |
-| **⚡ Bessere Performance** | Caching und Rate Limiting für schnellere API-Antworten |
-| **🛡️ Sicherheit** | Sicherheits-Header, Input-Validation, RBAC |
-| **🔧 Flexibilität** | Einfache Anpassung an deine NocoDB-Tabellen und Rollen |
+Die Middleware bietet gegenüber dem direkten Zugriff auf NocoDB erhebliche Vorteile:
+
+### **🚀 Vorteile gegenüber direktem NocoDB-Zugriff**
+
+| Vorteil                   | Direkter NocoDB-Zugriff | Mit nocodb-middleware                   |
+| ------------------------- | ----------------------- | --------------------------------------- |
+| **JWT-Authentifizierung** | ❌ Nicht integriert     | ✅ Integriert mit Passport.js           |
+| **RBAC**                  | ⚠️ Nur NocoDB-Rollen    | ✅ Erweiterbare Table-Level Permissions |
+| **Caching**               | ❌ Nicht verfügbar      | ✅ In-Memory Cache mit TTL              |
+| **Rate Limiting**         | ❌ Nicht verfügbar      | ✅ Konfigurierbar (100 req/15min)       |
+| **Security Headers**      | ❌ Nicht automatisch    | ✅ Helmet.js integriert                 |
+| **API-Dokumentation**     | ❌ Nicht verfügbar      | ✅ Swagger UI + OpenAPI                 |
+| **Input-Validation**      | ⚠️ Teilweise            | ✅ class-validator + class-transformer  |
+| **Logging**               | ⚠️ Basis                | ✅ Request/Response + Duration Tracking |
+| **Fehlerbehandlung**      | ⚠️ NocoDB-Fehler        | ✅ Strukturierte Exception-Filter       |
+| **Metriken**              | ❌ Nicht verfügbar      | ✅ OpenTelemetry (optional)             |
+| **URL-Abstraktion**       | ❌ NocoDB-URLs          | ✅ Eigene API-Endpunkte                 |
+| **CORS-Kontrolle**        | ⚠️ Basis                | ✅ Whitelist-basierte Konfiguration     |
+
+### **🔐 Security-Vorteile**
+
+1. **Secret Isolation**: API-Token werden NIE an das Frontend weitergegeben
+2. **Token-Validierung**: JWTs werden serverseitig validiert, nicht im Browser
+3. **Granulare Berechtigungen**: Table-Level CRUD-Rechte statt nur Rollen
+4. **Angriffserkennung**: Rate Limiting schützt vor Brute-Force und DoS
+5. **Audit-Logging**: Vollständige Request-Historie für Security-Audits
+
+### **📊 Performance-Vorteile**
+
+1. **Caching**: GET-Requests werden gecached (60s TTL)
+2. **Request-Optimierung**: Batch-Operationen möglich
+3. **Lastverteilung**: Entlastet NocoDB-Instanz
+
+### **💡 Architectur-Vorteile**
+
+1. **Unabhängigkeit**: Frontend entkoppelt von NocoDB-Version
+2. **Erweiterbarkeit**: Eigenes Repository-Pattern für Custom-Logik
+3. **Flexibilität**: Eigene Business-Logic ohne NocoDB-Einschränkungen
 
 ---
 
@@ -48,6 +78,7 @@ graph TD
 ```
 
 **Datenfluss:**
+
 1. Der Nutzer loggt sich im Frontend ein (z.B. über OAuth oder einen Auth-Service).
 2. Das Frontend erhält ein **JWT-Token** und sendet es mit jeder API-Anfrage an die Middleware.
 3. Die Middleware **validiert das Token**, prüft die Berechtigungen und leitet die Anfrage an NocoDB weiter.
@@ -59,12 +90,14 @@ graph TD
 ## **📌 Schnellstart: Middleware in 5 Minuten einrichten**
 
 ### **🔹 Voraussetzungen**
+
 - Node.js (v18+)
 - NestJS (v10+)
 - NocoDB-Instanz (lokal oder cloud)
 - NocoDB-API-Token und Base-ID
 
 ### **🔹 Schritt 1: Middleware klonen und installieren**
+
 ```bash
 git clone https://github.com/stritti/nocodb-middleware.git
 cd nocodb-middleware
@@ -72,7 +105,9 @@ npm install
 ```
 
 ### **🔹 Schritt 2: `.env` konfigurieren**
+
 Erstelle eine `.env`-Datei basierend auf `.env.example`:
+
 ```env
 # NocoDB Connection
 NOCODB_API_URL=http://localhost:8080
@@ -91,9 +126,11 @@ PORT=3000
 ```
 
 ### **🔹 Schritt 3: Middleware starten**
+
 ```bash
 npm run start:dev
 ```
+
 - Die Middleware läuft auf `http://localhost:3000`.
 - **Swagger UI:** [http://localhost:3000/api](http://localhost:3000/api)
 
@@ -104,6 +141,7 @@ npm run start:dev
 ### **🔹 Beispiel: React + Next.js**
 
 #### **1. Authentifizierung im Frontend**
+
 ```javascript
 // pages/login.js
 import { useState } from 'react';
@@ -128,8 +166,16 @@ export default function Login() {
 
   return (
     <form onSubmit={handleLogin}>
-      <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-      <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+      <input
+        type="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+      />
+      <input
+        type="password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+      />
       <button type="submit">Login</button>
     </form>
   );
@@ -137,6 +183,7 @@ export default function Login() {
 ```
 
 #### **2. API-Aufrufe mit JWT**
+
 ```javascript
 // utils/api.js
 export const fetchNocoDB = async (endpoint) => {
@@ -145,7 +192,7 @@ export const fetchNocoDB = async (endpoint) => {
 
   const response = await fetch(`http://localhost:3000/${endpoint}`, {
     headers: {
-      'Authorization': `Bearer ${token}`,
+      Authorization: `Bearer ${token}`,
     },
   });
   if (!response.ok) throw new Error('API-Aufruf fehlgeschlagen');
@@ -159,6 +206,7 @@ export const getUsers = async () => {
 ```
 
 #### **3. Nutzerdaten anzeigen (React)**
+
 ```javascript
 // components/UserList.js
 import { useEffect, useState } from 'react';
@@ -173,7 +221,7 @@ export default function UserList() {
 
   return (
     <ul>
-      {users.map(user => (
+      {users.map((user) => (
         <li key={user.id}>{user.name}</li>
       ))}
     </ul>
@@ -186,6 +234,7 @@ export default function UserList() {
 ### **🔹 Beispiel: Vue.js**
 
 #### **1. Authentifizierung (Vuex)**
+
 ```javascript
 // store/auth.js
 export default {
@@ -204,6 +253,7 @@ export default {
 ```
 
 #### **2. API-Aufrufe (Vue)**
+
 ```javascript
 // services/nocodb.js
 import axios from 'axios';
@@ -211,7 +261,7 @@ import axios from 'axios';
 const api = axios.create({
   baseURL: 'http://localhost:3000',
   headers: {
-    'Authorization': `Bearer ${localStorage.getItem('jwtToken')}`,
+    Authorization: `Bearer ${localStorage.getItem('jwtToken')}`,
   },
 });
 
@@ -226,6 +276,7 @@ export const getUsers = async () => {
 ### **🔹 Beispiel: Angular**
 
 #### **1. Authentifizierung (Angular Service)**
+
 ```typescript
 // auth.service.ts
 import { Injectable } from '@angular/core';
@@ -240,13 +291,18 @@ export class AuthService {
   constructor(private http: HttpClient) {}
 
   async login(email: string, password: string) {
-    const response = await this.http.post<{ token: string }>('https://dein-auth-service.com/login', { email, password }).toPromise();
+    const response = await this.http
+      .post<{
+        token: string;
+      }>('https://dein-auth-service.com/login', { email, password })
+      .toPromise();
     localStorage.setItem('jwtToken', response.token);
   }
 }
 ```
 
 #### **2. API-Aufrufe (Angular HttpClient)**
+
 ```typescript
 // nocodb.service.ts
 import { Injectable } from '@angular/core';
@@ -271,9 +327,11 @@ export class NocoDBService {
 ## **📌 Konfiguration und Deployment**
 
 ### **🔹 NocoDB-Tabellen anbinden**
+
 Die Middleware nutzt das **Repository-Pattern** für NocoDB. Du kannst eigene Tabellen einbinden, indem du:
 
 1. **Ein neues Repository erstellen:**
+
    ```typescript
    // src/repositories/user.repository.ts
    import { Injectable } from '@nestjs/common';
@@ -289,6 +347,7 @@ Die Middleware nutzt das **Repository-Pattern** für NocoDB. Du kannst eigene Ta
    ```
 
 2. **Einen neuen Controller erstellen:**
+
    ```typescript
    // src/users/users.controller.ts
    import { Controller, Get } from '@nestjs/common';
@@ -308,14 +367,16 @@ Die Middleware nutzt das **Repository-Pattern** für NocoDB. Du kannst eigene Ta
 ---
 
 ### **🔹 Deployment-Optionen**
-| Option | Beschreibung |
-|--------|-------------|
-| **🐳 Docker** | Einfache Containerisierung für Kubernetes, AWS ECS, etc. |
-| **☁️ Cloud (Vercel, Netlify, Railway)** | Serverless-Deployment mit Edge-Funktionen |
-| **🖥️ VPS (Ubuntu, Debian)** | Traditionelles Deployment auf einem eigenen Server |
-| **🔧 CI/CD (GitHub Actions)** | Automatisierte Deployments |
 
-#### **🔹 Dockerfile (Beispiel)
+| Option                                  | Beschreibung                                             |
+| --------------------------------------- | -------------------------------------------------------- |
+| **🐳 Docker**                           | Einfache Containerisierung für Kubernetes, AWS ECS, etc. |
+| **☁️ Cloud (Vercel, Netlify, Railway)** | Serverless-Deployment mit Edge-Funktionen                |
+| **🖥️ VPS (Ubuntu, Debian)**             | Traditionelles Deployment auf einem eigenen Server       |
+| **🔧 CI/CD (GitHub Actions)**           | Automatisierte Deployments                               |
+
+#### \*\*🔹 Dockerfile (Beispiel)
+
 ```dockerfile
 # Dockerfile
 FROM node:20-alpine
@@ -332,13 +393,14 @@ CMD ["npm", "run", "start:prod"]
 ```
 
 #### **🔹 docker-compose.yml (Beispiel)**
+
 ```yaml
 version: '3.8'
 services:
   nocodb-middleware:
     build: .
     ports:
-      - "3000:3000"
+      - '3000:3000'
     environment:
       - NOCODB_API_URL=http://nocodb:8080
       - NOCODB_API_TOKEN=${NOCODB_API_TOKEN}
@@ -350,7 +412,7 @@ services:
   nocodb:
     image: nocodb/nocodb:latest
     ports:
-      - "8080:8080"
+      - '8080:8080'
     environment:
       - NC_DB=sqlite:///data/noco.db
     volumes:
@@ -362,15 +424,19 @@ services:
 ## **📌 Best Practices und Sicherheitshinweise**
 
 ### **🔹 JWT-Tokens sicher speichern**
+
 - **Nicht im `localStorage`** (XSS-Angriffrisiko)! **Empfohlen:** `httpOnly`-Cookies oder Secure Storage (z.B. `@auth0/auth0-react`).
 
 ### **🔹 CORS-Origins sicher konfigurieren**
+
 ```env
 CORS_ORIGINS=https://deine-spa-app.de,https://staging.deine-spa-app.de
 ```
+
 - **Vermeide `*` in Produktion!**
 
 ### **🔹 Rate Limiting anpassen**
+
 ```typescript
 // src/middleware/rate-limit.middleware.ts
 import { Injectable, NestMiddleware } from '@nestjs/common';
@@ -391,6 +457,7 @@ export class RateLimitMiddleware implements NestMiddleware {
 ```
 
 ### **🔹 Input-Validation erzwingen**
+
 ```typescript
 // src/users/dto/create-user.dto.ts
 import { IsString, IsEmail, IsInt } from 'class-validator';
@@ -408,6 +475,7 @@ export class CreateUserDto {
 ```
 
 ### **🔹 Secrets sicher verwalten**
+
 - **Nicht in Git committen!** Nutze `.env` und GitHub Secrets.
 - **Beispiel für GitHub Actions:**
   ```yaml
@@ -420,12 +488,12 @@ export class CreateUserDto {
 
 ## **📌 Häufige Fehler und Lösungen**
 
-| Fehler | Ursache | Lösung |
-|-------|---------|--------|
-| **403 Forbidden** | Falsches JWT oder fehlende Berechtigungen | Prüfe den Token und die RBAC-Konfiguration |
-| **404 Not Found** | Falsche API-URL oder Tabellenname | Prüfe `NOCODB_API_URL` und `NOCODB_BASE_ID` |
-| **CORS-Error** | Falsche `CORS_ORIGINS`-Konfiguration | Aktualisiere `.env` oder die Middleware-Konfiguration |
-| **Rate Limited** | Zu viele Anfragen | Erhöhe die Rate-Limit-Grenzen oder optimiere deine App |
+| Fehler            | Ursache                                   | Lösung                                                 |
+| ----------------- | ----------------------------------------- | ------------------------------------------------------ |
+| **403 Forbidden** | Falsches JWT oder fehlende Berechtigungen | Prüfe den Token und die RBAC-Konfiguration             |
+| **404 Not Found** | Falsche API-URL oder Tabellenname         | Prüfe `NOCODB_API_URL` und `NOCODB_BASE_ID`            |
+| **CORS-Error**    | Falsche `CORS_ORIGINS`-Konfiguration      | Aktualisiere `.env` oder die Middleware-Konfiguration  |
+| **Rate Limited**  | Zu viele Anfragen                         | Erhöhe die Rate-Limit-Grenzen oder optimiere deine App |
 
 ---
 
@@ -439,6 +507,7 @@ export class CreateUserDto {
 ---
 
 ## **📌 Ressourcen und Links**
+
 - **[GitHub Repository](https://github.com/stritti/nocodb-middleware)**
 - **[NocoDB Dokumentation](https://docs.nocodb.com/)**
 - **[NestJS Dokumentation](https://docs.nestjs.com/)**
