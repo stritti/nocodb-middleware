@@ -1,35 +1,72 @@
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PassportStrategy } from '@nestjs/passport';
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { IDENTITY_PROVIDER } from '../identity/identity-provider.constants';
+import { IdentityProviderPort } from '../identity/identity-provider.port';
+import { IdentityClaimsNormalizerService } from '../identity/identity-claims-normalizer.service';
+import { AuthProviderConfigService } from '../auth-provider-config.service';
 
-interface JwtPayload {
-  sub: number;
-  username: string;
-  roles: string[];
-}
+type JwtPayload = Record<string, unknown>;
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor(configService: ConfigService) {
-    const jwtSecret = configService.get<string>('JWT_SECRET');
+  private readonly provider: 'local' | 'external';
 
-    if (!jwtSecret) {
-      throw new Error('JWT_SECRET is required');
+  constructor(
+    configService: ConfigService,
+    authProviderConfigService: AuthProviderConfigService,
+    private readonly claimsNormalizer: IdentityClaimsNormalizerService,
+    @Inject(IDENTITY_PROVIDER)
+    private readonly identityProvider: IdentityProviderPort,
+  ) {
+    const provider = authProviderConfigService.getProvider();
+    const secretKeyName =
+      provider === 'external' ? 'EXTERNAL_JWT_SECRET' : 'JWT_SECRET';
+    const secret = configService.get<string>(secretKeyName);
+
+    if (!secret) {
+      throw new Error(`${secretKeyName} is required`);
     }
 
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: jwtSecret,
+      secretOrKey: secret,
+      issuer:
+        provider === 'external'
+          ? configService.get<string>('EXTERNAL_JWT_ISSUER')
+          : undefined,
+      audience:
+        provider === 'external'
+          ? configService.get<string>('EXTERNAL_JWT_AUDIENCE')
+          : undefined,
     });
+
+    this.provider = provider;
   }
 
-  validate(payload: JwtPayload) {
+  async validate(payload: JwtPayload) {
+    const normalizedClaims = this.claimsNormalizer.normalize(
+      payload,
+      this.provider,
+    );
+
+    const identity =
+      await this.identityProvider.resolveIdentity(normalizedClaims);
+
+    if (!identity.active) {
+      throw new UnauthorizedException('User account is deactivated');
+    }
+
     return {
-      userId: payload.sub,
-      username: payload.username,
-      roles: payload.roles,
+      userId: identity.userId,
+      username: identity.username,
+      email: identity.email,
+      roles: identity.roles,
+      scope: normalizedClaims.scope,
+      subject: normalizedClaims.subject,
+      authProvider: normalizedClaims.provider,
     };
   }
 }

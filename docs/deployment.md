@@ -30,17 +30,29 @@ Danach:
 
 ## Wichtige Umgebungsvariablen
 
-| Variable                      | Zweck                         |
-| ----------------------------- | ----------------------------- |
-| `NOCODB_API_URL`              | URL der NocoDB-Instanz        |
-| `NOCODB_API_TOKEN`            | Backend-Secret für NocoDB     |
-| `NOCODB_BASE_ID`              | Base ID für Meta API v3       |
-| `JWT_SECRET`                  | Secret zur JWT-Validierung    |
-| `CORS_ORIGINS`                | erlaubte Browser-Origin-Liste |
-| `PORT`                        | Port der Middleware           |
-| `LOG_DIR`                     | Ziel für Log-Dateien          |
-| `OTEL_ENABLED`                | Tracing an oder aus           |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP-Ziel für Spans           |
+| Variable                      | Zweck                          |
+| ----------------------------- | ------------------------------ |
+| `NOCODB_API_URL`              | URL der NocoDB-Instanz         |
+| `NOCODB_API_TOKEN`            | Backend-Secret für NocoDB      |
+| `NOCODB_BASE_ID`              | Base ID für Meta API v3        |
+| `JWT_SECRET`                  | Secret zur JWT-Validierung     |
+| `AUTH_PROVIDER`               | `local` oder `external`        |
+| `EXTERNAL_JWT_SECRET`         | JWT Secret für externen IdP    |
+| `EXTERNAL_JWT_ISSUER`         | erwarteter JWT Issuer          |
+| `EXTERNAL_JWT_AUDIENCE`       | erwartete JWT Audience         |
+| `BOOTSTRAP_ADMIN_PASSWORD`    | Initialpasswort für Seed-Admin |
+| `CORS_ORIGINS`                | erlaubte Browser-Origin-Liste  |
+| `PORT`                        | Port der Middleware            |
+| `LOG_DIR`                     | Ziel für Log-Dateien           |
+| `OTEL_ENABLED`                | Tracing an oder aus            |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP-Ziel für Spans            |
+
+### IdP-Switch Rollout (`local` <-> `external`)
+
+1. Secrets für Zielprovider bereitstellen (`JWT_SECRET` oder `EXTERNAL_JWT_SECRET`).
+2. In Staging `AUTH_PROVIDER` umstellen und Health + Auth-Endpunkte testen.
+3. Token-Claims (`sub`, `roles`, `scope`) gegen RBAC-Guard-Entscheidungen verifizieren.
+4. Bei Problemen auf vorherigen Provider zurückschalten und Deployment neu starten.
 
 ## Reverse Proxy
 

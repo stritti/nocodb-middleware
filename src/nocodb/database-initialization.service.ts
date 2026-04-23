@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NocoDBService } from './nocodb.service';
-import * as crypto from 'crypto';
+import { hashPassword } from '../auth/password-hasher.util';
 
 interface ColumnDefinition {
   name: string;
@@ -47,6 +47,16 @@ export class DatabaseInitializationService implements OnModuleInit {
         { name: 'email', title: 'Email', type: 'Email' },
         { name: 'password_hash', title: 'Password Hash', type: 'LongText' },
         { name: 'is_active', title: 'Is Active', type: 'Checkbox' },
+        {
+          name: 'auth_provider',
+          title: 'Auth Provider',
+          type: 'SingleLineText',
+        },
+        {
+          name: 'external_subject',
+          title: 'External Subject',
+          type: 'SingleLineText',
+        },
       ],
     });
 
@@ -182,7 +192,10 @@ export class DatabaseInitializationService implements OnModuleInit {
         }
       }
     } catch (error) {
-      this.logger.error(`Error ensuring columns for table ${tableName}:`, error);
+      this.logger.error(
+        `Error ensuring columns for table ${tableName}:`,
+        error,
+      );
     }
   }
 
@@ -197,9 +210,7 @@ export class DatabaseInitializationService implements OnModuleInit {
       },
       {
         tableName: 'table_permissions',
-        linkColumns: [
-          { name: 'role', targetTable: 'roles' },
-        ],
+        linkColumns: [{ name: 'role', targetTable: 'roles' }],
       },
     ];
 
@@ -207,25 +218,38 @@ export class DatabaseInitializationService implements OnModuleInit {
 
     for (const tableSpec of requiredLinks) {
       try {
-        const table = await this.nocoDBService.getTableByName(tableSpec.tableName);
+        const table = await this.nocoDBService.getTableByName(
+          tableSpec.tableName,
+        );
         if (!table) continue;
 
-        const response = await this.nocoDBService.getHttpClient().get(`/api/v3/meta/tables/${table.id}`);
+        const response = await this.nocoDBService
+          .getHttpClient()
+          .get(`/api/v3/meta/tables/${table.id}`);
         const columns = response.data.columns || [];
-        const existingColumnNames = new Set(columns.map((c: any) => c.column_name));
+        const existingColumnNames = new Set(
+          columns.map((c: any) => c.column_name),
+        );
 
         for (const link of tableSpec.linkColumns) {
           if (!existingColumnNames.has(link.name)) {
-            missingLinks.push(`${tableSpec.tableName}.${link.name} -> ${link.targetTable}`);
+            missingLinks.push(
+              `${tableSpec.tableName}.${link.name} -> ${link.targetTable}`,
+            );
           }
         }
       } catch (error) {
-        this.logger.error(`Error verifying links for ${tableSpec.tableName}`, error);
+        this.logger.error(
+          `Error verifying links for ${tableSpec.tableName}`,
+          error,
+        );
       }
     }
 
     if (missingLinks.length > 0) {
-      this.logger.error(`MISSING LINK COLUMNS: ${missingLinks.join(', ')}. Please create them manually in NocoDB UI.`);
+      this.logger.error(
+        `MISSING LINK COLUMNS: ${missingLinks.join(', ')}. Please create them manually in NocoDB UI.`,
+      );
       // We don't throw here to allow the app to start, but functional errors will occur if these are used.
     } else {
       this.logger.log('✓ All required link columns verified successfully');
@@ -236,7 +260,8 @@ export class DatabaseInitializationService implements OnModuleInit {
     this.logger.log('Seeding default permissions...');
     try {
       const rolesTable = await this.nocoDBService.getTableByName('roles');
-      const permissionsTable = await this.nocoDBService.getTableByName('table_permissions');
+      const permissionsTable =
+        await this.nocoDBService.getTableByName('table_permissions');
 
       if (!rolesTable || !permissionsTable) return;
 
@@ -266,11 +291,17 @@ export class DatabaseInitializationService implements OnModuleInit {
   private async seedDefaultUser() {
     this.logger.log('Seeding default user...');
     try {
-      const bootstrapAdminUsername = this.configService.get<string>('nocodb.bootstrapAdminUsername') || 'admin';
-      
+      const bootstrapAdminUsername =
+        this.configService.get<string>('nocodb.bootstrapAdminUsername') ||
+        'admin';
+      const bootstrapAdminPassword =
+        this.configService.get<string>('BOOTSTRAP_ADMIN_PASSWORD') ||
+        'password123!ChangeMe';
+
       const usersTable = await this.nocoDBService.getTableByName('users');
       const rolesTable = await this.nocoDBService.getTableByName('roles');
-      const userRolesTable = await this.nocoDBService.getTableByName('user_roles');
+      const userRolesTable =
+        await this.nocoDBService.getTableByName('user_roles');
 
       if (!usersTable || !rolesTable || !userRolesTable) return;
 
@@ -281,13 +312,17 @@ export class DatabaseInitializationService implements OnModuleInit {
 
       let userId;
       if (usersResult.list.length === 0) {
-        this.logger.log(`Creating bootstrap admin user "${bootstrapAdminUsername}"...`);
-        const passwordHash = crypto.createHash('sha256').update('password123').digest('hex');
+        this.logger.log(
+          `Creating bootstrap admin user "${bootstrapAdminUsername}"...`,
+        );
+        const passwordHash = hashPassword(bootstrapAdminPassword);
         const createdUser = await this.nocoDBService.create(usersTable.id, {
           username: bootstrapAdminUsername,
           email: `${bootstrapAdminUsername}@example.com`,
           password_hash: passwordHash,
           is_active: true,
+          auth_provider: 'local',
+          external_subject: `${bootstrapAdminUsername}@example.com`,
         });
         userId = createdUser.id;
       } else {
