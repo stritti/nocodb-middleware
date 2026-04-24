@@ -39,43 +39,6 @@ paths:
           description: ''
       tags:
         - BootstrapAdmin
-  /users:
-    post:
-      operationId: UserProvisioningController_createUser
-      parameters: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ProvisionUserDto'
-      responses:
-        '201':
-          description: ''
-      security: &ref_0
-        - bearer: []
-      tags: &ref_1
-        - Users
-  /users/{id}/status:
-    patch:
-      operationId: UserProvisioningController_updateStatus
-      parameters:
-        - name: id
-          required: true
-          in: path
-          schema:
-            type: number
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpdateUserStatusDto'
-      responses:
-        '200':
-          description: ''
-      security: *ref_0
-      tags: *ref_1
   /health:
     get:
       operationId: HealthController_check
@@ -105,10 +68,10 @@ paths:
           description: Unauthorized
         '403':
           description: Forbidden – insufficient permissions
-      security: &ref_2
+      security: &ref_0
         - bearer: []
       summary: Create a new role
-      tags: &ref_3
+      tags: &ref_1
         - admin / permissions
     get:
       operationId: PermissionsManagementController_getAllRoles
@@ -120,9 +83,9 @@ paths:
           description: Unauthorized
         '403':
           description: Forbidden – insufficient permissions
-      security: *ref_2
+      security: *ref_0
       summary: List all roles
-      tags: *ref_3
+      tags: *ref_1
   /admin/permissions/roles/{roleId}:
     delete:
       operationId: PermissionsManagementController_deleteRole
@@ -142,9 +105,9 @@ paths:
           description: Forbidden – insufficient permissions
         '404':
           description: Role not found
-      security: *ref_2
+      security: *ref_0
       summary: Delete a role by ID
-      tags: *ref_3
+      tags: *ref_1
   /admin/permissions/table-permissions:
     post:
       operationId: PermissionsManagementController_setTablePermissions
@@ -164,9 +127,9 @@ paths:
           description: Unauthorized
         '403':
           description: Forbidden – insufficient permissions
-      security: *ref_2
+      security: *ref_0
       summary: Set permissions for a role on a specific table
-      tags: *ref_3
+      tags: *ref_1
   /admin/permissions/table-permissions/batch:
     post:
       operationId: PermissionsManagementController_batchSetPermissions
@@ -186,9 +149,9 @@ paths:
           description: Unauthorized
         '403':
           description: Forbidden – insufficient permissions
-      security: *ref_2
+      security: *ref_0
       summary: Batch-set permissions for a role across multiple tables
-      tags: *ref_3
+      tags: *ref_1
   /admin/permissions/roles/{roleId}/permissions:
     get:
       operationId: PermissionsManagementController_getRolePermissions
@@ -206,9 +169,9 @@ paths:
           description: Unauthorized
         '403':
           description: Forbidden – insufficient permissions
-      security: *ref_2
+      security: *ref_0
       summary: Get all table permissions for a role
-      tags: *ref_3
+      tags: *ref_1
     delete:
       operationId: PermissionsManagementController_deleteRolePermissions
       parameters:
@@ -225,9 +188,9 @@ paths:
           description: Unauthorized
         '403':
           description: Forbidden – insufficient permissions
-      security: *ref_2
+      security: *ref_0
       summary: Delete all table permissions for a role
-      tags: *ref_3
+      tags: *ref_1
   /admin/permissions/roles/{sourceRoleId}/copy-to/{targetRoleId}:
     post:
       operationId: PermissionsManagementController_copyPermissions
@@ -251,9 +214,9 @@ paths:
           description: Unauthorized
         '403':
           description: Forbidden – insufficient permissions
-      security: *ref_2
+      security: *ref_0
       summary: Copy all permissions from one role to another
-      tags: *ref_3
+      tags: *ref_1
   /admin/permissions/user-roles/assign:
     post:
       operationId: PermissionsManagementController_assignRole
@@ -273,9 +236,9 @@ paths:
           description: Unauthorized
         '403':
           description: Forbidden – insufficient permissions
-      security: *ref_2
+      security: *ref_0
       summary: Assign a role to a user
-      tags: *ref_3
+      tags: *ref_1
   /admin/permissions/user-roles/assign-multiple:
     post:
       operationId: PermissionsManagementController_assignMultipleRoles
@@ -295,9 +258,9 @@ paths:
           description: Unauthorized
         '403':
           description: Forbidden – insufficient permissions
-      security: *ref_2
+      security: *ref_0
       summary: Assign multiple roles to a user
-      tags: *ref_3
+      tags: *ref_1
   /admin/permissions/user-roles/users/{userId}/roles/{roleId}:
     delete:
       operationId: PermissionsManagementController_removeRole
@@ -321,9 +284,9 @@ paths:
           description: Unauthorized
         '403':
           description: Forbidden – insufficient permissions
-      security: *ref_2
+      security: *ref_0
       summary: Remove a role from a user
-      tags: *ref_3
+      tags: *ref_1
   /admin/permissions/users/{userId}/roles:
     get:
       operationId: PermissionsManagementController_getUserRoles
@@ -341,9 +304,9 @@ paths:
           description: Unauthorized
         '403':
           description: Forbidden – insufficient permissions
-      security: *ref_2
+      security: *ref_0
       summary: Get all roles assigned to a user
-      tags: *ref_3
+      tags: *ref_1
 info:
   title: NocoDB Middleware API
   description: >-
@@ -365,39 +328,6 @@ components:
     BootstrapAdminDto:
       type: object
       properties: {}
-    ProvisionUserDto:
-      type: object
-      properties:
-        username:
-          type: string
-          example: alice
-        email:
-          type: string
-          example: alice@example.com
-        password:
-          type: string
-          example: StrongPassword#123
-        roles:
-          example:
-            - developer
-          type: array
-          items:
-            type: string
-        isActive:
-          type: boolean
-          default: true
-      required:
-        - username
-        - email
-        - password
-    UpdateUserStatusDto:
-      type: object
-      properties:
-        isActive:
-          type: boolean
-          example: false
-      required:
-        - isActive
     CreateRoleDto:
       type: object
       properties:
