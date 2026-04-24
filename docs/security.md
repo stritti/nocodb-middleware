@@ -13,6 +13,8 @@ Login, Session-Verwaltung, Token-Rotation und Browser-Speicherung von Tokens ble
 Diese Middleware stellt keine Tokens aus.
 Ein externer Identity Provider oder Auth-Service ist erforderlich.
 
+Zusatz: Die Middleware kann mit `AUTH_PROVIDER=local|external` zwischen lokalem und externem JWT-Validierungsmodus umschalten. Bei `external` gilt fail-closed: ohne `EXTERNAL_JWT_SECRET` startet die Anwendung nicht.
+
 ### 2. Token-Speicherung im Frontend
 
 Für diese Middleware ist die Frage nicht nur, **ob** ein Token sicher gespeichert wird, sondern auch **wie** es zur Middleware gelangt.
@@ -65,9 +67,17 @@ Geeignet für öffentliche produktive Systeme.
 
 - [ ] Swagger- und Admin-Endpunkte bewusst freigegeben oder geschützt (`/api/docs`, `/api/admin/*`)
 - [ ] RBAC-Rollen und Tabellenrechte geprüft
+- [ ] Claim-Schema (`sub`, `roles`, `scope`) mit IdP abgestimmt
 - [ ] Rate Limits an erwartete Last angepasst
 - [ ] Logging aktiviert
 - [ ] `/api/health` in Monitoring eingebunden
+
+### IdP-Wechsel
+
+- [ ] `AUTH_PROVIDER` nur kontrolliert per Deployment ändern
+- [ ] vor Umschaltung Secrets für Zielprovider validieren
+- [ ] nach Umschaltung Auth- und Berechtigungs-Regressionstests ausführen
+- [ ] Rollback-Weg dokumentieren (`AUTH_PROVIDER` zurücksetzen + Neustart)
 
 ### Betrieb
 

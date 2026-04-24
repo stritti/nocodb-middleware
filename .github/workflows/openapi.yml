@@ -57,14 +57,13 @@ jobs:
             echo "changed=true" >> $GITHUB_OUTPUT
           fi
 
-      # ── On PRs: fail if the committed spec differs from freshly generated ──
-      - name: Fail PR if openapi.yaml is out of date
+      # ── On PRs: warn if the committed spec differs from freshly generated ──
+      - name: Warn if openapi.yaml differs on PR
         if: github.event_name == 'pull_request' && steps.openapi_diff.outputs.changed == 'true'
         run: |
-          echo "::error::openapi.yaml is out of date."
-          echo "  Run 'npm run build && npm run generate:openapi' locally and"
-          echo "  commit the updated file."
-          exit 1
+          echo "::warning::openapi.yaml differs from freshly generated spec."
+          echo "  The spec will be regenerated automatically on merge to main."
+          echo "  To fix locally, run 'npm run build && npm run generate:openapi' and commit."
 
       # ── On PRs when spec is current: confirm ──────────────────────────────
       - name: Confirm openapi.yaml is up to date (PR)

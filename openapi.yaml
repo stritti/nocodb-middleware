@@ -312,7 +312,7 @@ info:
   description: >-
     REST API for the NocoDB Middleware – provides JWT-secured access to NocoDB with role-based permissions, caching,
     rate limiting, and distributed tracing.
-  version: 0.0.1
+  version: '1.0'
   contact: {}
 tags: []
 servers:
