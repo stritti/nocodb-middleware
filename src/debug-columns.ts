@@ -7,8 +7,6 @@ interface NocoTableRef {
   id: string;
 }
 
-
-
 function asTableRef(value: unknown): NocoTableRef | null {
   if (!value || typeof value !== 'object') {
     return null;

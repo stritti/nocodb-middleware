@@ -261,12 +261,12 @@ export class DatabaseInitializationService implements OnModuleInit {
       });
 
       if (rolesResult.list.length === 0) {
-         await this.nocoDBService.create(rolesTable.id, {
-           role_name: 'admin',
-           description: 'System Administrator',
-           is_system_role: true,
-         });
-       }
+        await this.nocoDBService.create(rolesTable.id, {
+          role_name: 'admin',
+          description: 'System Administrator',
+          is_system_role: true,
+        });
+      }
 
       this.logger.log('Default permissions seeded (admin role ensured)');
     } catch (error) {

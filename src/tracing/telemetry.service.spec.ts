@@ -82,7 +82,6 @@ describe('TelemetryService', () => {
       // Reject with a plain string (not an Error) to exercise the wrapping branch
       const nonErrorRejection = 'plain string rejection';
       await expect(
-         
         service.withSpan('test.op', () => Promise.reject(nonErrorRejection)),
       ).rejects.toBe(nonErrorRejection);
 

@@ -3,8 +3,6 @@ import { AppModule } from './app.module';
 import { NocoDBService } from './nocodb/nocodb.service';
 import { Logger } from '@nestjs/common';
 
-
-
 async function bootstrap() {
   const app = await NestFactory.createApplicationContext(AppModule);
   const nocoDBService = app.get(NocoDBService);

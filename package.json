@@ -131,10 +131,5 @@
       "json-summary"
     ],
     "testEnvironment": "node"
-  },
-  "overrides": {
-    "lodash": "^4.17.21",
-    "protobufjs": "^7.4.0",
-    "uuid": "^11.0.0"
   }
 }

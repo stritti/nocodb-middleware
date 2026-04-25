@@ -48,7 +48,7 @@ export class RolesService {
   /**
    * Find role by name
    */
-   async findRoleByName(roleName: string): Promise<any> {
+  async findRoleByName(roleName: string): Promise<any> {
     if (!/^[a-zA-Z0-9_-]+(?: [a-zA-Z0-9_-]+)*$/.test(roleName)) {
       throw new BadRequestException(
         'Role name contains invalid characters. Only alphanumeric characters, spaces, underscores, and hyphens are allowed.',
