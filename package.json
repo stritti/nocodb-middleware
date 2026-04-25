@@ -135,6 +135,6 @@
   "overrides": {
     "lodash": "^4.17.21",
     "protobufjs": "^7.4.0",
-    "uuid": "^9.0.1"
+    "uuid": "^11.0.0"
   }
 }
