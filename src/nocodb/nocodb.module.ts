@@ -1,9 +1,4 @@
-import {
-  Module,
-  Global,
-  MiddlewareConsumer,
-  NestModule,
-} from '@nestjs/common';
+import { Module, Global, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { NocoDBService } from './nocodb.service';
 import { DatabaseInitializationService } from './database-initialization.service';

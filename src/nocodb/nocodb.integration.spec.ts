@@ -8,7 +8,6 @@ import { Logger } from '@nestjs/common';
 
 describe('NocoDB Integration', () => {
   let nocodbService: NocoDBService;
-  let dbInitService: DatabaseInitializationService;
   let mockHttpClient: any;
 
   beforeEach(async () => {

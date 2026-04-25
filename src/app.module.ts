@@ -17,10 +17,15 @@ import { TelemetryModule } from './tracing/telemetry.module';
     // Structured JSON logging via Pino; pretty-print in dev, JSON in production
     LoggerModule.forRoot({
       pinoHttp: {
-        level: process.env.LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'info' : 'debug'),
+        level:
+          process.env.LOG_LEVEL ||
+          (process.env.NODE_ENV === 'production' ? 'info' : 'debug'),
         transport:
           process.env.NODE_ENV !== 'production'
-            ? { target: 'pino-pretty', options: { colorize: true, singleLine: true } }
+            ? {
+                target: 'pino-pretty',
+                options: { colorize: true, singleLine: true },
+              }
             : undefined,
         redact: ['req.headers.authorization', 'req.headers.cookie'],
         autoLogging: {

@@ -107,7 +107,10 @@ export class BootstrapAdminService {
       };
     }
 
-    const passwordHash = crypto.createHash('sha256').update(dto.password).digest('hex');
+    const passwordHash = crypto
+      .createHash('sha256')
+      .update(dto.password)
+      .digest('hex');
 
     const createdUser = this.asUserRecord(
       await this.nocoDBService.create(usersTable.id, {
@@ -198,9 +201,7 @@ export class BootstrapAdminService {
     return value as NocoRoleRecord;
   }
 
-  private extractNumericId(record: {
-    id?: number | string;
-  }): number {
+  private extractNumericId(record: { id?: number | string }): number {
     const rawId = record.id;
 
     if (typeof rawId === 'number') {

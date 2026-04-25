@@ -82,7 +82,7 @@ describe('TelemetryService', () => {
       // Reject with a plain string (not an Error) to exercise the wrapping branch
       const nonErrorRejection = 'plain string rejection';
       await expect(
-        // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
+         
         service.withSpan('test.op', () => Promise.reject(nonErrorRejection)),
       ).rejects.toBe(nonErrorRejection);
 

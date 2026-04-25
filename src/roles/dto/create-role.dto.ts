@@ -12,13 +12,14 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 export class CreateRoleDto {
   @ApiProperty({
     example: 'content-editor',
-    description: 'Unique role name (3–50 chars, alphanumeric/spaces/underscores/hyphens)',
+    description:
+      'Unique role name (3–50 chars, alphanumeric/spaces/underscores/hyphens)',
   })
   @IsString()
   @IsNotEmpty({ message: 'Role name cannot be empty' })
   @MinLength(3, { message: 'Role name must be at least 3 characters' })
   @MaxLength(50, { message: 'Role name cannot exceed 50 characters' })
-  @Matches(/^[a-zA-Z0-9_\-]+(?: [a-zA-Z0-9_\-]+)*$/, {
+  @Matches(/^[a-zA-Z0-9_-]+(?: [a-zA-Z0-9_-]+)*$/, {
     message:
       'Role name may only contain alphanumeric characters, spaces, underscores, and hyphens',
   })
