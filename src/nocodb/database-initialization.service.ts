@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NocoDBService } from './nocodb.service';
-import * as crypto from 'crypto';
+import { hashPassword } from '../auth/password-hasher.util';
 
 interface ColumnDefinition {
   name: string;
@@ -298,10 +298,7 @@ export class DatabaseInitializationService implements OnModuleInit {
         this.logger.log(
           `Creating bootstrap admin user "${bootstrapAdminUsername}"...`,
         );
-        const passwordHash = crypto
-          .createHash('sha256')
-          .update('password123')
-          .digest('hex');
+        const passwordHash = hashPassword('password123');
         const createdUser = await this.nocoDBService.create(usersTable.id, {
           username: bootstrapAdminUsername,
           email: `${bootstrapAdminUsername}@example.com`,

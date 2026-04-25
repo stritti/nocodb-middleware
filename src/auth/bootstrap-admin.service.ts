@@ -9,6 +9,7 @@ import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
 import { NocoDBService } from '../nocodb/nocodb.service';
 import { BootstrapAdminDto } from './dto/bootstrap-admin.dto';
+import { hashPassword } from './password-hasher.util';
 
 interface NocoTableRef {
   id: string;
@@ -107,10 +108,7 @@ export class BootstrapAdminService {
       };
     }
 
-    const passwordHash = crypto
-      .createHash('sha256')
-      .update(dto.password)
-      .digest('hex');
+    const passwordHash = hashPassword(dto.password);
 
     const createdUser = this.asUserRecord(
       await this.nocoDBService.create(usersTable.id, {
