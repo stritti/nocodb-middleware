@@ -528,7 +528,9 @@ export class NocoDBService implements OnModuleInit {
         results.push(await this.create(tableId, record));
       } catch (error) {
         this.logger.error('Error in batch create for record:', error);
-        results.push({ error: error instanceof Error ? error.message : String(error) });
+        results.push({
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
     return results;
@@ -547,7 +549,10 @@ export class NocoDBService implements OnModuleInit {
         results.push(await this.update(tableId, upd.id, upd.data));
       } catch (error) {
         this.logger.error(`Error in batch update for record ${upd.id}:`, error);
-        results.push({ id: upd.id, error: error instanceof Error ? error.message : String(error) });
+        results.push({
+          id: upd.id,
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
     return results;

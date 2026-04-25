@@ -11,9 +11,7 @@
           }
         },
         "summary": "API Information",
-        "tags": [
-          "info"
-        ]
+        "tags": ["info"]
       }
     },
     "/meta/tables": {
@@ -25,9 +23,7 @@
             "description": ""
           }
         },
-        "tags": [
-          "TableCatalog"
-        ]
+        "tags": ["TableCatalog"]
       }
     },
     "/bootstrap/admin": {
@@ -58,9 +54,7 @@
             "description": ""
           }
         },
-        "tags": [
-          "BootstrapAdmin"
-        ]
+        "tags": ["BootstrapAdmin"]
       }
     },
     "/health": {
@@ -73,9 +67,7 @@
           }
         },
         "summary": "Health check endpoint",
-        "tags": [
-          "health"
-        ]
+        "tags": ["health"]
       }
     },
     "/admin/permissions/roles": {
@@ -112,9 +104,7 @@
           }
         ],
         "summary": "Create a new role",
-        "tags": [
-          "admin / permissions"
-        ]
+        "tags": ["admin / permissions"]
       },
       "get": {
         "operationId": "PermissionsManagementController_getAllRoles",
@@ -136,9 +126,7 @@
           }
         ],
         "summary": "List all roles",
-        "tags": [
-          "admin / permissions"
-        ]
+        "tags": ["admin / permissions"]
       }
     },
     "/admin/permissions/roles/{roleId}": {
@@ -175,9 +163,7 @@
           }
         ],
         "summary": "Delete a role by ID",
-        "tags": [
-          "admin / permissions"
-        ]
+        "tags": ["admin / permissions"]
       }
     },
     "/admin/permissions/table-permissions": {
@@ -214,9 +200,7 @@
           }
         ],
         "summary": "Set permissions for a role on a specific table",
-        "tags": [
-          "admin / permissions"
-        ]
+        "tags": ["admin / permissions"]
       }
     },
     "/admin/permissions/table-permissions/batch": {
@@ -253,9 +237,7 @@
           }
         ],
         "summary": "Batch-set permissions for a role across multiple tables",
-        "tags": [
-          "admin / permissions"
-        ]
+        "tags": ["admin / permissions"]
       }
     },
     "/admin/permissions/roles/{roleId}/permissions": {
@@ -289,9 +271,7 @@
           }
         ],
         "summary": "Get all table permissions for a role",
-        "tags": [
-          "admin / permissions"
-        ]
+        "tags": ["admin / permissions"]
       },
       "delete": {
         "operationId": "PermissionsManagementController_deleteRolePermissions",
@@ -323,9 +303,7 @@
           }
         ],
         "summary": "Delete all table permissions for a role",
-        "tags": [
-          "admin / permissions"
-        ]
+        "tags": ["admin / permissions"]
       }
     },
     "/admin/permissions/roles/{sourceRoleId}/copy-to/{targetRoleId}": {
@@ -368,9 +346,7 @@
           }
         ],
         "summary": "Copy all permissions from one role to another",
-        "tags": [
-          "admin / permissions"
-        ]
+        "tags": ["admin / permissions"]
       }
     },
     "/admin/permissions/user-roles/assign": {
@@ -407,9 +383,7 @@
           }
         ],
         "summary": "Assign a role to a user",
-        "tags": [
-          "admin / permissions"
-        ]
+        "tags": ["admin / permissions"]
       }
     },
     "/admin/permissions/user-roles/assign-multiple": {
@@ -446,9 +420,7 @@
           }
         ],
         "summary": "Assign multiple roles to a user",
-        "tags": [
-          "admin / permissions"
-        ]
+        "tags": ["admin / permissions"]
       }
     },
     "/admin/permissions/user-roles/users/{userId}/roles/{roleId}": {
@@ -491,9 +463,7 @@
           }
         ],
         "summary": "Remove a role from a user",
-        "tags": [
-          "admin / permissions"
-        ]
+        "tags": ["admin / permissions"]
       }
     },
     "/admin/permissions/users/{userId}/roles": {
@@ -527,9 +497,7 @@
           }
         ],
         "summary": "Get all roles assigned to a user",
-        "tags": [
-          "admin / permissions"
-        ]
+        "tags": ["admin / permissions"]
       }
     }
   },
@@ -579,9 +547,7 @@
             "description": "Mark as a built-in system role that cannot be deleted"
           }
         },
-        "required": [
-          "roleName"
-        ]
+        "required": ["roleName"]
       },
       "SetTablePermissionsDto": {
         "type": "object",
@@ -679,10 +645,7 @@
             }
           }
         },
-        "required": [
-          "roleId",
-          "permissions"
-        ]
+        "required": ["roleId", "permissions"]
       },
       "AssignRoleDto": {
         "type": "object",
@@ -698,10 +661,7 @@
             "description": "Numeric role ID"
           }
         },
-        "required": [
-          "userId",
-          "roleId"
-        ]
+        "required": ["userId", "roleId"]
       },
       "AssignMultipleRolesDto": {
         "type": "object",
@@ -712,11 +672,7 @@
             "description": "Numeric user ID"
           },
           "roleIds": {
-            "example": [
-              1,
-              2,
-              3
-            ],
+            "example": [1, 2, 3],
             "description": "Array of numeric role IDs to assign",
             "type": "array",
             "items": {
@@ -724,10 +680,7 @@
             }
           }
         },
-        "required": [
-          "userId",
-          "roleIds"
-        ]
+        "required": ["userId", "roleIds"]
       }
     }
   }

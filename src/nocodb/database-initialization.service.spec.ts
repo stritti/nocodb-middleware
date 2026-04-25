@@ -116,7 +116,9 @@ describe('DatabaseInitializationService', () => {
         return Promise.resolve({ data: {} });
       });
 
-      await expect((service as any).verifyLinkColumnsExist()).resolves.not.toThrow();
+      await expect(
+        (service as any).verifyLinkColumnsExist(),
+      ).resolves.not.toThrow();
     });
 
     it('should pass if all link columns exist', async () => {

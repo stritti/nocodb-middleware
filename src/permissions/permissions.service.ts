@@ -17,9 +17,9 @@ export class PermissionsService {
   async getAllWorkspaceTables(): Promise<string[]> {
     try {
       const baseId = this.nocoDBService.getBaseId();
-      const response = await this.nocoDBService.getHttpClient().get(
-        `/api/v3/meta/bases/${baseId}/tables`,
-      );
+      const response = await this.nocoDBService
+        .getHttpClient()
+        .get(`/api/v3/meta/bases/${baseId}/tables`);
 
       const tables = response.data.list || [];
       const prefix = this.nocoDBService.getTablePrefix();

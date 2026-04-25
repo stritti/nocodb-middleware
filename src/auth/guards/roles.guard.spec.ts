@@ -19,7 +19,7 @@ describe('RolesGuard', () => {
   let reflector: Reflector;
 
   beforeEach(() => {
-    reflector = { 
+    reflector = {
       get: jest.fn(),
       getAllAndOverride: jest.fn(),
     } as unknown as Reflector;

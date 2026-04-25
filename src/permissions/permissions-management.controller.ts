@@ -54,7 +54,10 @@ export class PermissionsManagementController {
   @ApiResponse({ status: 201, description: 'Role created successfully' })
   @ApiResponse({ status: 400, description: 'Validation error' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden – insufficient permissions' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden – insufficient permissions',
+  })
   async createRole(@Body() createRoleDto: CreateRoleDto) {
     return this.rolesService.createRole(createRoleDto);
   }
@@ -64,7 +67,10 @@ export class PermissionsManagementController {
   @ApiOperation({ summary: 'List all roles' })
   @ApiResponse({ status: 200, description: 'List of roles' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden – insufficient permissions' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden – insufficient permissions',
+  })
   async getAllRoles() {
     return this.rolesService.getAllRoles();
   }
@@ -76,7 +82,10 @@ export class PermissionsManagementController {
   @ApiParam({ name: 'roleId', description: 'Numeric role ID', type: Number })
   @ApiResponse({ status: 204, description: 'Role deleted' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden – insufficient permissions' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden – insufficient permissions',
+  })
   @ApiResponse({ status: 404, description: 'Role not found' })
   async deleteRole(@Param('roleId', ParseIntPipe) roleId: number) {
     await this.rolesService.deleteRole(roleId);
@@ -90,18 +99,26 @@ export class PermissionsManagementController {
   @ApiResponse({ status: 201, description: 'Permissions set' })
   @ApiResponse({ status: 400, description: 'Validation error' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden – insufficient permissions' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden – insufficient permissions',
+  })
   async setTablePermissions(@Body() dto: SetTablePermissionsDto) {
     return this.permissionsManagement.setTablePermissions(dto);
   }
 
   @Post('table-permissions/batch')
   @RequireCreate('table_permissions')
-  @ApiOperation({ summary: 'Batch-set permissions for a role across multiple tables' })
+  @ApiOperation({
+    summary: 'Batch-set permissions for a role across multiple tables',
+  })
   @ApiResponse({ status: 201, description: 'Batch permissions set' })
   @ApiResponse({ status: 400, description: 'Validation error' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden – insufficient permissions' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden – insufficient permissions',
+  })
   async batchSetPermissions(@Body() dto: BatchSetPermissionsDto) {
     return this.permissionsManagement.batchSetPermissions(dto);
   }
@@ -112,7 +129,10 @@ export class PermissionsManagementController {
   @ApiParam({ name: 'roleId', description: 'Numeric role ID', type: Number })
   @ApiResponse({ status: 200, description: 'Role permissions' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden – insufficient permissions' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden – insufficient permissions',
+  })
   async getRolePermissions(@Param('roleId', ParseIntPipe) roleId: number) {
     return this.permissionsManagement.getRolePermissions(roleId);
   }
@@ -124,7 +144,10 @@ export class PermissionsManagementController {
   @ApiParam({ name: 'roleId', description: 'Numeric role ID', type: Number })
   @ApiResponse({ status: 204, description: 'Permissions deleted' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden – insufficient permissions' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden – insufficient permissions',
+  })
   async deleteRolePermissions(@Param('roleId', ParseIntPipe) roleId: number) {
     await this.permissionsManagement.deleteRolePermissions(roleId);
   }
@@ -132,11 +155,22 @@ export class PermissionsManagementController {
   @Post('roles/:sourceRoleId/copy-to/:targetRoleId')
   @RequireCreate('table_permissions')
   @ApiOperation({ summary: 'Copy all permissions from one role to another' })
-  @ApiParam({ name: 'sourceRoleId', description: 'Source role ID', type: Number })
-  @ApiParam({ name: 'targetRoleId', description: 'Target role ID', type: Number })
+  @ApiParam({
+    name: 'sourceRoleId',
+    description: 'Source role ID',
+    type: Number,
+  })
+  @ApiParam({
+    name: 'targetRoleId',
+    description: 'Target role ID',
+    type: Number,
+  })
   @ApiResponse({ status: 201, description: 'Permissions copied' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden – insufficient permissions' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden – insufficient permissions',
+  })
   async copyPermissions(
     @Param('sourceRoleId', ParseIntPipe) sourceRoleId: number,
     @Param('targetRoleId', ParseIntPipe) targetRoleId: number,
@@ -155,7 +189,10 @@ export class PermissionsManagementController {
   @ApiResponse({ status: 201, description: 'Role assigned' })
   @ApiResponse({ status: 400, description: 'Validation error' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden – insufficient permissions' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden – insufficient permissions',
+  })
   async assignRole(@Body() dto: AssignRoleDto) {
     return this.userRolesService.assignRole(dto);
   }
@@ -166,7 +203,10 @@ export class PermissionsManagementController {
   @ApiResponse({ status: 201, description: 'Roles assigned' })
   @ApiResponse({ status: 400, description: 'Validation error' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden – insufficient permissions' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden – insufficient permissions',
+  })
   async assignMultipleRoles(@Body() dto: AssignMultipleRolesDto) {
     return this.userRolesService.assignMultipleRoles(dto);
   }
@@ -179,7 +219,10 @@ export class PermissionsManagementController {
   @ApiParam({ name: 'roleId', description: 'Numeric role ID', type: Number })
   @ApiResponse({ status: 204, description: 'Role removed' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden – insufficient permissions' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden – insufficient permissions',
+  })
   async removeRole(
     @Param('userId', ParseIntPipe) userId: number,
     @Param('roleId', ParseIntPipe) roleId: number,
@@ -193,7 +236,10 @@ export class PermissionsManagementController {
   @ApiParam({ name: 'userId', description: 'Numeric user ID', type: Number })
   @ApiResponse({ status: 200, description: 'User roles' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden – insufficient permissions' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden – insufficient permissions',
+  })
   async getUserRoles(@Param('userId', ParseIntPipe) userId: number) {
     return this.userRolesService.getUserRoles(userId);
   }
