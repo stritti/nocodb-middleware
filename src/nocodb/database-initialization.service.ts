@@ -43,6 +43,12 @@ export class DatabaseInitializationService implements OnModuleInit {
         { name: 'email', title: 'Email', type: 'Email' },
         { name: 'password_hash', title: 'Password Hash', type: 'LongText' },
         { name: 'is_active', title: 'Is Active', type: 'Checkbox' },
+        { name: 'auth_provider', title: 'Auth Provider', type: 'SingleLineText' },
+        {
+          name: 'external_subject',
+          title: 'External Subject',
+          type: 'SingleLineText',
+        },
       ],
     });
 

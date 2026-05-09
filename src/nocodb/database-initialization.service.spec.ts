@@ -56,6 +56,24 @@ describe('DatabaseInitializationService', () => {
     expect(service).toBeDefined();
   });
 
+  it('should initialize identity columns on users table', async () => {
+    (nocoDBService.getTableByName as jest.Mock).mockResolvedValue(null);
+    (nocoDBService.createTable as jest.Mock).mockResolvedValue({
+      id: 'created-table-id',
+    });
+
+    await (service as any).initializeTables();
+
+    expect(nocoDBService.createTable).toHaveBeenCalledWith(
+      'users',
+      'Users',
+      expect.arrayContaining([
+        expect.objectContaining({ column_name: 'auth_provider' }),
+        expect.objectContaining({ column_name: 'external_subject' }),
+      ]),
+    );
+  });
+
   describe('ensureTableExists', () => {
     it('should create table if it does not exist', async () => {
       (nocoDBService.getTableByName as jest.Mock).mockResolvedValue(null);
