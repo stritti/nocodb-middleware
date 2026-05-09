@@ -8,9 +8,19 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { BootstrapAdminService } from './bootstrap-admin.service';
 import { BootstrapAdminController } from './bootstrap-admin.controller';
+import { UserProvisioningController } from './user-provisioning.controller';
+import { UserProvisioningService } from './user-provisioning.service';
+import { AuthProviderConfigService } from './auth-provider-config.service';
+import { IdentityClaimsNormalizerService } from './identity/identity-claims-normalizer.service';
+import { LocalNocodbIdentityProviderService } from './identity/local-nocodb-identity-provider.service';
+import { ExternalJwtIdentityProviderService } from './identity/external-jwt-identity-provider.service';
+import { IDENTITY_PROVIDER } from './identity/identity-provider.constants';
+import { NocoDBModule } from '../nocodb/nocodb.module';
 
 @Module({
   imports: [
+    ConfigModule,
+    NocoDBModule,
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -24,8 +34,34 @@ import { BootstrapAdminController } from './bootstrap-admin.controller';
       inject: [ConfigService],
     }),
   ],
-  controllers: [BootstrapAdminController],
-  providers: [JwtStrategy, JwtAuthGuard, RolesGuard, BootstrapAdminService],
-  exports: [JwtAuthGuard, RolesGuard, JwtModule],
+  controllers: [BootstrapAdminController, UserProvisioningController],
+  providers: [
+    JwtStrategy,
+    JwtAuthGuard,
+    RolesGuard,
+    BootstrapAdminService,
+    UserProvisioningService,
+    AuthProviderConfigService,
+    IdentityClaimsNormalizerService,
+    LocalNocodbIdentityProviderService,
+    ExternalJwtIdentityProviderService,
+    {
+      provide: IDENTITY_PROVIDER,
+      useFactory: (
+        authProviderConfig: AuthProviderConfigService,
+        localProvider: LocalNocodbIdentityProviderService,
+        externalProvider: ExternalJwtIdentityProviderService,
+      ) =>
+        authProviderConfig.getProvider() === 'external'
+          ? externalProvider
+          : localProvider,
+      inject: [
+        AuthProviderConfigService,
+        LocalNocodbIdentityProviderService,
+        ExternalJwtIdentityProviderService,
+      ],
+    },
+  ],
+  exports: [JwtAuthGuard, RolesGuard, JwtModule, UserProvisioningService],
 })
 export class AuthModule {}

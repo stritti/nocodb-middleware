@@ -1,6 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { DatabaseInitializationService } from './database-initialization.service';
 import { NocoDBService } from './nocodb.service';
 
@@ -24,22 +23,16 @@ describe('DatabaseInitializationService', () => {
           useValue: {
             getTablePrefix: jest.fn().mockReturnValue(''),
             getTableByName: jest.fn(),
+            getTableMetadata: jest.fn(),
+            listBaseTables: jest.fn(),
             createTable: jest.fn(),
             createColumn: jest.fn(),
             getHttpClient: jest.fn().mockReturnValue(mockHttpClient),
             list: jest.fn(),
             create: jest.fn(),
             findOne: jest.fn(),
+            update: jest.fn(),
             delete: jest.fn(),
-          },
-        },
-        {
-          provide: ConfigService,
-          useValue: {
-            get: jest.fn().mockImplementation((key) => {
-              if (key === 'nocodb.bootstrapAdminUsername') return 'admin';
-              return null;
-            }),
           },
         },
       ],
@@ -153,43 +146,31 @@ describe('DatabaseInitializationService', () => {
     });
   });
 
-  describe('seedDefaultUser', () => {
-    it('should create admin user if not exists', async () => {
-      (nocoDBService.getTableByName as jest.Mock).mockImplementation((name) => {
-        return Promise.resolve({ id: `id_${name}`, title: name });
+  describe('seedDefaultPermissions', () => {
+    it('should grant full admin permissions for protected tables', async () => {
+      (nocoDBService.getTableByName as jest.Mock).mockImplementation((name) =>
+        Promise.resolve({ id: `id_${name}`, title: name }),
+      );
+      (nocoDBService.list as jest.Mock).mockResolvedValue({
+        list: [{ id: 1, role_name: 'admin' }],
       });
+      (nocoDBService.findOne as jest.Mock).mockResolvedValue(null);
+      (nocoDBService.create as jest.Mock).mockResolvedValue({ id: 10 });
 
-      (nocoDBService.list as jest.Mock).mockResolvedValue({ list: [] });
-      (nocoDBService.create as jest.Mock).mockResolvedValue({ id: 1 });
+      await (service as any).seedDefaultPermissions();
 
-      await (service as any).seedDefaultUser();
-
+      expect(nocoDBService.create).toHaveBeenCalledTimes(4);
       expect(nocoDBService.create).toHaveBeenCalledWith(
-        'id_users',
-        expect.objectContaining({ username: 'admin' }),
+        'id_table_permissions',
+        expect.objectContaining({
+          table_name: 'roles',
+          can_create: true,
+          can_read: true,
+          can_update: true,
+          can_delete: true,
+        }),
       );
-    });
-
-    it('should skip user creation if user already exists', async () => {
-      (nocoDBService.getTableByName as jest.Mock).mockImplementation((name) => {
-        return Promise.resolve({ id: `id_${name}`, title: name });
-      });
-
-      (nocoDBService.list as jest.Mock).mockImplementation(
-        (tableId: string) => {
-          if (tableId === 'id_users') {
-            return Promise.resolve({ list: [{ id: 1, username: 'admin' }] });
-          }
-          if (tableId === 'id_roles') {
-            return Promise.resolve({ list: [{ id: 1, role_name: 'admin' }] });
-          }
-          return Promise.resolve({ list: [{ id: 1 }] });
-        },
-      );
-
-      await (service as any).seedDefaultUser();
-
-      expect(nocoDBService.create).not.toHaveBeenCalled();
     });
   });
+
 });

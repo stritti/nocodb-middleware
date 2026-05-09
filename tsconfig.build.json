@@ -1,5 +1,20 @@
 {
   "extends": "./tsconfig.json",
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "test", "dist", "**/*spec.ts", "docs", "scripts"]
+  "exclude": [
+    "node_modules",
+    "test",
+    "dist",
+    "**/*spec.ts",
+    "docs",
+    "scripts",
+    "src/delete-tables.ts",
+    "src/debug-columns.ts",
+    "src/test-phase*.ts",
+    "src/**/debug-*.ts",
+    "src/**/delete-*.ts",
+    "src/**/inspect-*.ts",
+    "src/**/investigate-*.ts",
+    "src/**/test-*.ts"
+  ]
 }
