@@ -6,6 +6,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { NocoDBService } from '../nocodb/nocodb.service';
+import { filterEq } from '../nocodb/nocodb-filter.util';
 import { CreateRoleDto } from './dto/create-role.dto';
 
 @Injectable()
@@ -62,7 +63,7 @@ export class RolesService {
 
       return await this.nocoDBService.findOne(
         rolesTable.id,
-        `(role_name,eq,${roleName})`,
+        filterEq('role_name', roleName),
       );
     } catch (error) {
       this.logger.error('Error finding role:', error);

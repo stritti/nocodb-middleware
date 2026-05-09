@@ -71,23 +71,26 @@ async function bootstrap() {
   // Global Prefix
   app.setGlobalPrefix('api');
 
-  // Swagger setup
-  const config = new DocumentBuilder()
-    .setTitle('NocoDB Middleware API')
-    .setDescription(
-      'REST API for the NocoDB Middleware – provides JWT-secured access to NocoDB ' +
-        'with role-based permissions, caching, rate limiting, and distributed tracing.',
-    )
-    .setVersion(process.env.npm_package_version ?? '1.0')
-    .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' })
-    .addTag('Authentication')
-    .addTag('Permissions')
-    .addTag('Roles')
-    .addTag('Users')
-    .build();
+  const swaggerEnabled = process.env.NODE_ENV !== 'production';
 
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document);
+  if (swaggerEnabled) {
+    const config = new DocumentBuilder()
+      .setTitle('NocoDB Middleware API')
+      .setDescription(
+        'REST API for the NocoDB Middleware – provides JWT-secured access to NocoDB ' +
+          'with role-based permissions, caching, rate limiting, and distributed tracing.',
+      )
+      .setVersion(process.env.npm_package_version ?? '1.0')
+      .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' })
+      .addTag('Authentication')
+      .addTag('Permissions')
+      .addTag('Roles')
+      .addTag('Users')
+      .build();
+
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('api/docs', app, document);
+  }
 
   // Enable graceful shutdown
   app.enableShutdownHooks();
@@ -97,6 +100,8 @@ async function bootstrap() {
 
   const logger = new NestLogger('Bootstrap');
   logger.log(`Application is running on: http://localhost:${port}/api`);
-  logger.log(`Swagger docs available at: http://localhost:${port}/api/docs`);
+  if (swaggerEnabled) {
+    logger.log(`Swagger docs available at: http://localhost:${port}/api/docs`);
+  }
 }
 void bootstrap();

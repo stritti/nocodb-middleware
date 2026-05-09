@@ -27,6 +27,7 @@ describe('PermissionsService', () => {
             getHttpClient: jest.fn().mockReturnValue(mockHttpClient),
             getBaseId: jest.fn().mockReturnValue('test-base-id'),
             getTablePrefix: jest.fn().mockReturnValue(''),
+            listBaseTables: jest.fn(),
             read: jest.fn(),
             list: jest.fn(),
             findOne: jest.fn(),
@@ -57,16 +58,13 @@ describe('PermissionsService', () => {
 
   describe('getAllWorkspaceTables', () => {
     it('should fetch tables using v3 meta API', async () => {
-      mockHttpClient.get.mockResolvedValue({
-        data: {
-          list: [{ table_name: 'users' }, { table_name: 'roles' }],
-        },
-      });
+      (nocoDBService.listBaseTables as jest.Mock).mockResolvedValue([
+        { table_name: 'users' },
+        { table_name: 'roles' },
+      ]);
 
       const tables = await service.getAllWorkspaceTables();
-      expect(mockHttpClient.get).toHaveBeenCalledWith(
-        '/api/v3/meta/bases/test-base-id/tables',
-      );
+      expect(nocoDBService.listBaseTables).toHaveBeenCalledWith('test-base-id');
       expect(tables).toEqual(['users', 'roles']);
     });
   });
@@ -349,15 +347,11 @@ describe('PermissionsService', () => {
   describe('getAllWorkspaceTables with prefix filter', () => {
     it('should filter tables by prefix when prefix is set', async () => {
       (nocoDBService.getTablePrefix as jest.Mock).mockReturnValue('nc_');
-      mockHttpClient.get.mockResolvedValue({
-        data: {
-          list: [
-            { table_name: 'nc_users' },
-            { table_name: 'nc_roles' },
-            { table_name: 'other_table' },
-          ],
-        },
-      });
+      (nocoDBService.listBaseTables as jest.Mock).mockResolvedValue([
+        { table_name: 'nc_users' },
+        { table_name: 'nc_roles' },
+        { table_name: 'other_table' },
+      ]);
 
       const tables = await service.getAllWorkspaceTables();
       expect(tables).toEqual(['nc_users', 'nc_roles']);

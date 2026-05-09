@@ -1,5 +1,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { NocoDBService } from '../nocodb/nocodb.service';
+import { andFilters, filterEq } from '../nocodb/nocodb-filter.util';
 import { SetTablePermissionsDto } from './dto/set-table-permissions.dto';
 import { BatchSetPermissionsDto } from './dto/batch-permissions.dto';
 import { PermissionsService } from './permissions.service';
@@ -26,7 +27,10 @@ export class PermissionsManagementService {
 
       const existing = await this.nocoDBService.findOne(
         permissionsTable.id,
-        `(role.id,eq,${dto.roleId})~and(table_name,eq,${dto.tableName})`,
+        andFilters(
+          filterEq('role.id', dto.roleId),
+          filterEq('table_name', dto.tableName),
+        ),
       );
 
       const permissionData = {
@@ -115,7 +119,7 @@ export class PermissionsManagementService {
       }
 
       const result = await this.nocoDBService.list(permissionsTable.id, {
-        where: `(role.id,eq,${sourceRoleId})`,
+        where: filterEq('role.id', sourceRoleId),
       });
 
       const sourcePermissions = result.list || [];
@@ -157,7 +161,7 @@ export class PermissionsManagementService {
       }
 
       const result = await this.nocoDBService.list(permissionsTable.id, {
-        where: `(role.id,eq,${roleId})`,
+        where: filterEq('role.id', roleId),
       });
 
       const permissions = result.list || [];
@@ -189,7 +193,7 @@ export class PermissionsManagementService {
       }
 
       const result = await this.nocoDBService.list(permissionsTable.id, {
-        where: `(role.id,eq,${roleId})`,
+        where: filterEq('role.id', roleId),
       });
 
       return result.list || [];

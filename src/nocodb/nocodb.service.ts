@@ -123,10 +123,24 @@ export class NocoDBService implements OnModuleInit {
   }
 
   /**
-   * Get the HTTP client for direct API calls
+   * Get the HTTP client for legacy direct API calls.
+   * Prefer dedicated NocoDBService methods so the privileged token stays
+   * encapsulated in this infrastructure boundary.
    */
   getHttpClient(): AxiosInstance {
     return this.httpClient;
+  }
+
+  async getTableMetadata(tableId: string): Promise<any> {
+    const response = await this.httpClient.get(`/api/v3/meta/tables/${tableId}`);
+    return response.data;
+  }
+
+  async listBaseTables(baseId = this.baseId): Promise<any[]> {
+    const response = await this.httpClient.get(
+      `/api/v3/meta/bases/${baseId}/tables`,
+    );
+    return response.data.list || [];
   }
 
   // ── Tracing helper ────────────────────────────────────────────────────────
@@ -173,10 +187,7 @@ export class NocoDBService implements OnModuleInit {
    */
   async listTables(): Promise<any[]> {
     try {
-      const response = await this.httpClient.get(
-        `/api/v3/meta/bases/${this.baseId}/tables`,
-      );
-      return response.data.list || [];
+      return this.listBaseTables();
     } catch (error) {
       this.logger.error(`Error listing tables for base ${this.baseId}:`, error);
       throw error;
