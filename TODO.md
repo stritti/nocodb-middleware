@@ -60,15 +60,15 @@ Alle Phasen 1–11 der ursprünglichen Checkliste sind implementiert:
 
 > Details: [docs/product-readiness.md – Abschnitt 8](docs/product-readiness.md#8-prioritised-action-plan)
 
-- [ ] **Retry-Logik** – `axios-retry` mit exponentiellem Back-off für transiente
+- [x] **Retry-Logik** – `axios-retry` mit exponentiellem Back-off für transiente
   NocoDB-Fehler (5xx, Netzwerk-Timeouts) hinzufügen.
   _(vgl. [product-readiness.md §3.1](docs/product-readiness.md#31-resilience))_
 
-- [ ] **E2E-Tests für Auth-Flow** – JWT-Guard-Tests und Permissions-Tests zum E2E-Test-Suite
+- [x] **E2E-Tests für Auth-Flow** – JWT-Guard-Tests und Permissions-Tests zum E2E-Test-Suite
   hinzufügen.
   _(vgl. [product-readiness.md §4.5](docs/product-readiness.md#45-e2e-tests))_
 
-- [ ] **Pagination auf Admin-Endpoints** – `PageOptionsDto` / `PageDto` auf alle
+- [x] **Pagination auf Admin-Endpoints** – `PageOptionsDto` / `PageDto` auf alle
   List-Endpoints in `PermissionsManagementController` anwenden.
   _(vgl. [product-readiness.md §3.6](docs/product-readiness.md#36-pagination--missing-on-admin-endpoints))_
 

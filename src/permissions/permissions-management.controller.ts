@@ -6,6 +6,7 @@ import {
   Body,
   Param,
   ParseIntPipe,
+  Query,
   UseGuards,
   HttpCode,
   HttpStatus,
@@ -17,6 +18,7 @@ import {
   ApiResponse,
   ApiParam,
 } from '@nestjs/swagger';
+import { PageOptionsDto } from '../nocodb/dto/page-options.dto';
 import { PermissionsManagementService } from './permissions-management.service';
 import { RolesService } from '../roles/roles.service';
 import { UserRolesService } from '../users/user-roles.service';
@@ -61,12 +63,12 @@ export class PermissionsManagementController {
 
   @Get('roles')
   @RequireRead('roles')
-  @ApiOperation({ summary: 'List all roles' })
-  @ApiResponse({ status: 200, description: 'List of roles' })
+  @ApiOperation({ summary: 'List all roles (paginated)' })
+  @ApiResponse({ status: 200, description: 'Paginated list of roles' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden – insufficient permissions' })
-  async getAllRoles() {
-    return this.rolesService.getAllRoles();
+  async getAllRoles(@Query() pageOptionsDto: PageOptionsDto) {
+    return this.rolesService.getAllRoles(pageOptionsDto);
   }
 
   @Delete('roles/:roleId')
@@ -108,13 +110,16 @@ export class PermissionsManagementController {
 
   @Get('roles/:roleId/permissions')
   @RequireRead('table_permissions')
-  @ApiOperation({ summary: 'Get all table permissions for a role' })
+  @ApiOperation({ summary: 'Get all table permissions for a role (paginated)' })
   @ApiParam({ name: 'roleId', description: 'Numeric role ID', type: Number })
-  @ApiResponse({ status: 200, description: 'Role permissions' })
+  @ApiResponse({ status: 200, description: 'Paginated role permissions' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden – insufficient permissions' })
-  async getRolePermissions(@Param('roleId', ParseIntPipe) roleId: number) {
-    return this.permissionsManagement.getRolePermissions(roleId);
+  async getRolePermissions(
+    @Param('roleId', ParseIntPipe) roleId: number,
+    @Query() pageOptionsDto: PageOptionsDto,
+  ) {
+    return this.permissionsManagement.getRolePermissions(roleId, pageOptionsDto);
   }
 
   @Delete('roles/:roleId/permissions')
@@ -189,12 +194,15 @@ export class PermissionsManagementController {
 
   @Get('users/:userId/roles')
   @RequireRead('user_roles')
-  @ApiOperation({ summary: 'Get all roles assigned to a user' })
+  @ApiOperation({ summary: 'Get all roles assigned to a user (paginated)' })
   @ApiParam({ name: 'userId', description: 'Numeric user ID', type: Number })
-  @ApiResponse({ status: 200, description: 'User roles' })
+  @ApiResponse({ status: 200, description: 'Paginated user roles' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden – insufficient permissions' })
-  async getUserRoles(@Param('userId', ParseIntPipe) userId: number) {
-    return this.userRolesService.getUserRoles(userId);
+  async getUserRoles(
+    @Param('userId', ParseIntPipe) userId: number,
+    @Query() pageOptionsDto: PageOptionsDto,
+  ) {
+    return this.userRolesService.getUserRoles(userId, pageOptionsDto);
   }
 }

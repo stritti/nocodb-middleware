@@ -186,7 +186,7 @@ describe('RolesService', () => {
   });
 
   describe('getAllRoles', () => {
-    it('should return all roles', async () => {
+    it('should return paginated roles', async () => {
       (nocoDBService.getTableByName as jest.Mock).mockResolvedValue({
         id: 'roles_table_id',
       });
@@ -195,27 +195,31 @@ describe('RolesService', () => {
           { id: 1, role_name: 'admin' },
           { id: 2, role_name: 'user' },
         ],
+        pageInfo: { totalRows: 2 },
       });
 
-      const roles = await service.getAllRoles();
-      expect(roles).toHaveLength(2);
+      const result = await service.getAllRoles();
+      expect(result.data).toHaveLength(2);
+      expect(result.meta.itemCount).toBe(2);
     });
 
-    it('should return empty array when roles table not found', async () => {
+    it('should return empty page result when roles table not found', async () => {
       (nocoDBService.getTableByName as jest.Mock).mockResolvedValue(null);
 
-      const roles = await service.getAllRoles();
-      expect(roles).toEqual([]);
+      const result = await service.getAllRoles();
+      expect(result.data).toEqual([]);
+      expect(result.meta.itemCount).toBe(0);
     });
 
-    it('should return empty array when response list is empty', async () => {
+    it('should return empty page result when response list is empty', async () => {
       (nocoDBService.getTableByName as jest.Mock).mockResolvedValue({
         id: 'roles_table_id',
       });
       (nocoDBService.list as jest.Mock).mockResolvedValue({});
 
-      const roles = await service.getAllRoles();
-      expect(roles).toEqual([]);
+      const result = await service.getAllRoles();
+      expect(result.data).toEqual([]);
+      expect(result.meta.itemCount).toBe(0);
     });
   });
 

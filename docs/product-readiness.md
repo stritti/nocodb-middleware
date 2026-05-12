@@ -30,8 +30,8 @@ The NocoDB Middleware is a well-structured NestJS application that wraps NocoDB'
 | Unit test coverage      | ✅ Ready   | 213 tests, ≥80 % coverage target                       |
 | Docker support          | ✅ Ready   | `Dockerfile` + `docker-compose.yml`                    |
 | Graceful shutdown       | ✅ Ready   | `enableShutdownHooks()`                                |
-| E2E tests               | ⚠️ Partial | Single smoke test; auth flow missing                   |
-| Retry / circuit breaker | ❌ Missing | No resilience against NocoDB outages                   |
+| E2E tests               | ✅ Ready   | Auth flow tests added (JWT guard, roles, bootstrap)    |
+| Retry / circuit breaker | ⚠️ Partial | `axios-retry` with exponential backoff added; circuit breaker pending |
 | Input sanitization      | ⚠️ Partial | `class-validator` validates shape; no XSS sanitization |
 | Audit logging           | ❌ Missing | No write-operation audit trail                         |
 | Prometheus metrics      | ❌ Missing | No `/metrics` endpoint                                 |

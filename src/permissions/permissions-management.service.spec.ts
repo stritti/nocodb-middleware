@@ -130,20 +130,22 @@ describe('PermissionsManagementService', () => {
       });
       (nocoDBService.list as jest.Mock).mockResolvedValue({
         list: [{ id: 1, table_name: 'users', can_read: true }],
+        pageInfo: { totalRows: 1 },
       });
 
-      const perms = await service.getRolePermissions(1);
-      expect(perms).toHaveLength(1);
+      const result = await service.getRolePermissions(1);
+      expect(result.data).toHaveLength(1);
       expect(nocoDBService.list).toHaveBeenCalledWith(
         'perm_table_id',
         expect.objectContaining({ where: '(role.id,eq,1)' }),
       );
     });
 
-    it('should return empty array if permissions table not found', async () => {
+    it('should return empty page result if permissions table not found', async () => {
       (nocoDBService.getTableByName as jest.Mock).mockResolvedValue(null);
-      const perms = await service.getRolePermissions(1);
-      expect(perms).toEqual([]);
+      const result = await service.getRolePermissions(1);
+      expect(result.data).toEqual([]);
+      expect(result.meta.itemCount).toBe(0);
     });
   });
 
