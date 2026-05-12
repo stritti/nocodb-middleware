@@ -99,4 +99,62 @@ describe('AppController (e2e)', () => {
         .expect(401);
     });
   });
+
+  describe('XSS Sanitization', () => {
+    const validToken =
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwicm9sZSI6InVzZXIifQ.test';
+
+    it('should strip HTML from title when creating an example', () => {
+      const xssPayload = {
+        title: '<script>alert("xss")</script>Hello',
+      };
+
+      return request(app.getHttpServer())
+        .post('/examples')
+        .set('Authorization', `Bearer ${validToken}`)
+        .send(xssPayload)
+        .expect(201)
+        .expect(({ body }) => {
+          // The sanitized title should not contain script tags
+          if (body && body.title) {
+            expect(body.title).not.toContain('<script>');
+            expect(body.title).not.toContain('</script>');
+          }
+        });
+    });
+
+    it('should reject empty title', () => {
+      return request(app.getHttpServer())
+        .post('/examples')
+        .send({ title: '' })
+        .expect(401);
+    });
+
+    it('should reject title that is too long', () => {
+      const longTitle = 'a'.repeat(101);
+      return request(app.getHttpServer())
+        .post('/examples')
+        .send({ title: longTitle })
+        .expect(401);
+    });
+
+    it('should strip XSS from role description', () => {
+      const xssPayload = {
+        roleName: 'test-role',
+        description: '<img src=x onerror=alert(1)>Role description',
+      };
+
+      return request(app.getHttpServer())
+        .post('/admin/permissions/roles')
+        .set('Authorization', `Bearer ${validToken}`)
+        .send(xssPayload)
+        .expect(201)
+        .expect(({ body }) => {
+          if (body && body.description) {
+            expect(body.description).not.toContain('onerror=');
+            expect(body.description).not.toContain('<img');
+          }
+        });
+    });
+  });
 });

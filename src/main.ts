@@ -6,6 +6,10 @@ import { ValidationPipe, Logger as NestLogger } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { Logger } from 'nestjs-pino';
+import {
+  parseAndValidateCorsOrigins,
+  logCorsWarnings,
+} from './config/cors.config';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
@@ -35,14 +39,16 @@ async function bootstrap() {
     }),
   );
 
-  // CORS Configuration
-  const corsOrigins = (process.env.CORS_ORIGINS ?? '')
-    .split(',')
-    .map((o) => o.trim())
-    .filter(Boolean);
+  // CORS Configuration with validation
+  const isProduction = process.env.NODE_ENV === 'production';
+  const corsValidation = parseAndValidateCorsOrigins(
+    process.env.CORS_ORIGINS,
+    isProduction,
+  );
+  logCorsWarnings(corsValidation, new NestLogger('Bootstrap'));
 
   app.enableCors({
-    origin: corsOrigins.length > 0 ? corsOrigins : false,
+    origin: corsValidation.origins.length > 0 ? corsValidation.origins : false,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: [
