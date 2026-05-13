@@ -130,9 +130,10 @@ describe('UserRolesService', () => {
           { id: 1, role: [{ id: 5, role_name: 'admin' }] },
           { id: 2, role: [] },
         ],
+        pageInfo: { totalRows: 1 },
       });
 
-      const roles = await service.getUserRoles(1);
+      const result = await service.getUserRoles(1);
 
       expect(nocoDBService.list).toHaveBeenCalledWith(
         'ur_table_id',
@@ -140,15 +141,17 @@ describe('UserRolesService', () => {
           where: '(user.id,eq,1)',
         }),
       );
-      expect(roles).toHaveLength(1);
-      expect(roles[0]).toEqual({ id: 5, role_name: 'admin' });
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0]).toEqual({ id: 5, role_name: 'admin' });
+      expect(result.meta.itemCount).toBe(1);
     });
 
-    it('should return empty array if no user_roles table', async () => {
+    it('should return empty page result if no user_roles table', async () => {
       (nocoDBService.getTableByName as jest.Mock).mockResolvedValue(null);
 
-      const roles = await service.getUserRoles(1);
-      expect(roles).toEqual([]);
+      const result = await service.getUserRoles(1);
+      expect(result.data).toEqual([]);
+      expect(result.meta.itemCount).toBe(0);
     });
   });
 

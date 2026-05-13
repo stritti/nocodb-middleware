@@ -1,7 +1,8 @@
 import { Injectable, OnModuleInit, Logger, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Api } from 'nocodb-sdk';
-import axios, { AxiosInstance } from 'axios';
+import axios, { AxiosInstance, AxiosError } from 'axios';
+import axiosRetry from 'axios-retry';
 import { TelemetryService } from '../tracing/telemetry.service';
 
 // ─── Data API option interfaces ─────────────────────────────────────────────
@@ -90,6 +91,55 @@ export class NocoDBService implements OnModuleInit {
         'Content-Type': 'application/json',
       },
     });
+
+    // Configure retry logic with exponential backoff for transient failures
+    const retryCount = this.configService.get<number>('NOCODB_RETRY_COUNT', 3);
+    const retryBaseDelay = this.configService.get<number>(
+      'NOCODB_RETRY_BASE_DELAY',
+      1000,
+    );
+    const retryMaxDelay = this.configService.get<number>(
+      'NOCODB_RETRY_MAX_DELAY',
+      10000,
+    );
+
+    axiosRetry(this.httpClient, {
+      retries: retryCount,
+      retryDelay: (retryCountParam: number, _error: AxiosError) => {
+        const delay = Math.min(
+          retryBaseDelay * Math.pow(2, retryCountParam - 1),
+          retryMaxDelay,
+        );
+        // Add jitter (±25%) to avoid thundering herd
+        const jitter = delay * 0.25 * (Math.random() * 2 - 1);
+        return Math.round(delay + jitter);
+      },
+      retryCondition: (error: AxiosError) => {
+        // Retry on network errors or idempotent methods (GET, HEAD, PUT, DELETE, OPTIONS)
+        // that returned any error status – these are safe to replay.
+        if (axiosRetry.isNetworkOrIdempotentRequestError(error)) {
+          return true;
+        }
+        // 429 (rate limited) is safe to retry for all methods; the server
+        // did not process the request.
+        if (error.response?.status === 429) {
+          return true;
+        }
+        // Do NOT retry non-idempotent methods on 5xx – the request may have
+        // been processed (e.g. a POST that created a record before the
+        // connection dropped).
+        return false;
+      },
+      onRetry: (retryCountParam: number, error: AxiosError) => {
+        this.logger.warn(
+          `[axios-retry] Retrying NocoDB request (attempt ${retryCountParam}) after: ${error.message}`,
+        );
+      },
+    });
+
+    this.logger.log(
+      `HTTP client retry configured: ${retryCount} attempts, base delay ${retryBaseDelay}ms`,
+    );
 
     if (this.tablePrefix) {
       this.logger.log(
