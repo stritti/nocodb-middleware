@@ -76,7 +76,17 @@ describe('PermissionsManagementController', () => {
 
   describe('getAllRoles', () => {
     it('should return paginated roles', async () => {
-      const expected = { data: [{ id: 1, role_name: 'admin' }], meta: { page: 1, take: 10, itemCount: 1, pageCount: 1, hasPreviousPage: false, hasNextPage: false } };
+      const expected = {
+        data: [{ id: 1, role_name: 'admin' }],
+        meta: {
+          page: 1,
+          take: 10,
+          itemCount: 1,
+          pageCount: 1,
+          hasPreviousPage: false,
+          hasNextPage: false,
+        },
+      };
       rolesService.getAllRoles.mockResolvedValue(expected);
 
       const result = await controller.getAllRoles({} as any);
@@ -128,11 +138,24 @@ describe('PermissionsManagementController', () => {
 
   describe('getRolePermissions', () => {
     it('should return paginated permissions for a role', async () => {
-      const expected = { data: [{ id: 1, table_name: 'users' }], meta: { page: 1, take: 10, itemCount: 1, pageCount: 1, hasPreviousPage: false, hasNextPage: false } };
+      const expected = {
+        data: [{ id: 1, table_name: 'users' }],
+        meta: {
+          page: 1,
+          take: 10,
+          itemCount: 1,
+          pageCount: 1,
+          hasPreviousPage: false,
+          hasNextPage: false,
+        },
+      };
       permissionsManagement.getRolePermissions.mockResolvedValue(expected);
 
       const result = await controller.getRolePermissions(1, {} as any);
-      expect(permissionsManagement.getRolePermissions).toHaveBeenCalledWith(1, {});
+      expect(permissionsManagement.getRolePermissions).toHaveBeenCalledWith(
+        1,
+        {},
+      );
       expect(result).toEqual(expected);
     });
   });
@@ -193,7 +216,17 @@ describe('PermissionsManagementController', () => {
 
   describe('getUserRoles', () => {
     it('should return paginated roles for a user', async () => {
-      const expected = { data: [{ id: 1, role_name: 'admin' }], meta: { page: 1, take: 10, itemCount: 1, pageCount: 1, hasPreviousPage: false, hasNextPage: false } };
+      const expected = {
+        data: [{ id: 1, role_name: 'admin' }],
+        meta: {
+          page: 1,
+          take: 10,
+          itemCount: 1,
+          pageCount: 1,
+          hasPreviousPage: false,
+          hasNextPage: false,
+        },
+      };
       userRolesService.getUserRoles.mockResolvedValue(expected);
 
       const result = await controller.getUserRoles(1, {} as any);

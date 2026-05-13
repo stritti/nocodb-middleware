@@ -620,5 +620,4 @@ export class NocoDBService implements OnModuleInit {
     }
     return results;
   }
-
 }

@@ -140,7 +140,10 @@ export class PermissionsManagementController {
     @Param('roleId', ParseIntPipe) roleId: number,
     @Query() pageOptionsDto: PageOptionsDto,
   ) {
-    return this.permissionsManagement.getRolePermissions(roleId, pageOptionsDto);
+    return this.permissionsManagement.getRolePermissions(
+      roleId,
+      pageOptionsDto,
+    );
   }
 
   @Delete('roles/:roleId/permissions')

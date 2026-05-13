@@ -120,7 +120,11 @@ describe('Auth Flow (e2e)', () => {
     it('POST /api/users returns 401 without auth', () => {
       return request(app.getHttpServer())
         .post('/api/users')
-        .send({ username: 'test', email: 'test@test.com', password: 'Test1234!' })
+        .send({
+          username: 'test',
+          email: 'test@test.com',
+          password: 'Test1234!',
+        })
         .expect(401);
     });
 
@@ -138,9 +142,7 @@ describe('Auth Flow (e2e)', () => {
     });
 
     it('GET /api/meta/tables returns 401 without auth', () => {
-      return request(app.getHttpServer())
-        .get('/api/meta/tables')
-        .expect(401);
+      return request(app.getHttpServer()).get('/api/meta/tables').expect(401);
     });
   });
 
@@ -165,7 +167,10 @@ describe('Auth Flow (e2e)', () => {
     it('returns 401 with malformed token', () => {
       return request(app.getHttpServer())
         .get('/api/examples')
-        .set('Authorization', 'Bearer invalid-token-that-is-definitely-not-valid')
+        .set(
+          'Authorization',
+          'Bearer invalid-token-that-is-definitely-not-valid',
+        )
         .expect(401);
     });
 
@@ -232,7 +237,11 @@ describe('Auth Flow (e2e)', () => {
       return request(app.getHttpServer())
         .post('/api/admin/permissions/roles')
         .set('Authorization', `Bearer ${token}`)
-        .send({ roleName: 'editor', description: 'Content editor', isSystemRole: false })
+        .send({
+          roleName: 'editor',
+          description: 'Content editor',
+          isSystemRole: false,
+        })
         .expect(201);
     });
   });
