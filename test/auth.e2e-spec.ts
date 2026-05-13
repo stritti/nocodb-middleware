@@ -137,9 +137,9 @@ describe('Auth Flow (e2e)', () => {
         .expect(401);
     });
 
-    it('GET /api/table-catalog returns 401 without auth', () => {
+    it('GET /api/meta/tables returns 401 without auth', () => {
       return request(app.getHttpServer())
-        .get('/api/table-catalog')
+        .get('/api/meta/tables')
         .expect(401);
     });
   });
@@ -219,10 +219,10 @@ describe('Auth Flow (e2e)', () => {
         .expect(200);
     });
 
-    it('GET /api/table-catalog returns 200 with valid token', () => {
-      const token = createAuthToken();
+    it('GET /api/meta/tables returns 200 with valid admin token', () => {
+      const token = createAuthToken({ roles: ['admin'] });
       return request(app.getHttpServer())
-        .get('/api/table-catalog')
+        .get('/api/meta/tables')
         .set('Authorization', `Bearer ${token}`)
         .expect(200);
     });
