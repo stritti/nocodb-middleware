@@ -84,9 +84,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       };
     }
 
-    const identity = await this.identityProvider.resolveIdentity(
-      claims,
-    );
+    const identity = await this.identityProvider.resolveIdentity(claims);
 
     if (!identity.active) {
       throw new UnauthorizedException('User is inactive');

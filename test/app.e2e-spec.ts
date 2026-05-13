@@ -112,6 +112,9 @@ describe('AppController (e2e)', () => {
   });
 
   describe('XSS Sanitization', () => {
+    const validToken =
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwicm9sZSI6InVzZXIifQ.test';
+
     it('should strip HTML from title when creating an example', () => {
       const xssPayload = {
         title: '<script>alert("xss")</script>Hello',

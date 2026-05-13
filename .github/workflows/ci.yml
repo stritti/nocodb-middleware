@@ -6,10 +6,42 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  NODE_VERSION: '22'
 
 jobs:
+  quality:
+    name: Code Quality (lint + format + build)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint check
+        run: npm run lint
+
+      - name: Format check
+        run: npm run format:check
+
+      - name: Build check
+        run: npm run build
+
   test:
     name: Test & Coverage
     runs-on: ubuntu-latest
@@ -20,10 +52,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Use Node.js
+      - name: Use Node.js ${{ env.NODE_VERSION }}
         uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
       - name: Install dependencies
@@ -31,6 +63,27 @@ jobs:
 
       - name: Run Tests with Coverage
         run: npm run test:cov
+
+      - name: Enforce Coverage Threshold
+        run: |
+          node -e "
+            const data = require('./coverage/coverage-summary.json');
+            const t = data.total;
+            const THRESHOLDS = { lines: 80, statements: 80, functions: 80, branches: 70 };
+            let failures = [];
+            for (const [key, threshold] of Object.entries(THRESHOLDS)) {
+              const actual = t[key].pct;
+              if (actual < threshold) {
+                failures.push(\`  ❌ \${key}: \${actual}% < \${threshold}%\`);
+              }
+            }
+            if (failures.length > 0) {
+              console.error('Coverage thresholds not met:');
+              failures.forEach(f => console.error(f));
+              process.exit(1);
+            }
+            console.log('✅ All coverage thresholds met');
+          "
 
       - name: Upload Coverage Report
         uses: actions/upload-artifact@v4
@@ -49,12 +102,12 @@ jobs:
             const t = data.total;
             const emoji = (pct) => pct >= 80 ? '✅' : pct >= 60 ? '⚠️' : '❌';
             const rows = [
-              '| Metric | Coverage | Covered | Total |',
-              '|--------|:--------:|--------:|------:|',
-              \`| \${emoji(t.statements.pct)} Statements | \${t.statements.pct}% | \${t.statements.covered} | \${t.statements.total} |\`,
-              \`| \${emoji(t.branches.pct)} Branches | \${t.branches.pct}% | \${t.branches.covered} | \${t.branches.total} |\`,
-              \`| \${emoji(t.functions.pct)} Functions | \${t.functions.pct}% | \${t.functions.covered} | \${t.functions.total} |\`,
-              \`| \${emoji(t.lines.pct)} Lines | \${t.lines.pct}% | \${t.lines.covered} | \${t.lines.total} |\`,
+              '| Metric | Coverage | Covered | Total | Threshold |',
+              '|--------|:--------:|--------:|------:|:---------:|',
+              \`| \${emoji(t.statements.pct)} Statements | \${t.statements.pct}% | \${t.statements.covered} | \${t.statements.total} | ≥ 80% |\`,
+              \`| \${emoji(t.branches.pct)} Branches | \${t.branches.pct}% | \${t.branches.covered} | \${t.branches.total} | ≥ 70% |\`,
+              \`| \${emoji(t.functions.pct)} Functions | \${t.functions.pct}% | \${t.functions.covered} | \${t.functions.total} | ≥ 80% |\`,
+              \`| \${emoji(t.lines.pct)} Lines | \${t.lines.pct}% | \${t.lines.covered} | \${t.lines.total} | ≥ 80% |\`,
             ];
             rows.forEach(r => console.log(r));
           " >> $GITHUB_STEP_SUMMARY
@@ -142,9 +195,6 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Create or update the badges branch via a git worktree.
-          # -B always creates or resets the local 'badges' branch so the
-          # subsequent push never ends up on a detached HEAD.
           git fetch origin badges:refs/remotes/origin/badges 2>/dev/null || true
 
           if git show-ref --verify --quiet refs/remotes/origin/badges; then
