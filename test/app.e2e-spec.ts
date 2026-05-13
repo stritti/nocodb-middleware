@@ -1,17 +1,28 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { AppModule } from './../src/app.module';
 import request from 'supertest';
 import { NocoDBService } from '../src/nocodb/nocodb.service';
 
 describe('AppController (e2e)', () => {
   let app: INestApplication;
+  let validToken: string;
 
   beforeAll(() => {
     process.env.JWT_SECRET ??= 'test-jwt-secret';
     process.env.NOCODB_API_URL ??= 'http://localhost:8080';
     process.env.NOCODB_API_TOKEN ??= 'test-nocodb-token';
     process.env.NOCODB_BASE_ID ??= 'test-base-id';
+
+    const jwtService = new JwtService({
+      secret: process.env.JWT_SECRET,
+    });
+
+    validToken = jwtService.sign({
+      sub: 1,
+      role: 'user',
+    });
   });
 
   beforeEach(async () => {
@@ -101,9 +112,6 @@ describe('AppController (e2e)', () => {
   });
 
   describe('XSS Sanitization', () => {
-    const validToken =
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwicm9sZSI6InVzZXIifQ.test';
-
     it('should strip HTML from title when creating an example', () => {
       const xssPayload = {
         title: '<script>alert("xss")</script>Hello',
