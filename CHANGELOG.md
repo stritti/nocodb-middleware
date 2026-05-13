@@ -1,3 +1,9 @@
+# [0.2.0](https://github.com/stritti/nocodb-middleware/compare/v0.1.0...v0.2.0) (2026-05-13)
+
+
+### Features
+
+* add retry logic, E2E auth tests, and pagination for admin endpoints ([#98](https://github.com/stritti/nocodb-middleware/issues/98)) ([bd0b77b](https://github.com/stritti/nocodb-middleware/commit/bd0b77ba7f16e54b5b95efd0cbc45f1c93feefeb))
 # [0.1.0](https://github.com/stritti/nocodb-middleware/compare/v0.0.2...v0.1.0) (2026-05-13)
 
 ### Features
