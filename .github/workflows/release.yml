@@ -80,6 +80,11 @@ jobs:
           cache: 'npm'
           registry-url: 'https://registry.npmjs.org'
 
+      # ── Install dependencies (needed for semver + changelog) ───────────────
+      - name: Install dependencies
+        if: steps.bump.outputs.type != 'none'
+        run: npm ci
+
       # ── Determine bump type ───────────────────────────────────────────────
       - name: Determine Bump Type
         id: bump
@@ -184,34 +189,31 @@ jobs:
           echo "✅ Pushed v${{ steps.version.outputs.new }} to main"
 
       # ── Or: Create Release PR (for protected branches) ────────────────────
-      - name: Create Release PR
+      - name: Push Release Branch and Create PR
         if: steps.bump.outputs.type != 'none' && github.event.inputs.use_release_pr == 'true'
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const newVersion = '${{ steps.version.outputs.new }}';
+        run: |
+          NEW="${{ steps.version.outputs.new }}"
+          BRANCH="release/v${NEW}"
 
-            // Push the commit + tag to a release branch
-            const branch = `release/v${newVersion}`;
-            await github.rest.git.createRef({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              ref: `refs/heads/${branch}`,
-              sha: context.sha,
-            });
+          # Push the local release commit to a new branch
+          git push origin HEAD:"refs/heads/${BRANCH}"
 
-            // Create PR from release branch to main
-            const { data: pr } = await github.rest.pulls.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: `chore(release): bump version to v${newVersion}`,
-              head: branch,
-              base: 'main',
-              body: `## Release v${newVersion}\n\nThis PR was automatically created by the Release workflow.\n\nOnce merged, the GitHub Release and npm publish will be triggered.\n\n> **Note:** After merge, run the Release workflow again to finalize.`,
-              draft: false,
-            });
-            console.log(`Release PR created: ${pr.html_url}`);
+          # Create PR via gh CLI
+          gh pr create \
+            --base main \
+            --head "${BRANCH}" \
+            --title "chore(release): bump version to v${NEW}" \
+            --body "## Release v${NEW}
+
+          This PR was automatically created by the Release workflow.
+
+          Once merged, the ${NEW} tag and GitHub Release will be finalized by the finalize job.
+
+          > **Note:** The annotated tag v${NEW} is already pushed and will be associated with the release automatically."
+
+          echo "✅ Release PR created for branch ${BRANCH}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # ── Push tag separately (for the PR path) ────────────────────────────
       - name: Push Tag

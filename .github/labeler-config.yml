@@ -1,54 +1,71 @@
 # Labels PRs by changed file paths.
-# Config format for actions/labeler@v5:
-#   label-name:  (the label to apply)
-#     - glob-pattern  (files matching → label is added)
+# Config format for actions/labeler@v5+:
+#   label-name:
+#     - changed-files:
+#       - any-glob-to-any-file: 'glob-pattern'
 
 # Core source code
 auth:
-  - src/auth/**/*
+  - changed-files:
+    - any-glob-to-any-file: 'src/auth/**/*'
 
 users:
-  - src/users/**/*
+  - changed-files:
+    - any-glob-to-any-file: 'src/users/**/*'
 
 health:
-  - src/health/**/*
+  - changed-files:
+    - any-glob-to-any-file: 'src/health/**/*'
 
 permissions:
-  - src/permissions/**/*
+  - changed-files:
+    - any-glob-to-any-file: 'src/permissions/**/*'
 
 tracing:
-  - src/tracing/**/*
+  - changed-files:
+    - any-glob-to-any-file: 'src/tracing/**/*'
 
 nocodb:
-  - src/nocodb/**/*
+  - changed-files:
+    - any-glob-to-any-file: 'src/nocodb/**/*'
 
 examples:
-  - src/examples/**/*
+  - changed-files:
+    - any-glob-to-any-file: 'src/examples/**/*'
 
 # Infrastructure
 docker:
-  - Dockerfile
-  - docker-compose.yml
-  - .dockerignore
+  - changed-files:
+    - any-glob-to-any-file:
+      - Dockerfile
+      - docker-compose.yml
+      - .dockerignore
 
 # CI/CD
 CI/CD:
-  - .github/**/*
+  - changed-files:
+    - any-glob-to-any-file: '.github/**/*'
 
 # Documentation
 documentation:
-  - docs/**/*
-  - "**/*.md"
+  - changed-files:
+    - any-glob-to-any-file:
+      - docs/**/*
+      - '**/*.md'
 
 # Configuration
 configuration:
-  - tsconfig*.json
-  - nest-cli.json
-  - .prettierrc
-  - eslint*
+  - changed-files:
+    - any-glob-to-any-file:
+      - tsconfig*.json
+      - nest-cli.json
+      - .prettierrc
+      - eslint*
 
 # Testing
 testing:
-  - test/**/*
-  - "**/*.spec.ts"
-  - "**/*.e2e-spec.ts"
+  - changed-files:
+    - any-glob-to-any-file:
+      - test/**/*
+      - '**/*.spec.ts'
+      - '**/*.e2e-spec.ts'
