@@ -8,6 +8,7 @@ import {
   Matches,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { SanitizeHtml } from '../../common/decorators/sanitize-html.decorator';
 
 export class CreateRoleDto {
   @ApiProperty({
@@ -32,6 +33,7 @@ export class CreateRoleDto {
   @IsString()
   @IsOptional()
   @MaxLength(255, { message: 'Description cannot exceed 255 characters' })
+  @SanitizeHtml()
   description?: string;
 
   @ApiPropertyOptional({

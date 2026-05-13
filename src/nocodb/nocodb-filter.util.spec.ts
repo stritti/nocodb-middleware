@@ -14,8 +14,9 @@ describe('nocodb-filter.util', () => {
   });
 
   it('should compose filters with and', () => {
-    expect(andFilters(filterEq('role.id', 1), filterEq('table_name', 'roles')))
-      .toBe('(role.id,eq,1)~and(table_name,eq,roles)');
+    expect(
+      andFilters(filterEq('role.id', 1), filterEq('table_name', 'roles')),
+    ).toBe('(role.id,eq,1)~and(table_name,eq,roles)');
   });
 
   it('should reject unsafe delimiters in values', () => {

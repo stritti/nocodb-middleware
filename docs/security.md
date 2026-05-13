@@ -92,6 +92,8 @@ Geeignet für öffentliche produktive Systeme.
 - JWT-Validierung
 - RBAC
 - Input-Validierung über DTOs
+- **XSS-Input-Sanitization** über `@SanitizeHtml()` Decorator (mittels `sanitize-html`)
+- **CORS-Validierung** mit Startup-Warnungen bei Wildcard- oder Localhost-Origins in Production
 - Rate Limiting
 - Logging
 - Health Check
@@ -101,11 +103,60 @@ Geeignet für öffentliche produktive Systeme.
 
 Aus `docs/product-readiness.md` ergeben sich vor allem diese Punkte:
 
-- fehlende Input-Sanitization für freie Texte
 - kein Audit Log für schreibende Operationen
 - keine Retry-Strategie gegenüber NocoDB-Ausfällen
 - kein Redis-Cache für mehrere Instanzen
 - keine dedizierten Metriken wie `/metrics`
+
+## XSS Input Sanitization
+
+Seit dem `xss-cors-hardening` Branch wird HTML-Sanitization über einen `@SanitizeHtml()` Decorator bereitgestellt.
+
+### Funktionsweise
+
+Der Decorator nutzt `class-transformer`'s `@Transform()` in Kombination mit `sanitize-html`, um HTML-Tags aus String-Feldern zu entfernen, bevor sie die Validierung durchlaufen.
+Standardmäßig werden **alle** HTML-Tags entfernt (nur Plain Text bleibt erhalten).
+
+### Verwendung
+
+```typescript
+import { SanitizeHtml } from '../../common/decorators/sanitize-html.decorator';
+
+class CreatePostDto {
+  @SanitizeHtml()
+  title: string;
+}
+```
+
+### Angewendete DTOs
+
+| DTO | Feld | Beschreibung |
+| --- | ---- | ------------ |
+| `CreateExampleDto` | `title` | Freitext-Titel |
+| `UpdateExampleDto` | `title` | (über PartialType von CreateExampleDto) |
+| `CreateRoleDto` | `description` | Optionale Rollenbeschreibung |
+| `ProvisionUserDto` | `username` | Benutzername |
+| `BootstrapAdminDto` | `username` | Admin-Benutzername |
+
+### Benutzerdefinierte Optionen
+
+Falls ausnahmsweise bestimmte HTML-Tags erlaubt werden sollen, können `sanitize-html`-Optionen übergeben werden:
+
+```typescript
+@SanitizeHtml({ allowedTags: ['b', 'i', 'em'] })
+description: string;
+```
+
+## CORS-Validierung
+
+Die CORS-Konfiguration wird jetzt beim Startup validiert:
+
+- **Leere `CORS_ORIGINS`**: Loggt eine Warnung, dass CORS deaktiviert ist
+- **Wildcard `*`**: Loggt eine Warnung (nie in Production verwenden)
+- **Localhost in Production**: Loggt eine Warnung
+- **Korrekte Konfiguration**: Loggt die aktivierten Origins
+
+Die Konfiguration erfolgt weiterhin über die `CORS_ORIGINS` Environment-Variable (komma-separierte Liste).
 
 ## Externe Referenzen
 

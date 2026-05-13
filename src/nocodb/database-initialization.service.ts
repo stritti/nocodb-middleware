@@ -43,7 +43,11 @@ export class DatabaseInitializationService implements OnModuleInit {
         { name: 'email', title: 'Email', type: 'Email' },
         { name: 'password_hash', title: 'Password Hash', type: 'LongText' },
         { name: 'is_active', title: 'Is Active', type: 'Checkbox' },
-        { name: 'auth_provider', title: 'Auth Provider', type: 'SingleLineText' },
+        {
+          name: 'auth_provider',
+          title: 'Auth Provider',
+          type: 'SingleLineText',
+        },
         {
           name: 'external_subject',
           title: 'External Subject',
@@ -283,7 +287,12 @@ export class DatabaseInitializationService implements OnModuleInit {
     permissionsTableId: string,
     adminRoleId: number,
   ): Promise<void> {
-    const protectedTables = ['users', 'roles', 'user_roles', 'table_permissions'];
+    const protectedTables = [
+      'users',
+      'roles',
+      'user_roles',
+      'table_permissions',
+    ];
 
     for (const tableName of protectedTables) {
       const existing = await this.nocoDBService.findOne(

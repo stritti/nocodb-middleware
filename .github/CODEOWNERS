@@ -1,0 +1,26 @@
+# Repository maintainers / code owners
+# Each line is a file pattern followed by one or more owners.
+# See: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owner for everything
+* @stritti
+
+# Core application source
+/src/auth/   @stritti
+/src/users/  @stritti
+/src/nocodb/ @stritti
+/src/health/ @stritti
+
+# Infrastructure and CI/CD
+/.github/    @stritti
+/Dockerfile  @stritti
+/docker-compose.yml @stritti
+
+# Documentation
+/docs/       @stritti
+/README.md   @stritti
+
+# Configuration
+/tsconfig*.json @stritti
+/eslint*    @stritti
+/package.json @stritti
