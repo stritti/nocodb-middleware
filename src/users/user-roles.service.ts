@@ -8,6 +8,7 @@ import { NocoDBService } from '../nocodb/nocodb.service';
 import { PageOptionsDto } from '../nocodb/dto/page-options.dto';
 import { PageMetaDto } from '../nocodb/dto/page-meta.dto';
 import { PageDto } from '../nocodb/dto/page.dto';
+import { andFilters, filterEq } from '../nocodb/nocodb-filter.util';
 import { AssignRoleDto, AssignMultipleRolesDto } from './dto/assign-role.dto';
 import { PermissionsService } from '../permissions/permissions.service';
 
@@ -33,7 +34,10 @@ export class UserRolesService {
 
       const existing = await this.nocoDBService.findOne(
         userRolesTable.id,
-        `(user.id,eq,${dto.userId})~and(role.id,eq,${dto.roleId})`,
+        andFilters(
+          filterEq('user.id', dto.userId),
+          filterEq('role.id', dto.roleId),
+        ),
       );
 
       if (existing) {
@@ -105,7 +109,7 @@ export class UserRolesService {
 
       const assignment = await this.nocoDBService.findOne(
         userRolesTable.id,
-        `(user.id,eq,${userId})~and(role.id,eq,${roleId})`,
+        andFilters(filterEq('user.id', userId), filterEq('role.id', roleId)),
       );
 
       if (!assignment) {
@@ -150,7 +154,7 @@ export class UserRolesService {
       const offset = pageOptionsDto?.skip ?? 0;
 
       const response = await this.nocoDBService.list(userRolesTable.id, {
-        where: `(user.id,eq,${userId})`,
+        where: filterEq('user.id', userId),
         includeRelations: ['role'],
         limit,
         offset,

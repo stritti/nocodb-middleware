@@ -42,17 +42,17 @@ Alle Phasen 1–11 der ursprünglichen Checkliste sind implementiert:
 > Details: [docs/product-readiness.md – Abschnitt 8](docs/product-readiness.md#8-prioritised-action-plan)
 
 - [x] **Datenbankschema dokumentieren** – `docs/database-schema.md` mit allen benötigten
-  NocoDB-Tabellen (`users`, `user_roles`, `roles`, `table_permissions`), Spalten und
-  Beziehungen erstellen.
-  _(vgl. [product-readiness.md §3.7](docs/product-readiness.md#37-nocodb-table-setup--bootstrap-documentation))_
+      NocoDB-Tabellen (`users`, `user_roles`, `roles`, `table_permissions`), Spalten und
+      Beziehungen erstellen.
+      _(vgl. [product-readiness.md §3.7](docs/product-readiness.md#37-nocodb-table-setup--bootstrap-documentation))_
 
 - [ ] **XSS-Eingabe-Sanitierung** – `sanitize-html` auf Freitextfelder anwenden, bevor
-  Daten in NocoDB gespeichert werden.
-  _(vgl. [product-readiness.md §3.3](docs/product-readiness.md#33-security--input-sanitization))_
+      Daten in NocoDB gespeichert werden.
+      _(vgl. [product-readiness.md §3.3](docs/product-readiness.md#33-security--input-sanitization))_
 
 - [ ] **`CORS_ORIGINS` in allen Umgebungen setzen** – Sicherstellen, dass in jedem
-  Deployment-Environment (Staging, Production) eine explizite Allowlist konfiguriert ist.
-  _(vgl. [product-readiness.md §3.4](docs/product-readiness.md#34-security--cors))_
+      Deployment-Environment (Staging, Production) eine explizite Allowlist konfiguriert ist.
+      _(vgl. [product-readiness.md §3.4](docs/product-readiness.md#34-security--cors))_
 
 ---
 
@@ -79,19 +79,19 @@ Alle Phasen 1–11 der ursprünglichen Checkliste sind implementiert:
 > Details: [docs/product-readiness.md – Abschnitt 8](docs/product-readiness.md#8-prioritised-action-plan)
 
 - [ ] **Circuit-Breaker** – `opossum` oder ähnliches integrieren, um bei anhaltenden
-  NocoDB-Ausfällen schnell zu versagen (fail-fast).
-  _(vgl. [product-readiness.md §3.1](docs/product-readiness.md#31-resilience))_
+      NocoDB-Ausfällen schnell zu versagen (fail-fast).
+      _(vgl. [product-readiness.md §3.1](docs/product-readiness.md#31-resilience))_
 
 - [ ] **Audit-Logging** – Alle Schreiboperationen (Create/Update/Delete) mit User-ID
-  protokollieren.
-  _(vgl. [product-readiness.md §5 – Security Checklist](docs/product-readiness.md#6-security-checklist))_
+      protokollieren.
+      _(vgl. [product-readiness.md §5 – Security Checklist](docs/product-readiness.md#6-security-checklist))_
 
 - [ ] **Prometheus-Metrics** – `/metrics`-Endpoint für operatives Monitoring bereitstellen.
-  _(vgl. [product-readiness.md §5 – Performance](docs/product-readiness.md#7-performance-checklist))_
+      _(vgl. [product-readiness.md §5 – Performance](docs/product-readiness.md#7-performance-checklist))_
 
 - [ ] **Redis-Cache** – In-Memory-Cache durch Redis ersetzen (notwendig für
-  Multi-Instanz-Betrieb).
-  _(vgl. [product-readiness.md §7 – Performance Checklist](docs/product-readiness.md#7-performance-checklist))_
+      Multi-Instanz-Betrieb).
+      _(vgl. [product-readiness.md §7 – Performance Checklist](docs/product-readiness.md#7-performance-checklist))_
 
 - [ ] **Response-Kompression** – `compression`-Middleware (gzip/brotli) aktivieren.
 
@@ -110,4 +110,3 @@ Alle Phasen 1–11 der ursprünglichen Checkliste sind implementiert:
 - 📄 [Product Readiness Analysis](docs/product-readiness.md)
 - 📖 [NocoDB SDK Dokumentation](https://docs.nocodb.com/developer-resources/sdk)
 - 📖 [Nest.js Dokumentation](https://docs.nestjs.com)
-

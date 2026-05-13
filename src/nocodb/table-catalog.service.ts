@@ -17,9 +17,7 @@ export class TableCatalogService {
     'table_permissions',
   ]);
 
-  constructor(
-    private readonly nocoDBService: NocoDBService,
-  ) {}
+  constructor(private readonly nocoDBService: NocoDBService) {}
 
   async listExternalTables(): Promise<TableCatalogItemDto[]> {
     const prefix = this.nocoDBService.getTablePrefix();

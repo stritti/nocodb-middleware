@@ -12,8 +12,6 @@ import { CacheModule } from '@nestjs/cache-manager';
 import { NocoDBCacheService } from './cache/nocodb-cache.service';
 import { TableCatalogService } from './table-catalog.service';
 import { TableCatalogController } from './table-catalog.controller';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
 
 @Global()
 @Module({
@@ -24,8 +22,6 @@ import { RolesGuard } from '../auth/guards/roles.guard';
     ExampleRepository,
     NocoDBCacheService,
     TableCatalogService,
-    JwtAuthGuard,
-    RolesGuard,
   ],
   controllers: [TableCatalogController],
   exports: [

@@ -4,10 +4,12 @@ import {
   ForbiddenException,
   NotFoundException,
   UnauthorizedException,
+  IntrinsicException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
 import { NocoDBService } from '../nocodb/nocodb.service';
+import { andFilters, filterEq } from '../nocodb/nocodb-filter.util';
 import { BootstrapAdminDto } from './dto/bootstrap-admin.dto';
 import { hashPassword } from './password-hasher.util';
 
@@ -55,14 +57,14 @@ export class BootstrapAdminService {
     const existingByUsername = this.asUserRecord(
       await this.nocoDBService.findOne(
         usersTable.id,
-        `(username,eq,${dto.username})`,
+        filterEq('username', dto.username),
       ),
     );
 
     const existingByEmail = this.asUserRecord(
       await this.nocoDBService.findOne(
         usersTable.id,
-        `(email,eq,${dto.email})`,
+        filterEq('email', dto.email),
       ),
     );
 
@@ -77,7 +79,10 @@ export class BootstrapAdminService {
     }
 
     const adminRole = this.asRoleRecord(
-      await this.nocoDBService.findOne(rolesTable.id, '(role_name,eq,admin)'),
+      await this.nocoDBService.findOne(
+        rolesTable.id,
+        filterEq('role_name', 'admin'),
+      ),
     );
 
     if (!adminRole) {
@@ -91,7 +96,10 @@ export class BootstrapAdminService {
       if (
         !(await this.nocoDBService.findOne(
           userRolesTable.id,
-          `(user,eq,${existingUserId})~and(role,eq,${adminRoleId})`,
+          andFilters(
+            filterEq('user', existingUserId),
+            filterEq('role', adminRoleId),
+          ),
         ))
       ) {
         await this.nocoDBService.create(userRolesTable.id, {
@@ -120,7 +128,7 @@ export class BootstrapAdminService {
     );
 
     if (!createdUser) {
-      throw new NotFoundException('Created user payload is invalid');
+      throw new IntrinsicException('Created user payload is invalid');
     }
 
     const userId = this.extractNumericId(createdUser);

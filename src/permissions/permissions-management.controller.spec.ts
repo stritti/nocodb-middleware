@@ -4,6 +4,7 @@ import { PermissionsManagementService } from './permissions-management.service';
 import { RolesService } from '../roles/roles.service';
 import { UserRolesService } from '../users/user-roles.service';
 import { PermissionsGuard } from './permissions.guard';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 describe('PermissionsManagementController', () => {
   let controller: PermissionsManagementController;
@@ -45,6 +46,8 @@ describe('PermissionsManagementController', () => {
       ],
     })
       .overrideGuard(PermissionsGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(JwtAuthGuard)
       .useValue({ canActivate: () => true })
       .compile();
 

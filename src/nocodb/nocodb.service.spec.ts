@@ -193,6 +193,34 @@ describe('NocoDBService', () => {
     });
   });
 
+  describe('getTableMetadata', () => {
+    it('should fetch table metadata', async () => {
+      const metadata = { id: 'tbl_1', title: 'Users' };
+      mockHttpClient.get.mockResolvedValue({ data: metadata });
+
+      const result = await service.getTableMetadata('tbl_1');
+
+      expect(mockHttpClient.get).toHaveBeenCalledWith(
+        '/api/v3/meta/tables/tbl_1',
+      );
+      expect(result).toEqual(metadata);
+    });
+  });
+
+  describe('listBaseTables', () => {
+    it('should list tables for the configured base', async () => {
+      const tables = [{ id: 'tbl_1' }];
+      mockHttpClient.get.mockResolvedValue({ data: { list: tables } });
+
+      const result = await service.listBaseTables();
+
+      expect(mockHttpClient.get).toHaveBeenCalledWith(
+        '/api/v3/meta/bases/test-base-id/tables',
+      );
+      expect(result).toEqual(tables);
+    });
+  });
+
   describe('Rate Limiting', () => {
     afterEach(() => {
       jest.useRealTimers();

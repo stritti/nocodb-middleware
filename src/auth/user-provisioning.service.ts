@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { NocoDBService } from '../nocodb/nocodb.service';
+import { andFilters, filterEq } from '../nocodb/nocodb-filter.util';
 import {
   NormalizedIdentityClaims,
   ResolvedIdentity,
@@ -40,7 +41,7 @@ export class UserProvisioningService {
       ? this.asUserRecord(
           await this.nocoDBService.findOne(
             usersTable.id,
-            `(email,eq,${claims.email})`,
+            filterEq('email', claims.email),
           ),
         )
       : null;
@@ -101,7 +102,7 @@ export class UserProvisioningService {
 
     const byUsername = await this.nocoDBService.findOne(
       usersTable.id,
-      `(username,eq,${dto.username})`,
+      filterEq('username', dto.username),
     );
     if (byUsername) {
       throw new ConflictException(
@@ -111,7 +112,7 @@ export class UserProvisioningService {
 
     const byEmail = await this.nocoDBService.findOne(
       usersTable.id,
-      `(email,eq,${dto.email})`,
+      filterEq('email', dto.email),
     );
     if (byEmail) {
       throw new ConflictException(
@@ -162,7 +163,10 @@ export class UserProvisioningService {
     return this.asUserRecord(
       await this.nocoDBService.findOne(
         usersTableId,
-        `(auth_provider,eq,${claims.provider})~and(external_subject,eq,${claims.subject})`,
+        andFilters(
+          filterEq('auth_provider', claims.provider),
+          filterEq('external_subject', claims.subject),
+        ),
       ),
     );
   }
@@ -181,7 +185,7 @@ export class UserProvisioningService {
     for (const roleName of roleNames) {
       const role = await this.nocoDBService.findOne(
         rolesTable.id,
-        `(role_name,eq,${roleName})`,
+        filterEq('role_name', roleName),
       );
       if (!role?.id) {
         continue;
@@ -190,7 +194,7 @@ export class UserProvisioningService {
       const roleId = this.extractNumericId(role);
       const existing = await this.nocoDBService.findOne(
         userRolesTable.id,
-        `(user.id,eq,${userId})~and(role.id,eq,${roleId})`,
+        andFilters(filterEq('user.id', userId), filterEq('role.id', roleId)),
       );
 
       if (!existing) {

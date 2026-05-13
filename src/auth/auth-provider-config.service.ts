@@ -20,6 +20,18 @@ export class AuthProviderConfigService implements OnModuleInit {
         'EXTERNAL_JWT_SECRET is required when AUTH_PROVIDER=external',
       );
     }
+
+    if (!this.configService.get<string>('EXTERNAL_JWT_ISSUER')) {
+      throw new Error(
+        'EXTERNAL_JWT_ISSUER is required when AUTH_PROVIDER=external',
+      );
+    }
+
+    if (!this.configService.get<string>('EXTERNAL_JWT_AUDIENCE')) {
+      throw new Error(
+        'EXTERNAL_JWT_AUDIENCE is required when AUTH_PROVIDER=external',
+      );
+    }
   }
 
   getProvider(): 'local' | 'external' {
