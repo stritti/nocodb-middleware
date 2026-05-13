@@ -1,9 +1,9 @@
 # [0.1.0](https://github.com/stritti/nocodb-middleware/compare/v0.0.2...v0.1.0) (2026-05-13)
 
-
 ### Features
 
-* add XSS input sanitization and CORS hardening ([#97](https://github.com/stritti/nocodb-middleware/issues/97)) ([4afe6c5](https://github.com/stritti/nocodb-middleware/commit/4afe6c50c824926b7bbb551010bafb4ce0cf66c0))
+- add XSS input sanitization and CORS hardening ([#97](https://github.com/stritti/nocodb-middleware/issues/97)) ([4afe6c5](https://github.com/stritti/nocodb-middleware/commit/4afe6c50c824926b7bbb551010bafb4ce0cf66c0))
+
 ## 0.0.2 (2026-05-13)
 
 ### Bug Fixes
