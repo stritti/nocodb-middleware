@@ -1,0 +1,54 @@
+# Labels PRs by changed file paths.
+# Config format for actions/labeler@v5:
+#   label-name:  (the label to apply)
+#     - glob-pattern  (files matching → label is added)
+
+# Core source code
+auth:
+  - src/auth/**/*
+
+users:
+  - src/users/**/*
+
+health:
+  - src/health/**/*
+
+permissions:
+  - src/permissions/**/*
+
+tracing:
+  - src/tracing/**/*
+
+nocodb:
+  - src/nocodb/**/*
+
+examples:
+  - src/examples/**/*
+
+# Infrastructure
+docker:
+  - Dockerfile
+  - docker-compose.yml
+  - .dockerignore
+
+# CI/CD
+CI/CD:
+  - .github/**/*
+
+# Documentation
+documentation:
+  - docs/**/*
+  - "**/*.md"
+
+# Configuration
+configuration:
+  - tsconfig*.json
+  - nest-cli.json
+  - .prettierrc
+  - eslint*
+
+# Testing
+testing:
+  - test/**/*
+  - "**/*.spec.ts"
+  - "**/*.e2e-spec.ts"

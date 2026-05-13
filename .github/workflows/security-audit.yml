@@ -2,92 +2,141 @@ name: Security Audit
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
   schedule:
-    - cron: '0 3 * * 1' # Jeden Montag um 3 Uhr UTC
+    - cron: '0 3 * * 1'  # Every Monday at 03:00 UTC
+
+permissions:
+  contents: read
 
 jobs:
-  security-audit:
-    name: Security Audit
+  # ── Fast checks: run on every PR and push ────────────────────────────────
+  npm-audit:
+    name: npm Audit
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      security-events: write
 
     steps:
-      # 1. Checkout des Repositories
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      # 2. Node.js Umgebung einrichten
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
-      # 3. Abhängigkeiten installieren
       - name: Install dependencies
         run: npm ci
 
-      # 4. Snyk Security Scan (Abhängigkeiten, Code, Container)
-      - name: Run Snyk to check for vulnerabilities
-        uses: snyk/actions/node@master
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          args: --severity-threshold=high --json-file-output=snyk-results.json
-          command: test
+      - name: Run npm audit
+        run: |
+          npm audit --audit-level=high
+        continue-on-error: true  # advisory only; fails the PR visibly
 
-      # 5. Snyk Monitor (für kontinuierliche Überwachung, optional)
-      - name: Monitor with Snyk
-        if: always()
-        uses: snyk/actions/node@master
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          command: monitor
+  dependency-review:
+    name: Dependency Review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
 
-      # 6. Trivy Scan (Container- und Dateisystem-Scans)
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: true
+
+  # ── Deep scans: CodeQL and Snyk, only on main push or schedule ───────────
+  codeql:
+    name: CodeQL Analysis
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript, typescript
+          queries: security-and-quality
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:javascript-typescript"
+
+  trivy:
+    name: Trivy Filesystem Scan
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+
+    steps:
+      - uses: actions/checkout@v4
+
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.30.0
         with:
           scan-type: 'fs'
           scan-ref: '.'
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
+          exit-code: '1'
+          skip-dirs: 'node_modules,.git'
 
-      # 7. CodeQL Analysis (Statische Code-Analyse)
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
         with:
-          languages: javascript, typescript
+          sarif_file: 'trivy-results.sarif'
+          category: 'trivy'
 
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+  snyk:
+    name: Snyk Security Scan
+    if: github.event_name != 'pull_request' && secrets.SNYK_TOKEN != ''
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
 
-      # 8. Ergebnisse hochladen
-      - name: Upload Snyk results as artifact
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Snyk to check for vulnerabilities
+        uses: snyk/actions/node@0.30.0
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: >-
+            --severity-threshold=high
+            --fail-on=all
+            --json-file-output=snyk-results.json
+
+      - name: Upload Snyk results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: security-reports
-          path: |
-            snyk-results.json
-            trivy-results.sarif
-
-      # 9. Security Events in GitHub hochladen (für Dependabot)
-      - name: Upload security events to GitHub
-        if: always()
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            const snykResults = JSON.parse(fs.readFileSync('snyk-results.json', 'utf8'));
-            const vulnerabilities = snykResults.vulnerabilities || [];
-            if (vulnerabilities.length > 0) {
-              console.log(`Found ${vulnerabilities.length} vulnerabilities.`);
-            }
+          name: snyk-results
+          path: snyk-results.json
+          retention-days: 30

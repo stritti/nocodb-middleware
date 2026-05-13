@@ -4,25 +4,24 @@ name: Release
 # Semver Release Workflow
 #
 # Versioning Strategy (Conventional Commits):
-#   patch  – fix:, perf:, refactor:, …  (e.g. "fix: handle null token")
-#   minor  – feat:                       (e.g. "feat: add user search")
+#   patch  – fix:, perf:, refactor:, docs:, style:, chore:, build:, ci:, test:
+#   minor  – feat:
 #   major  – any commit with "BREAKING CHANGE:" in the footer
-#              OR a "!" suffix on the type  (e.g. "feat!: drop Node 16")
+#              OR a "!" suffix on the type  (e.g. "feat!: drop Node 18")
 #
 # Trigger options:
-#   1. Automatic  – push to main; bump type is detected from the latest commit
-#                   message using the rules above.  Commits that do not match
-#                   any conventional-commit prefix are ignored (no release).
-#   2. Manual     – workflow_dispatch with an explicit bump_type input.
-#                   Choose "auto" to fall back to conventional-commit detection.
+#   1. Automatic  – push to main; bump type detected from conventional commit.
+#   2. Manual     – workflow_dispatch with explicit bump_type input.
+#                   "auto" = fallback to conventional-commit detection.
 #
 # The workflow will:
 #   1. Determine the new SemVer version.
-#   2. Update the version field in package.json.
+#   2. Update version in package.json and package-lock.json.
 #   3. Update CHANGELOG.md via conventional-changelog.
-#   4. Commit the change with "[skip ci]" so CI is not re-triggered.
-#   5. Create an annotated git tag (vX.Y.Z).
-#   6. Create a GitHub Release with auto-generated release notes.
+#   4. Create a GitHub Release with auto-generated release notes.
+#   5. Publish to npm (unless package.json is marked "private": true).
+#   6. If a PR-based flow is preferred, set USE_RELEASE_PR=true to create
+#      a pull request instead of pushing directly to main.
 # ─────────────────────────────────────────────────────────────────────────────
 
 on:
@@ -40,6 +39,25 @@ on:
           - patch
           - minor
           - major
+          - prerelease
+      preid:
+        description: 'Prerelease identifier (e.g. alpha, beta, rc)'
+        required: false
+        default: 'beta'
+        type: string
+      draft:
+        description: 'Create GitHub Release as draft'
+        required: false
+        default: false
+        type: boolean
+      use_release_pr:
+        description: 'Create PR instead of direct push (safer for protected branches)'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  NODE_VERSION: '22'
 
 jobs:
   release:
@@ -47,26 +65,31 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: write
+      id-token: write   # needed for npm provenance
 
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0  # full history for conventional-commit analysis
 
-      - name: Use Node.js
+      - name: Use Node.js ${{ env.NODE_VERSION }}
         uses: actions/setup-node@v4
         with:
-          node-version: '20.x'
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'
 
       # ── Determine bump type ───────────────────────────────────────────────
       - name: Determine Bump Type
         id: bump
         run: |
           REQUESTED="${{ github.event.inputs.bump_type || 'auto' }}"
+          PREID="${{ github.event.inputs.preid || 'beta' }}"
 
           if [ "$REQUESTED" != "auto" ]; then
             echo "type=$REQUESTED" >> $GITHUB_OUTPUT
+            echo "preid=$PREID" >> $GITHUB_OUTPUT
             echo "Bump type set manually: $REQUESTED"
             exit 0
           fi
@@ -82,9 +105,9 @@ jobs:
           elif echo "$COMMIT_MSG" | grep -qP '^feat(\(.+\))?:'; then
             echo "type=minor" >> $GITHUB_OUTPUT
             echo "Detected: feat → minor"
-          elif echo "$COMMIT_MSG" | grep -qP '^(fix|perf|refactor)(\(.+\))?:'; then
+          elif echo "$COMMIT_MSG" | grep -qP '^(fix|perf|refactor|docs|style|chore|build|ci|test)(\(.+\))?:'; then
             echo "type=patch" >> $GITHUB_OUTPUT
-            echo "Detected: fix/perf/refactor → patch"
+            echo "Detected: fix/perf/refactor etc → patch"
           else
             echo "type=none" >> $GITHUB_OUTPUT
             echo "No releasable commit prefix found – skipping release."
@@ -97,36 +120,38 @@ jobs:
           echo "No release needed for this commit. Exiting."
           exit 0
 
-      # ── Calculate new version ─────────────────────────────────────────────
+      # ── Calculate new version via semver package ──────────────────────────
       - name: Calculate New Version
         if: steps.bump.outputs.type != 'none'
         id: version
         run: |
           BUMP="${{ steps.bump.outputs.type }}"
+          PREID="${{ steps.bump.outputs.preid || '' }}"
           CURRENT=$(node -p "require('./package.json').version")
           echo "Current version: $CURRENT"
 
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+          if [ "$BUMP" = "prerelease" ]; then
+            NEW_VERSION=$(node -e "
+              const semver = require('semver');
+              console.log(semver.inc('$CURRENT', 'prerelease', '$PREID'));
+            ")
+          else
+            NEW_VERSION=$(node -e "
+              const semver = require('semver');
+              console.log(semver.inc('$CURRENT', '$BUMP'));
+            ")
+          fi
 
-          case "$BUMP" in
-            major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
-            minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
-            patch) PATCH=$((PATCH + 1)) ;;
-          esac
-
-          NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
           echo "New version: $NEW_VERSION"
           echo "new=$NEW_VERSION" >> $GITHUB_OUTPUT
           echo "current=$CURRENT" >> $GITHUB_OUTPUT
 
       # ── Update package.json and package-lock.json ─────────────────────────
-      - name: Update Version in package.json and package-lock.json
+      - name: Update Version
         if: steps.bump.outputs.type != 'none'
         run: |
           NEW="${{ steps.version.outputs.new }}"
-          # --no-git-tag-version updates both package.json and package-lock.json
-          # without creating a git commit or tag (we handle those ourselves below).
-          npm version "$NEW" --no-git-tag-version
+          npm version "$NEW" --no-git-tag-version --allow-same-version
           echo "package.json and package-lock.json updated to version $NEW"
 
       # ── Update CHANGELOG.md ───────────────────────────────────────────────
@@ -136,9 +161,10 @@ jobs:
           npm run changelog
           echo "CHANGELOG.md updated"
 
-      # ── Commit and tag ────────────────────────────────────────────────────
-      - name: Commit Version Bump and Create Tag
+      # ── Create Release Commit & Tag ───────────────────────────────────────
+      - name: Create Release Commit
         if: steps.bump.outputs.type != 'none'
+        id: commit
         run: |
           NEW="${{ steps.version.outputs.new }}"
           git config user.name  "github-actions[bot]"
@@ -147,26 +173,181 @@ jobs:
           git add package.json package-lock.json CHANGELOG.md
           git commit -m "chore(release): bump version to v${NEW} [skip ci]"
           git tag -a "v${NEW}" -m "Release v${NEW}"
+
+          echo "tag=v${NEW}" >> $GITHUB_OUTPUT
+
+      # ── Push directly (default) ───────────────────────────────────────────
+      - name: Push to main
+        if: steps.bump.outputs.type != 'none' && github.event.inputs.use_release_pr != 'true'
+        run: |
           git push origin HEAD:main --follow-tags
+          echo "✅ Pushed v${{ steps.version.outputs.new }} to main"
+
+      # ── Or: Create Release PR (for protected branches) ────────────────────
+      - name: Create Release PR
+        if: steps.bump.outputs.type != 'none' && github.event.inputs.use_release_pr == 'true'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const newVersion = '${{ steps.version.outputs.new }}';
+
+            // Push the commit + tag to a release branch
+            const branch = `release/v${newVersion}`;
+            await github.rest.git.createRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: `refs/heads/${branch}`,
+              sha: context.sha,
+            });
+
+            // Create PR from release branch to main
+            const { data: pr } = await github.rest.pulls.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `chore(release): bump version to v${newVersion}`,
+              head: branch,
+              base: 'main',
+              body: `## Release v${newVersion}\n\nThis PR was automatically created by the Release workflow.\n\nOnce merged, the GitHub Release and npm publish will be triggered.\n\n> **Note:** After merge, run the Release workflow again to finalize.`,
+              draft: false,
+            });
+            console.log(`Release PR created: ${pr.html_url}`);
+
+      # ── Push tag separately (for the PR path) ────────────────────────────
+      - name: Push Tag
+        if: steps.bump.outputs.type != 'none' && github.event.inputs.use_release_pr == 'true'
+        run: |
+          git push origin "${{ steps.commit.outputs.tag }}"
+          echo "✅ Tag ${{ steps.commit.outputs.tag }} pushed"
 
       # ── Create GitHub Release ─────────────────────────────────────────────
       - name: Create GitHub Release
-        if: steps.bump.outputs.type != 'none'
+        if: steps.bump.outputs.type != 'none' && github.event.inputs.use_release_pr != 'true'
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const newVersion = '${{ steps.version.outputs.new }}';
             const bumpType   = '${{ steps.bump.outputs.type }}';
+            const isDraft    = '${{ github.event.inputs.draft }}' === 'true';
+
+            // Read the CHANGELOG entry for this version
+            const fs = require('fs');
+            const changelog = fs.readFileSync('CHANGELOG.md', 'utf8');
+            const versionHeader = `## ${newVersion}`;
+            const idx = changelog.indexOf(versionHeader);
+            let releaseBody = `## Release v${newVersion}\n\nBump type: **${bumpType}**\n`;
+            if (idx >= 0) {
+              const nextIdx = changelog.indexOf('\n## ', idx + 1);
+              const notes = changelog.slice(idx, nextIdx > 0 ? nextIdx : undefined).trim();
+              releaseBody = notes;
+            }
 
             await github.rest.repos.createRelease({
               owner: context.repo.owner,
               repo:  context.repo.repo,
               tag_name:         `v${newVersion}`,
               name:             `v${newVersion}`,
+              body:             releaseBody,
+              draft:            isDraft,
+              prerelease:       '${{ steps.bump.outputs.type }}' === 'prerelease',
               generate_release_notes: true,
-              body: `## Release v${newVersion}\n\nBump type: **${bumpType}**`,
-              draft:      false,
-              prerelease: false,
             });
             console.log(`GitHub Release v${newVersion} created.`);
+
+      # ── Publish to npm (skip if private) ──────────────────────────────────
+      - name: Publish to npm
+        if: steps.bump.outputs.type != 'none' && github.event.inputs.use_release_pr != 'true'
+        run: |
+          IS_PRIVATE=$(node -p "require('./package.json').private === true")
+          if [ "$IS_PRIVATE" = "true" ]; then
+            echo "⚠️  package.json is private — skipping npm publish."
+            echo "   To enable npm publishing, set \"private\": false in package.json"
+            exit 0
+          fi
+
+          # Build before publish
+          npm run build
+
+          # Determine tag
+          BUMP="${{ steps.bump.outputs.type }}"
+          if [ "$BUMP" = "prerelease" ]; then
+            NPM_TAG="${{ steps.bump.outputs.preid || 'beta' }}"
+          else
+            NPM_TAG="latest"
+          fi
+
+          npm publish --provenance --tag "$NPM_TAG"
+          echo "✅ Published v${{ steps.version.outputs.new }} to npm with tag @$NPM_TAG"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  # ── Post-release: create GitHub Release for PR-based flow ────────────────
+  finalize:
+    name: Finalize Release (after PR merge)
+    needs: release
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && !cancelled()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check if new tag exists
+        id: check_tag
+        run: |
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -z "$LATEST_TAG" ]; then
+            echo "has_new_tag=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Check if this tag already has a GitHub Release
+          RELEASE_EXISTS=$(gh release view "$LATEST_TAG" --json id 2>/dev/null || echo "")
+          if [ -z "$RELEASE_EXISTS" ]; then
+            echo "has_new_tag=true" >> $GITHUB_OUTPUT
+            echo "tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+          else
+            echo "has_new_tag=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Release for unprocessed tag
+        if: steps.check_tag.outputs.has_new_tag == 'true'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const tag = '${{ steps.check_tag.outputs.tag }}';
+            const version = tag.replace(/^v/, '');
+
+            // Read changelog entry
+            const fs = require('fs');
+            const changelog = fs.readFileSync('CHANGELOG.md', 'utf8');
+            const versionHeader = `## ${version}`;
+            const idx = changelog.indexOf(versionHeader);
+            let body = `## Release ${tag}\n\n`;
+            if (idx >= 0) {
+              const nextIdx = changelog.indexOf('\n## ', idx + 1);
+              body = changelog.slice(idx, nextIdx > 0 ? nextIdx : undefined).trim();
+            }
+
+            await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              tag_name:         tag,
+              name:             tag,
+              body:             body,
+              generate_release_notes: true,
+            });
+            console.log(`Release ${tag} finalized after PR merge.`);
+
+            // Try to publish to npm
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            if (pkg.private !== true) {
+              console.log('Run the Publish workflow to publish to npm.');
+            }
