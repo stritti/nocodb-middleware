@@ -132,7 +132,9 @@ export class NocoDBService implements OnModuleInit {
   }
 
   async getTableMetadata(tableId: string): Promise<any> {
-    const response = await this.httpClient.get(`/api/v3/meta/tables/${tableId}`);
+    const response = await this.httpClient.get(
+      `/api/v3/meta/tables/${tableId}`,
+    );
     return response.data;
   }
 

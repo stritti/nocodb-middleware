@@ -164,7 +164,10 @@ export class PermissionsService {
 
       const existing = await this.nocoDBService.findOne(
         permissionsTable.id,
-        andFilters(filterEq('role.id', roleId), filterEq('table_name', tableName)),
+        andFilters(
+          filterEq('role.id', roleId),
+          filterEq('table_name', tableName),
+        ),
       );
 
       const permissionData = {
