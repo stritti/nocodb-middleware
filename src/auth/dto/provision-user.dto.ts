@@ -7,11 +7,13 @@ import {
   IsString,
   MinLength,
 } from 'class-validator';
+import { SanitizeHtml } from '../../common/decorators/sanitize-html.decorator';
 
 export class ProvisionUserDto {
   @ApiProperty({ example: 'alice' })
   @IsString()
   @MinLength(3)
+  @SanitizeHtml()
   username!: string;
 
   @ApiProperty({ example: 'alice@example.com' })

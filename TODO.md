@@ -46,12 +46,14 @@ Alle Phasen 1–11 der ursprünglichen Checkliste sind implementiert:
       Beziehungen erstellen.
       _(vgl. [product-readiness.md §3.7](docs/product-readiness.md#37-nocodb-table-setup--bootstrap-documentation))_
 
-- [ ] **XSS-Eingabe-Sanitierung** – `sanitize-html` auf Freitextfelder anwenden, bevor
+- [x] **XSS-Eingabe-Sanitierung** – `sanitize-html` auf Freitextfelder anwenden, bevor
       Daten in NocoDB gespeichert werden.
+      _(erledigt in `xss-cors-hardening` Branch)_
       _(vgl. [product-readiness.md §3.3](docs/product-readiness.md#33-security--input-sanitization))_
 
-- [ ] **`CORS_ORIGINS` in allen Umgebungen setzen** – Sicherstellen, dass in jedem
+- [x] **`CORS_ORIGINS` in allen Umgebungen setzen** – Sicherstellen, dass in jedem
       Deployment-Environment (Staging, Production) eine explizite Allowlist konfiguriert ist.
+      _(erledigt in `xss-cors-hardening` Branch – Startup-Warnungen bei Fehlkonfiguration)_
       _(vgl. [product-readiness.md §3.4](docs/product-readiness.md#34-security--cors))_
 
 ---

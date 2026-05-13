@@ -5,11 +5,13 @@ import {
   IsEmail,
   Matches,
 } from 'class-validator';
+import { SanitizeHtml } from '../../common/decorators/sanitize-html.decorator';
 
 export class BootstrapAdminDto {
   @IsString()
   @IsNotEmpty({ message: 'Username is required' })
   @MinLength(3, { message: 'Username must be at least 3 characters' })
+  @SanitizeHtml()
   username: string;
 
   @IsEmail({}, { message: 'Valid email is required' })

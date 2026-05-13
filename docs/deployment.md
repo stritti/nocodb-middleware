@@ -47,6 +47,22 @@ Danach:
 | `OTEL_ENABLED`                | Tracing an oder aus            |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP-Ziel für Spans            |
 
+### CORS-Konfiguration in Production
+
+Die Middleware validiert beim Startup die `CORS_ORIGINS` Umgebungsvariable und gibt Warnungen aus bei:
+
+- **Fehlender Konfiguration**: CORS wird deaktiviert (keine Cross-Origin Requests möglich)
+- **Wildcard `*`**: Nicht in Production verwenden
+- **Localhost-Origins in Production**: Entfernen oder durch echte Domains ersetzen
+
+Empfohlene Konfiguration für Production:
+
+```bash
+CORS_ORIGINS=https://app.example.com,https://admin.example.com
+```
+
+Siehe auch `src/config/cors.config.ts` für die vollständige Validierungslogik.
+
 ### IdP-Switch Rollout (`local` <-> `external`)
 
 1. Secrets für Zielprovider bereitstellen (`JWT_SECRET` oder `EXTERNAL_JWT_SECRET`).

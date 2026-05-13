@@ -61,7 +61,9 @@ describe('JwtStrategy', () => {
       expect(
         () =>
           new JwtStrategy(
-            { get: jest.fn().mockReturnValue(undefined) } as unknown as ConfigService,
+            {
+              get: jest.fn().mockReturnValue(undefined),
+            } as unknown as ConfigService,
             mockAuthProviderConfig as unknown as AuthProviderConfigService,
             normalizer,
             { resolveIdentity: jest.fn() },

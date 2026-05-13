@@ -35,6 +35,9 @@ features:
   - icon: 📖
     title: OpenAPI
     details: Swagger UI and static openapi.yaml for consumers.
+  - icon: 🛡️
+    title: XSS Protection
+    details: Automatic HTML sanitization on all free-text input fields.
   - icon: 🩺
     title: Health Check
     details: Ready for orchestration and monitoring probes.
