@@ -2,9 +2,16 @@
 
 Das Projekt hat bereits strukturiertes Logging via Pino (JSON-Format) und optionales OpenTelemetry-Tracing. Beide sind aber nicht auf die spezifischen Anforderungen von Audit-Trails und operativen Metriken ausgelegt.
 
+### Request-Context-Propagation (AsyncLocalStorage)
+- Ein `AsyncLocalStorage`-basierter `RequestContextService` (oder `NocoDBContextService`) wird als injectable Singleton bereitgestellt
+- Ein `ContextInterceptor` (oder Middleware nach dem Guard) speichert `req.user.userId` nach erfolgreicher Auth in den AsyncLocalStorage-Context
+- Der Context ist für die gesamte Request-Lebensdauer verfügbar, ohne dass jeder Service-Aufruf die User-ID als Parameter übergeben muss
+- `NocoDBService` greift per `this.contextService.get('userId')` auf die User-ID zu
+
 ### Audit-Logging
 - Wird via Pino-Logger auf Ebene `info` ausgegeben
 - Enthält: `{ audit: true, userId, action, table, recordId, timestamp, previousData?, newData? }`
+- `userId` wird aus dem AsyncLocalStorage-Request-Context gelesen, nicht als Methodenparameter
 - Implementierung als Wrapper im `NocoDBService` (create/update/delete)
 
 ### Prometheus-Metrics

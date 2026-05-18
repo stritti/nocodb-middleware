@@ -1,15 +1,25 @@
 ## ADDED Requirements
 
+### Requirement: Globale JwtAuthGuard-Registrierung
+Die Middleware SHALL `JwtAuthGuard` als globalen `APP_GUARD` im AppModule registrieren, damit alle Endpoints standardmäßig geschützt sind, sofern sie nicht mit `@Public()` dekoriert wurden.
+
+#### Scenario: Globaler Guard-Schutz
+- **GIVEN** `JwtAuthGuard` ist als `APP_GUARD` im AppModule registriert
+- **WHEN** ein Request ohne `Authorization`-Header an einen beliebigen Endpoint gesendet wird
+- **THEN** wird der Request abgewiesen, es sei denn, der Endpoint trägt `@Public()`
+
 ### Requirement: @Public()-Decorator für Auth-Skip
-Die Middleware SHALL einen `@Public()`-Decorator bereitstellen, der Endpoints von der JWT-Authentifizierung ausnimmt.
+Die Middleware SHALL einen `@Public()`-Decorator bereitstellen, der Endpoints von der JWT-Authentifizierung ausnimmt. Dies setzt voraus, dass `JwtAuthGuard` global als `APP_GUARD` registriert ist.
 
 #### Scenario: Public-Endpoint ohne Token
-- **GIVEN** ein Endpoint ist mit `@Public()` dekoriert
+- **GIVEN** `JwtAuthGuard` ist als globaler `APP_GUARD` registriert
+- **AND** ein Endpoint ist mit `@Public()` dekoriert
 - **WHEN** ein Request ohne `Authorization`-Header eingeht
 - **THEN** wird der Endpoint trotzdem ausgeführt (kein 401)
 
 #### Scenario: Protected-Endpoint ohne Token
-- **GIVEN** ein Endpoint hat keinen `@Public()`-Decorator
+- **GIVEN** `JwtAuthGuard` ist als globaler `APP_GUARD` registriert
+- **AND** ein Endpoint hat keinen `@Public()`-Decorator
 - **WHEN** ein Request ohne `Authorization`-Header eingeht
 - **THEN** wird der Request mit 401 Unauthorized abgelehnt
 

@@ -26,6 +26,7 @@ Die `PageDto`/`PageOptionsDto`/`PageMetaDto`-Klassen existieren bereits im Proje
 
 ## Impact
 
-- API-Response-Format ändert sich von `Array<T>` zu `{ data: T[], meta: { page, take, itemCount, pageCount, hasPreviousPage, hasNextPage } }`
-- Query-Parameter sind optional → kein Breaking Change für bestehende Clients (Default: page=1, take=20)
-- Minimaler Implementierungsaufwand (DTOs existieren bereits)
+- **⚠️ BREAKING CHANGE**: API-Response-Format ändert sich von `Array<T>` zu `{ data: T[], meta: { page, take, itemCount, pageCount, hasPreviousPage, hasNextPage } }`. Bestehende Clients, die das Array-Format erwarten, müssen angepasst werden.
+- Die Query-Parameter `page` und `take` sind optional (Default: page=1, take=20) – das ändert nichts am Breaking Change des Response-Formats.
+- Empfehlung: Änderung als neue API-Version ausliefern oder im Changelog als Major-Change dokumentieren.
+- Minimaler Implementierungsaufwand (DTOs existieren bereits).

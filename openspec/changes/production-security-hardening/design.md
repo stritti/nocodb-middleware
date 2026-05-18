@@ -18,10 +18,16 @@ Die Middleware hat mehrere Sicherheitslücken, die durch inkrementelle Entwicklu
 
 ## Decisions
 
+### Globale JwtAuthGuard-Registrierung
+- `JwtAuthGuard` wird als `APP_GUARD` im `AppModule` registriert: `{ provide: APP_GUARD, useClass: JwtAuthGuard }`
+- Damit sind alle Endpoints standardmäßig geschützt, ohne dass jeder Controller `@UseGuards(JwtAuthGuard)` setzen muss
+- Bestehende `@UseGuards(JwtAuthGuard, ...)` werden zu `@UseGuards(...)` reduziert (nur noch nicht-globale Guards wie `PermissionsGuard`)
+- Voraussetzung für das `@Public()`-Pattern: Ohne globalen Guard hätte `@Public()` keine Wirkung
+
 ### @Public()-Decorator
 - Reflector-Metadaten-Key `isPublic` im JwtAuthGuard auswerten
 - `Public()` Decorator analog zum bestehenden Pattern (siehe `@Roles`-Decorator)
-- Standardverhalten bleibt: alle Endpoints sind geschützt
+- Standardverhalten bleibt: alle Endpoints sind geschützt (durch globalen Guard)
 
 ### Sicheres Bootstrap
 - `BOOTSTRAP_ADMIN_PASSWORD` ENV-Variable für das Admin-Passwort

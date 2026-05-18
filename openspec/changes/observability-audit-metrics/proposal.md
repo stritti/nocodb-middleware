@@ -19,12 +19,15 @@ Production-Betrieb erfordert zwei Observability-Features, die aktuell fehlen:
 - `prometheus-metrics`: Stellt `/metrics`-Endpoint mit Prometheus-kompatiblen Metriken bereit.
 
 ### Modified Capabilities
-- `NocoDBService` – Audit-Event-Emitting bei CUD-Operationen
+- `NocoDBService` – Audit-Event-Emitting bei CUD-Operationen (userId via AsyncLocalStorage-Context)
 - `AppModule` – Prometheus-Modul-Integration
+- Neu: `RequestContextService` (AsyncLocalStorage) – speichert `userId` aus `req.user` nach erfolgreicher Auth
 
 ## Impact
 
-- Neue Abhängigkeit: `@willsoto/nestjs-prometheus` (oder `prom-client`)
+- Neue Abhängigkeit: `prom-client` für Metriken
+- AsyncLocalStorage als neue Abhängigkeit für Request-Context-Propagation (in Node.js built-in, keine externe Dependency)
+- `NocoDBService.create/update/delete` benötigen keine `userId`-Parameter mehr (lesen den Wert transparent aus dem Context)
 - Audit-Daten werden als strukturierte Logs (Pino) ausgegeben → können von Log-Aggregatoren verarbeitet werden
 - Metrics-Endpoint benötigt Auth (default protected, kann via `@Public()` geöffnet werden)
 - Minimaler Performance-Overhead
