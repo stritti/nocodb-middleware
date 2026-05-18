@@ -1,9 +1,10 @@
 ## 1. Retry-Logik
 
 - [ ] 1.1 Axios-Response-Interceptor für Retry mit exponentiellem Back-off implementieren
-- [ ] 1.2 Retry nur bei 5xx, ECONNREFUSED, ECONNRESET, ETIMEDOUT
-- [ ] 1.3 Max 3 Retries, Basis 200ms, Faktor 2, max 5s
-- [ ] 1.4 Kein Retry für 4xx-Fehler (Client-Fehler)
+- [ ] 1.2 Retry nur bei idempotenten Operationen (Read/List/Exists/FindOne) und transienten Fehlern (5xx, ECONNREFUSED, ECONNRESET, ETIMEDOUT)
+- [ ] 1.3 Kein Retry für nicht-idempotente Operationen (Create/Update/Delete)
+- [ ] 1.4 Max 3 Retries, Basis 200ms, Faktor 2, max 5s
+- [ ] 1.5 Kein Retry für 4xx-Fehler (Client-Fehler)
 
 ## 2. Circuit-Breaker
 

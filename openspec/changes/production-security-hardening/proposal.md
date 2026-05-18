@@ -14,7 +14,7 @@ Die Code-Analyse hat mehrere Sicherheitslücken und Konfigurationsrisiken identi
 - `JwtAuthGuard` global als `APP_GUARD` in AppModule registrieren (damit alle Endpoints standardmäßig geschützt sind)
 - `@Public()`-Decorator im JwtAuthGuard unterstützen (via Reflector-Metadaten) – nur wirksam, weil der Guard global ist
 - Bestehende `@UseGuards(JwtAuthGuard)`-Dekorationen in Controllern auf die verbleibenden Guards reduzieren (z. B. `@UseGuards(PermissionsGuard)` statt `@UseGuards(JwtAuthGuard, PermissionsGuard)`, da JwtAuthGuard jetzt global läuft)
-- Bootstrap-Seeding: sicheres Passwort erzwingen + `onModuleInit` nur beim ersten Start ausführen (idempotent)
+- Bootstrap-Seeding: sicheres Passwort erzwingen (generiertes Passwort auf stdout, **nicht** in Pino-Logs) + `onModuleInit` nur beim ersten Start ausführen (idempotent)
 - Swagger UI in `main.ts` per `NODE_ENV` schützen
 - `NOCODB_RATE_LIMIT_MS` ENV-Variable für konfigurierbares Rate-Limiting
 - `CORS_ORIGINS`-Validierung beim Start (App wirft Fehler, wenn nicht gesetzt)

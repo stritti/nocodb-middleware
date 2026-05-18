@@ -7,16 +7,6 @@ interface NocoTableRef {
   id: string;
 }
 
-interface NocoListResponse {
-  list?: unknown[];
-}
-
-interface NocoErrorResponse {
-  data?: {
-    msg?: string;
-  };
-}
-
 function asTableRef(value: unknown): NocoTableRef | null {
   if (!value || typeof value !== 'object') {
     return null;

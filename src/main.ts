@@ -13,7 +13,7 @@ async function bootstrap() {
   // Use Pino as the application-wide logger
   try {
     app.useLogger(app.get(Logger));
-  } catch (e) {
+  } catch {
     // Fallback if Logger is not available
     NestLogger.warn('Pino Logger not found in context, falling back to default logger');
   }

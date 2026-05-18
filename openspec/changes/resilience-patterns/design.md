@@ -24,9 +24,10 @@ Axios als HTTP-Client bietet bereits Interceptor-Support für Retry-Logik. Für 
 - **Circuit-Breaker via `opossum`**: Bewährtes Node.js-Pattern, aktiv gewartet
 - **Schwellen**: 5 Fehler in 30 Sekunden → Circuit öffnet für 60 Sekunden
 - **Nur NocoDB-API-Calls betreffend**: Kein Circuit-Breaker für interne Service-Calls
+- **Retry nur für idempotente Operationen**: Read/List/Exists/FindOne erhalten automatischen Retry. Create/Update/Delete erhalten keinen Retry, um Duplikate durch fehlgeschlagene Requests zu vermeiden, die vom Server bereits verarbeitet wurden.
 
 ## Risks / Trade-offs
 
-- [Risk] Retry kann bei idempotenten Operationen (Reads) problemlos wiederholt werden, bei Create/Update muss Idempotenz sichergestellt werden → Retry nur bei GET + Fehlerklassen die idempotent sind (5xx, Timeout)
+- [Risk] Retry wird auf idempotente Operationen beschränkt (Read/List/Exists/FindOne) – Create/Update/Delete erhalten keinen automatischen Retry, um Duplikate zu vermeiden
 - [Risk] Circuit-Breaker könnte zu früh auslösen → Schwellen sind anpassbar
 - [Risk] `opossum` erhöht Memory-Footprint → minimaler Overhead (<100KB)

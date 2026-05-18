@@ -26,10 +26,11 @@ Die Middleware SHALL einen `@Public()`-Decorator bereitstellen, der Endpoints vo
 ### Requirement: Sicheres Bootstrap-Seeding
 Die Middleware SHALL beim ersten Start einen Admin-User mit einem konfigurierbaren Passwort (`BOOTSTRAP_ADMIN_PASSWORD`) erstellen, aber nicht bei jedem Neustart erneut.
 
-#### Scenario: Sicheres Default-Passwort
+#### Scenario: Sicheres Default-Passwort (kein Log)
 - **GIVEN** `BOOTSTRAP_ADMIN_PASSWORD` ist nicht gesetzt
 - **WHEN** der Bootstrap durchläuft
-- **THEN** wird ein generiertes Passwort verwendet und ins Log geschrieben
+- **THEN** wird ein generiertes Passwort verwendet und **ausschließlich einmalig auf der Konsole (stdout)** ausgegeben – nicht in Pino-Logs, nicht in Dateien, nicht in Log-Aggregatoren
+- **AND** es wird ein Hinweis geloggt: `"Bootstrap admin password generated – check startup output for credentials"` (ohne das Passwort selbst)
 
 #### Scenario: Idempotenz
 - **GIVEN** ein Admin-User existiert bereits

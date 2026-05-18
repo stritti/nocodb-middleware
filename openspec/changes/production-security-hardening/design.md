@@ -31,7 +31,8 @@ Die Middleware hat mehrere Sicherheitslücken, die durch inkrementelle Entwicklu
 
 ### Sicheres Bootstrap
 - `BOOTSTRAP_ADMIN_PASSWORD` ENV-Variable für das Admin-Passwort
-- Wenn nicht gesetzt → Warnung + Fallback auf generiertes Passwort (wird ins Log geschrieben)
+- Wenn nicht gesetzt → Fallback auf generiertes Passwort (wird **einmalig auf stdout** ausgegeben, nicht in Pino-Logs)
+- Hinweis-Log: `"Bootstrap admin password generated – check startup output for credentials"` (ohne das Passwort)
 - Idempotenz-Prüfung: Wenn Admin-User bereits existiert → kein Create mehr
 - `onModuleInit` führt Seeding nur aus, wenn Tabellen noch nicht initialisiert sind
 

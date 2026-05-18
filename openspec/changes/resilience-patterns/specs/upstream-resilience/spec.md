@@ -1,12 +1,17 @@
 ## ADDED Requirements
 
-### Requirement: Retry bei transienten NocoDB-Fehlern
-Der NocoDBService SHALL bei transienten Fehlern (HTTP 5xx, Netzwerk-Timeouts, Verbindungsabbrüche) automatisch bis zu 3 Wiederholungen mit exponentiellem Back-off durchführen.
+### Requirement: Retry bei transienten NocoDB-Fehlern (nur idempotente Operationen)
+Der NocoDBService SHALL bei transienten Fehlern (HTTP 5xx, Netzwerk-Timeouts, Verbindungsabbrüche) automatisch bis zu 3 Wiederholungen mit exponentiellem Back-off durchführen – **ausschließlich für idempotente Operationen** (GET/Read/List/Exists/FindOne). Für nicht-idempotente Operationen (Create/Update/Delete) SHALL kein automatischer Retry erfolgen, es sei denn, der Aufrufer stellt explizit einen Idempotency-Key bereit.
 
-#### Scenario: Erfolgreicher Retry nach 503
+#### Scenario: Erfolgreicher Retry bei Read nach 503
 - **GIVEN** NocoDB antwortet mit 503 Service Unavailable
-- **WHEN** der NocoDBService einen Request sendet
+- **WHEN** der NocoDBService einen Read-Request sendet
 - **THEN** wird der Request bis zu 3 Mal mit Back-off wiederholt
+
+#### Scenario: Kein Retry bei Create/Update/Delete
+- **GIVEN** NocoDB antwortet mit 503 Service Unavailable
+- **WHEN** der NocoDBService einen Create-, Update- oder Delete-Request sendet
+- **THEN** wird der Fehler sofort weitergegeben (kein Retry), um Duplikate zu vermeiden
 
 #### Scenario: Kein Retry bei 4xx
 - **GIVEN** NocoDB antwortet mit 400 Bad Request
@@ -14,7 +19,7 @@ Der NocoDBService SHALL bei transienten Fehlern (HTTP 5xx, Netzwerk-Timeouts, Ve
 - **THEN** wird der Fehler sofort weitergegeben (kein Retry)
 
 #### Scenario: Max Retries erschöpft
-- **GIVEN** NocoDB antwortet dauerhaft mit 503
+- **GIVEN** NocoDB antwortet dauerhaft mit 503 auf einen Read-Request
 - **WHEN** 3 Retries fehlschlagen
 - **THEN** wird der Fehler an den Aufrufer weitergereicht
 

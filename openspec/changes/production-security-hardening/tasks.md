@@ -9,7 +9,7 @@
 ## 2. Sicheres Bootstrap-Seeding
 
 - [ ] 2.1 `BOOTSTRAP_ADMIN_PASSWORD` ENV-Variable in Config einlesen
-- [ ] 2.2 DatabaseInitializationService: Fallback-Logik für fehlendes Passwort
+- [ ] 2.2 DatabaseInitializationService: Fallback-Logik für fehlendes Passwort – generiertes Passwort auf stdout ausgeben, **nicht** in Pino-Logs
 - [ ] 2.3 Idempotenz: Nur seeden, wenn Tabellen noch leer sind
 - [ ] 2.4 Specs für sicheres Bootstrap
 

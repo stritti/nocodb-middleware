@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { PermissionsManagementService } from './permissions-management.service';
 import { NocoDBService } from '../nocodb/nocodb.service';
 import { PermissionsService } from './permissions.service';
-import { Logger, NotFoundException } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
 
 describe('PermissionsManagementService', () => {
   let service: PermissionsManagementService;
