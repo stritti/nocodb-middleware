@@ -1,7 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { NocoDBService } from './nocodb.service';
-import * as crypto from 'crypto';
+import { andFilters, filterEq } from './nocodb-filter.util';
 
 interface ColumnDefinition {
   name: string;
@@ -23,10 +22,7 @@ interface TableDefinition {
 export class DatabaseInitializationService implements OnModuleInit {
   private readonly logger = new Logger(DatabaseInitializationService.name);
 
-  constructor(
-    private nocoDBService: NocoDBService,
-    private configService: ConfigService,
-  ) {}
+  constructor(private nocoDBService: NocoDBService) {}
 
   async onModuleInit() {
     const prefix = this.nocoDBService.getTablePrefix();
@@ -47,6 +43,16 @@ export class DatabaseInitializationService implements OnModuleInit {
         { name: 'email', title: 'Email', type: 'Email' },
         { name: 'password_hash', title: 'Password Hash', type: 'LongText' },
         { name: 'is_active', title: 'Is Active', type: 'Checkbox' },
+        {
+          name: 'auth_provider',
+          title: 'Auth Provider',
+          type: 'SingleLineText',
+        },
+        {
+          name: 'external_subject',
+          title: 'External Subject',
+          type: 'SingleLineText',
+        },
       ],
     });
 
@@ -94,7 +100,6 @@ export class DatabaseInitializationService implements OnModuleInit {
 
     // 4. Seed Data
     await this.seedDefaultPermissions();
-    await this.seedDefaultUser();
   }
 
   private async ensureTableExists(
@@ -151,9 +156,8 @@ export class DatabaseInitializationService implements OnModuleInit {
     tableName: string,
   ) {
     try {
-      const httpClient = this.nocoDBService.getHttpClient();
-      const response = await httpClient.get(`/api/v3/meta/tables/${tableId}`);
-      const existingColumns = response.data.columns || [];
+      const tableMetadata = await this.nocoDBService.getTableMetadata(tableId);
+      const existingColumns = tableMetadata.columns || [];
       const existingColumnNames = new Set(
         existingColumns.map((c: any) => c.column_name),
       );
@@ -182,7 +186,10 @@ export class DatabaseInitializationService implements OnModuleInit {
         }
       }
     } catch (error) {
-      this.logger.error(`Error ensuring columns for table ${tableName}:`, error);
+      this.logger.error(
+        `Error ensuring columns for table ${tableName}:`,
+        error,
+      );
     }
   }
 
@@ -197,9 +204,7 @@ export class DatabaseInitializationService implements OnModuleInit {
       },
       {
         tableName: 'table_permissions',
-        linkColumns: [
-          { name: 'role', targetTable: 'roles' },
-        ],
+        linkColumns: [{ name: 'role', targetTable: 'roles' }],
       },
     ];
 
@@ -207,25 +212,38 @@ export class DatabaseInitializationService implements OnModuleInit {
 
     for (const tableSpec of requiredLinks) {
       try {
-        const table = await this.nocoDBService.getTableByName(tableSpec.tableName);
+        const table = await this.nocoDBService.getTableByName(
+          tableSpec.tableName,
+        );
         if (!table) continue;
 
-        const response = await this.nocoDBService.getHttpClient().get(`/api/v3/meta/tables/${table.id}`);
-        const columns = response.data.columns || [];
-        const existingColumnNames = new Set(columns.map((c: any) => c.column_name));
+        const tableMetadata = await this.nocoDBService.getTableMetadata(
+          table.id,
+        );
+        const columns = tableMetadata.columns || [];
+        const existingColumnNames = new Set(
+          columns.map((c: any) => c.column_name),
+        );
 
         for (const link of tableSpec.linkColumns) {
           if (!existingColumnNames.has(link.name)) {
-            missingLinks.push(`${tableSpec.tableName}.${link.name} -> ${link.targetTable}`);
+            missingLinks.push(
+              `${tableSpec.tableName}.${link.name} -> ${link.targetTable}`,
+            );
           }
         }
       } catch (error) {
-        this.logger.error(`Error verifying links for ${tableSpec.tableName}`, error);
+        this.logger.error(
+          `Error verifying links for ${tableSpec.tableName}`,
+          error,
+        );
       }
     }
 
     if (missingLinks.length > 0) {
-      this.logger.error(`MISSING LINK COLUMNS: ${missingLinks.join(', ')}. Please create them manually in NocoDB UI.`);
+      this.logger.error(
+        `MISSING LINK COLUMNS: ${missingLinks.join(', ')}. Please create them manually in NocoDB UI.`,
+      );
       // We don't throw here to allow the app to start, but functional errors will occur if these are used.
     } else {
       this.logger.log('✓ All required link columns verified successfully');
@@ -236,22 +254,28 @@ export class DatabaseInitializationService implements OnModuleInit {
     this.logger.log('Seeding default permissions...');
     try {
       const rolesTable = await this.nocoDBService.getTableByName('roles');
-      const permissionsTable = await this.nocoDBService.getTableByName('table_permissions');
+      const permissionsTable =
+        await this.nocoDBService.getTableByName('table_permissions');
 
       if (!rolesTable || !permissionsTable) return;
 
       const rolesResult = await this.nocoDBService.list(rolesTable.id, {
-        where: '(role_name,eq,admin)',
+        where: filterEq('role_name', 'admin'),
         limit: 1,
       });
 
-      if (rolesResult.list.length === 0) {
-        await this.nocoDBService.create(rolesTable.id, {
+      let adminRole = rolesResult.list[0];
+
+      if (!adminRole) {
+        adminRole = await this.nocoDBService.create(rolesTable.id, {
           role_name: 'admin',
           description: 'System Administrator',
           is_system_role: true,
         });
       }
+
+      const adminRoleId = this.extractNumericId(adminRole);
+      await this.ensureAdminPermissions(permissionsTable.id, adminRoleId);
 
       this.logger.log('Default permissions seeded (admin role ensured)');
     } catch (error) {
@@ -259,61 +283,62 @@ export class DatabaseInitializationService implements OnModuleInit {
     }
   }
 
-  private async seedDefaultUser() {
-    this.logger.log('Seeding default user...');
-    try {
-      const bootstrapAdminUsername = this.configService.get<string>('nocodb.bootstrapAdminUsername') || 'admin';
-      
-      const usersTable = await this.nocoDBService.getTableByName('users');
-      const rolesTable = await this.nocoDBService.getTableByName('roles');
-      const userRolesTable = await this.nocoDBService.getTableByName('user_roles');
+  private async ensureAdminPermissions(
+    permissionsTableId: string,
+    adminRoleId: number,
+  ): Promise<void> {
+    const protectedTables = [
+      'users',
+      'roles',
+      'user_roles',
+      'table_permissions',
+    ];
 
-      if (!usersTable || !rolesTable || !userRolesTable) return;
+    for (const tableName of protectedTables) {
+      const existing = await this.nocoDBService.findOne(
+        permissionsTableId,
+        andFilters(
+          filterEq('role.id', adminRoleId),
+          filterEq('table_name', tableName),
+        ),
+      );
 
-      const usersResult = await this.nocoDBService.list(usersTable.id, {
-        where: `(username,eq,${bootstrapAdminUsername})`,
-        limit: 1,
-      });
+      const permissionData = {
+        role: [{ id: adminRoleId }],
+        table_name: tableName,
+        can_create: true,
+        can_read: true,
+        can_update: true,
+        can_delete: true,
+      };
 
-      let userId;
-      if (usersResult.list.length === 0) {
-        this.logger.log(`Creating bootstrap admin user "${bootstrapAdminUsername}"...`);
-        const passwordHash = crypto.createHash('sha256').update('password123').digest('hex');
-        const createdUser = await this.nocoDBService.create(usersTable.id, {
-          username: bootstrapAdminUsername,
-          email: `${bootstrapAdminUsername}@example.com`,
-          password_hash: passwordHash,
-          is_active: true,
-        });
-        userId = createdUser.id;
+      if (existing?.id) {
+        await this.nocoDBService.update(
+          permissionsTableId,
+          this.extractNumericId(existing),
+          permissionData,
+        );
       } else {
-        userId = usersResult.list[0].id;
+        await this.nocoDBService.create(permissionsTableId, permissionData);
       }
-
-      const rolesResult = await this.nocoDBService.list(rolesTable.id, {
-        where: '(role_name,eq,admin)',
-        limit: 1,
-      });
-
-      if (rolesResult.list.length === 0) return;
-      const adminRoleId = rolesResult.list[0].id;
-
-      const userRolesResult = await this.nocoDBService.list(userRolesTable.id, {
-        where: `(user.id,eq,${userId})~and(role.id,eq,${adminRoleId})`,
-        limit: 1,
-      });
-
-      if (userRolesResult.list.length === 0) {
-        this.logger.log('Assigning admin role to bootstrap admin user...');
-        await this.nocoDBService.create(userRolesTable.id, {
-          user: [{ id: userId }],
-          role: [{ id: adminRoleId }],
-          assigned_at: new Date().toISOString(),
-        });
-      }
-    } catch (error) {
-      this.logger.error('Failed to seed default user', error);
     }
+  }
+
+  private extractNumericId(record: { id?: number | string }): number {
+    const rawId = record.id;
+
+    if (typeof rawId === 'number') {
+      return rawId;
+    }
+
+    if (typeof rawId === 'string' && rawId.length > 0) {
+      const parsed = Number(rawId);
+      if (!Number.isNaN(parsed)) {
+        return parsed;
+      }
+    }
+
+    throw new Error('Invalid NocoDB record ID payload');
   }
 
   private delay(ms: number): Promise<void> {

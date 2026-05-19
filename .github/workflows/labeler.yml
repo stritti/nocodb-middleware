@@ -1,0 +1,97 @@
+name: PR Labeler
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  label:
+    name: Label PR
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── Label by changed file paths ───────────────────────────────────────
+      - name: Label by file paths
+        uses: actions/labeler@v5
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          configuration-path: .github/labeler-config.yml
+
+      # ── Label by conventional commit type ─────────────────────────────────
+      - name: Label by commit type
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { data: commits } = await github.rest.pulls.listCommits({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+
+            // Collect all commit messages
+            const messages = commits.map(c => c.commit.message);
+
+            // Conventional commit → label mapping
+            const patterns = [
+              { regex: /^feat(\(.+\))?!?:\s/,    label: 'enhancement' },
+              { regex: /^fix(\(.+\))?!?:\s/,     label: 'bug' },
+              { regex: /^docs(\(.+\))?!?:\s/,    label: 'documentation' },
+              { regex: /^refactor(\(.+\))?!?:\s/, label: 'refactoring' },
+              { regex: /^test(\(.+\))?!?:\s/,    label: 'testing' },
+              { regex: /^ci(\(.+\))?!?:\s/,      label: 'CI/CD' },
+              { regex: /^chore(\(.+\))?!?:\s/,   label: 'chore' },
+              { regex: /^style(\(.+\))?!?:\s/,   label: 'code-style' },
+              { regex: /^perf(\(.+\))?!?:\s/,    label: 'performance' },
+              { regex: /BREAKING[ -]CHANGE/,      label: 'breaking-change' },
+            ];
+
+            const labelsToAdd = new Set();
+            for (const msg of messages) {
+              for (const { regex, label } of patterns) {
+                if (regex.test(msg)) {
+                  labelsToAdd.add(label);
+                }
+              }
+            }
+
+            if (labelsToAdd.size > 0) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                labels: [...labelsToAdd],
+              });
+            }
+
+      # ── Label by PR size ──────────────────────────────────────────────────
+      - name: Label by PR size
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+
+            const additions = pr.additions;
+            let sizeLabel;
+
+            if (additions <= 10)        sizeLabel = 'size/XS';
+            else if (additions <= 50)   sizeLabel = 'size/S';
+            else if (additions <= 200)  sizeLabel = 'size/M';
+            else if (additions <= 800)  sizeLabel = 'size/L';
+            else                        sizeLabel = 'size/XL';
+
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels: [sizeLabel],
+            });

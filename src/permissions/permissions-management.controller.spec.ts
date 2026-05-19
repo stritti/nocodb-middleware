@@ -4,6 +4,7 @@ import { PermissionsManagementService } from './permissions-management.service';
 import { RolesService } from '../roles/roles.service';
 import { UserRolesService } from '../users/user-roles.service';
 import { PermissionsGuard } from './permissions.guard';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 describe('PermissionsManagementController', () => {
   let controller: PermissionsManagementController;
@@ -46,6 +47,8 @@ describe('PermissionsManagementController', () => {
     })
       .overrideGuard(PermissionsGuard)
       .useValue({ canActivate: () => true })
+      .overrideGuard(JwtAuthGuard)
+      .useValue({ canActivate: () => true })
       .compile();
 
     controller = module.get<PermissionsManagementController>(
@@ -72,11 +75,21 @@ describe('PermissionsManagementController', () => {
   });
 
   describe('getAllRoles', () => {
-    it('should return all roles', async () => {
-      const expected = [{ id: 1, role_name: 'admin' }];
+    it('should return paginated roles', async () => {
+      const expected = {
+        data: [{ id: 1, role_name: 'admin' }],
+        meta: {
+          page: 1,
+          take: 10,
+          itemCount: 1,
+          pageCount: 1,
+          hasPreviousPage: false,
+          hasNextPage: false,
+        },
+      };
       rolesService.getAllRoles.mockResolvedValue(expected);
 
-      const result = await controller.getAllRoles();
+      const result = await controller.getAllRoles({} as any);
       expect(result).toEqual(expected);
     });
   });
@@ -124,12 +137,25 @@ describe('PermissionsManagementController', () => {
   });
 
   describe('getRolePermissions', () => {
-    it('should return permissions for a role', async () => {
-      const expected = [{ id: 1, table_name: 'users' }];
+    it('should return paginated permissions for a role', async () => {
+      const expected = {
+        data: [{ id: 1, table_name: 'users' }],
+        meta: {
+          page: 1,
+          take: 10,
+          itemCount: 1,
+          pageCount: 1,
+          hasPreviousPage: false,
+          hasNextPage: false,
+        },
+      };
       permissionsManagement.getRolePermissions.mockResolvedValue(expected);
 
-      const result = await controller.getRolePermissions(1);
-      expect(permissionsManagement.getRolePermissions).toHaveBeenCalledWith(1);
+      const result = await controller.getRolePermissions(1, {} as any);
+      expect(permissionsManagement.getRolePermissions).toHaveBeenCalledWith(
+        1,
+        {},
+      );
       expect(result).toEqual(expected);
     });
   });
@@ -189,11 +215,22 @@ describe('PermissionsManagementController', () => {
   });
 
   describe('getUserRoles', () => {
-    it('should return roles for a user', async () => {
-      const expected = [{ id: 1, role_name: 'admin' }];
+    it('should return paginated roles for a user', async () => {
+      const expected = {
+        data: [{ id: 1, role_name: 'admin' }],
+        meta: {
+          page: 1,
+          take: 10,
+          itemCount: 1,
+          pageCount: 1,
+          hasPreviousPage: false,
+          hasNextPage: false,
+        },
+      };
       userRolesService.getUserRoles.mockResolvedValue(expected);
 
-      const result = await controller.getUserRoles(1);
+      const result = await controller.getUserRoles(1, {} as any);
+      expect(userRolesService.getUserRoles).toHaveBeenCalledWith(1, {});
       expect(result).toEqual(expected);
     });
   });

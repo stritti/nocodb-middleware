@@ -1,5 +1,9 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { NocoDBService } from '../nocodb/nocodb.service';
+import { PageOptionsDto } from '../nocodb/dto/page-options.dto';
+import { PageMetaDto } from '../nocodb/dto/page-meta.dto';
+import { PageDto } from '../nocodb/dto/page.dto';
+import { andFilters, filterEq } from '../nocodb/nocodb-filter.util';
 import { SetTablePermissionsDto } from './dto/set-table-permissions.dto';
 import { BatchSetPermissionsDto } from './dto/batch-permissions.dto';
 import { PermissionsService } from './permissions.service';
@@ -26,7 +30,10 @@ export class PermissionsManagementService {
 
       const existing = await this.nocoDBService.findOne(
         permissionsTable.id,
-        `(role.id,eq,${dto.roleId})~and(table_name,eq,${dto.tableName})`,
+        andFilters(
+          filterEq('role.id', dto.roleId),
+          filterEq('table_name', dto.tableName),
+        ),
       );
 
       const permissionData = {
@@ -115,7 +122,7 @@ export class PermissionsManagementService {
       }
 
       const result = await this.nocoDBService.list(permissionsTable.id, {
-        where: `(role.id,eq,${sourceRoleId})`,
+        where: filterEq('role.id', sourceRoleId),
       });
 
       const sourcePermissions = result.list || [];
@@ -157,7 +164,7 @@ export class PermissionsManagementService {
       }
 
       const result = await this.nocoDBService.list(permissionsTable.id, {
-        where: `(role.id,eq,${roleId})`,
+        where: filterEq('role.id', roleId),
       });
 
       const permissions = result.list || [];
@@ -178,21 +185,43 @@ export class PermissionsManagementService {
   }
 
   /**
-   * Get all permissions for a role
+   * Get all permissions for a role (paginated)
    */
-  async getRolePermissions(roleId: number): Promise<any[]> {
+  async getRolePermissions(
+    roleId: number,
+    pageOptionsDto?: PageOptionsDto,
+  ): Promise<PageDto<any>> {
     try {
       const permissionsTable =
         await this.nocoDBService.getTableByName('table_permissions');
       if (!permissionsTable) {
-        return [];
+        return new PageDto(
+          [],
+          new PageMetaDto({
+            pageOptionsDto: pageOptionsDto || new PageOptionsDto(),
+            itemCount: 0,
+          }),
+        );
       }
 
+      const limit = pageOptionsDto?.take ?? 10;
+      const offset = pageOptionsDto?.skip ?? 0;
+
       const result = await this.nocoDBService.list(permissionsTable.id, {
-        where: `(role.id,eq,${roleId})`,
+        where: filterEq('role.id', roleId),
+        limit,
+        offset,
       });
 
-      return result.list || [];
+      const data = result.list || [];
+      const totalRows = result.pageInfo?.totalRows ?? data.length;
+
+      const meta = new PageMetaDto({
+        pageOptionsDto: pageOptionsDto || new PageOptionsDto(),
+        itemCount: pageOptionsDto ? totalRows : data.length,
+      });
+
+      return new PageDto(data, meta);
     } catch (error) {
       this.logger.error('Error fetching role permissions:', error);
       throw error;

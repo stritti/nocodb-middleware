@@ -6,9 +6,10 @@ import { PermissionsGuard } from './permissions.guard';
 import { RolesService } from '../roles/roles.service';
 import { UserRolesService } from '../users/user-roles.service';
 import { NocoDBModule } from '../nocodb/nocodb.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [NocoDBModule],
+  imports: [NocoDBModule, AuthModule],
   providers: [
     PermissionsService,
     PermissionsManagementService,

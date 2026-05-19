@@ -30,9 +30,9 @@ The NocoDB Middleware is a well-structured NestJS application that wraps NocoDB'
 | Unit test coverage      | ✅ Ready   | 213 tests, ≥80 % coverage target                       |
 | Docker support          | ✅ Ready   | `Dockerfile` + `docker-compose.yml`                    |
 | Graceful shutdown       | ✅ Ready   | `enableShutdownHooks()`                                |
-| E2E tests               | ⚠️ Partial | Single smoke test; auth flow missing                   |
-| Retry / circuit breaker | ❌ Missing | No resilience against NocoDB outages                   |
-| Input sanitization      | ⚠️ Partial | `class-validator` validates shape; no XSS sanitization |
+| E2E tests               | ✅ Ready   | Auth flow tests added (JWT guard, roles, bootstrap)    |
+| Retry / circuit breaker | ⚠️ Partial | `axios-retry` with exponential backoff added; circuit breaker pending |
+| Input sanitization      | ✅ Ready   | `class-validator` validates shape; `sanitize-html` strips XSS from free-text fields |
 | Audit logging           | ❌ Missing | No write-operation audit trail                         |
 | Prometheus metrics      | ❌ Missing | No `/metrics` endpoint                                 |
 
@@ -151,7 +151,7 @@ test/
 | Passwords never stored        | ✅ (stateless JWT)           |
 | Rate limiting per IP          | ✅                           |
 | Input validation (shape)      | ✅                           |
-| Input sanitization (XSS)      | ❌                           |
+| Input sanitization (XSS)      | ✅                           |
 | SQL injection protection      | ✅ (NocoDB handles DB layer) |
 | CSRF protection               | N/A (stateless JWT API)      |
 | Audit logging                 | ❌                           |
@@ -175,11 +175,27 @@ test/
 
 ## 8. Prioritised Action Plan
 
+### ✅ Resolved in `xss-cors-hardening` branch
+
+The following items were resolved together:
+
+1. **[x] XSS sanitization** – `sanitize-html` integrated via `@SanitizeHtml()` decorator:
+   - Applies to all free-text fields in DTOs (title, description, username)
+   - Strip-all-HTML default mode
+   - Custom options supported for per-field overrides
+   - Unit tests + e2e tests added
+
+2. **[x] CORS validation** – Startup-time warnings for:
+   - Empty/missing `CORS_ORIGINS`
+   - Wildcard `*` origins
+   - Localhost origins in production
+   - Explicit logging of active CORS origins
+
 ### Immediate (before first production deployment)
 
 1. **[x] Document required NocoDB tables** – `docs/database-schema.md` added.
-2. **[ ] Add XSS sanitization** – Apply `sanitize-html` to free-text string fields.
-3. **[ ] Configure CORS** – Set `CORS_ORIGINS` in every environment's config.
+2. **[x] Add XSS sanitization** – Apply `sanitize-html` to free-text string fields.
+3. **[x] Configure CORS** – Set `CORS_ORIGINS` in every environment's config.
 
 ### Short-term (next sprint)
 

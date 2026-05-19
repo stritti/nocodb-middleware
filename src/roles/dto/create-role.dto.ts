@@ -8,11 +8,13 @@ import {
   Matches,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { SanitizeHtml } from '../../common/decorators/sanitize-html.decorator';
 
 export class CreateRoleDto {
   @ApiProperty({
     example: 'content-editor',
-    description: 'Unique role name (3–50 chars, alphanumeric/spaces/underscores/hyphens)',
+    description:
+      'Unique role name (3–50 chars, alphanumeric/spaces/underscores/hyphens)',
   })
   @IsString()
   @IsNotEmpty({ message: 'Role name cannot be empty' })
@@ -31,6 +33,7 @@ export class CreateRoleDto {
   @IsString()
   @IsOptional()
   @MaxLength(255, { message: 'Description cannot exceed 255 characters' })
+  @SanitizeHtml()
   description?: string;
 
   @ApiPropertyOptional({

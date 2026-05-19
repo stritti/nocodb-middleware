@@ -1,9 +1,25 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { JwtStrategy } from './jwt.strategy';
 import { ConfigService } from '@nestjs/config';
+import { AuthProviderConfigService } from '../auth-provider-config.service';
+import { IdentityClaimsNormalizerService } from '../identity/identity-claims-normalizer.service';
+import { IDENTITY_PROVIDER } from '../identity/identity-provider.constants';
+import { NocoDBService } from '../../nocodb/nocodb.service';
 
 describe('JwtStrategy', () => {
   let strategy: JwtStrategy;
+  const mockAuthProviderConfig = {
+    getProvider: jest.fn().mockReturnValue('local'),
+  };
+  const mockNocoDBService = {
+    getTableByName: jest.fn().mockResolvedValue({ id: 'users-table-id' }),
+    read: jest.fn().mockResolvedValue({
+      id: 1,
+      username: 'testuser',
+      email: 'test@example.com',
+      is_active: true,
+    }),
+  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -14,6 +30,19 @@ describe('JwtStrategy', () => {
           useValue: {
             get: jest.fn().mockReturnValue('test-secret'),
           },
+        },
+        {
+          provide: AuthProviderConfigService,
+          useValue: mockAuthProviderConfig,
+        },
+        IdentityClaimsNormalizerService,
+        {
+          provide: IDENTITY_PROVIDER,
+          useValue: { resolveIdentity: jest.fn() },
+        },
+        {
+          provide: NocoDBService,
+          useValue: mockNocoDBService,
         },
       ],
     }).compile();
@@ -27,22 +56,31 @@ describe('JwtStrategy', () => {
 
   describe('constructor', () => {
     it('should throw when JWT_SECRET is missing', () => {
+      const normalizer = new IdentityClaimsNormalizerService();
+
       expect(
         () =>
-          new JwtStrategy({
-            get: jest.fn().mockReturnValue(undefined),
-          } as unknown as ConfigService),
+          new JwtStrategy(
+            {
+              get: jest.fn().mockReturnValue(undefined),
+            } as unknown as ConfigService,
+            mockAuthProviderConfig as unknown as AuthProviderConfigService,
+            normalizer,
+            { resolveIdentity: jest.fn() },
+            mockNocoDBService as unknown as NocoDBService,
+          ),
       ).toThrow('JWT_SECRET is required');
     });
   });
 
   describe('validate', () => {
-    it('should validate and return user data based on payload', () => {
+    it('should validate and return user data based on payload', async () => {
       const payload = { sub: 1, username: 'testuser', roles: ['admin'] };
-      const result = strategy.validate(payload);
+      const result = await strategy.validate(payload);
       expect(result).toEqual({
         userId: 1,
         username: 'testuser',
+        email: 'test@example.com',
         roles: ['admin'],
       });
     });

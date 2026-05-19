@@ -24,7 +24,7 @@ async function bootstrap() {
   try {
     const table = await nocoDBService.getTableByName('users');
     const usersTable = asTableRef(table);
-    
+
     if (!usersTable) {
       logger.error('Users table not found');
       return;
@@ -46,10 +46,10 @@ async function bootstrap() {
             params: { where: filter },
           },
         );
-        const listLen = Array.isArray(response.data.list) ? response.data.list.length : 0;
-        logger.log(
-          `Filter ${filter} success. Records: ${listLen}`,
-        );
+        const listLen = Array.isArray(response.data.list)
+          ? response.data.list.length
+          : 0;
+        logger.log(`Filter ${filter} success. Records: ${listLen}`);
       } catch (err: any) {
         logger.error(
           `Filter ${filter} failed: ${err.response?.data?.msg || err.message}`,

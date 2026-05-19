@@ -1,9 +1,4 @@
-import {
-  Module,
-  Global,
-  MiddlewareConsumer,
-  NestModule,
-} from '@nestjs/common';
+import { Module, Global, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { NocoDBService } from './nocodb.service';
 import { DatabaseInitializationService } from './database-initialization.service';
@@ -17,15 +12,10 @@ import { CacheModule } from '@nestjs/cache-manager';
 import { NocoDBCacheService } from './cache/nocodb-cache.service';
 import { TableCatalogService } from './table-catalog.service';
 import { TableCatalogController } from './table-catalog.controller';
-import { AuthModule } from '../auth/auth.module';
 
 @Global()
 @Module({
-  imports: [
-    ConfigModule.forFeature(nocodbConfig),
-    CacheModule.register(),
-    AuthModule,
-  ],
+  imports: [ConfigModule.forFeature(nocodbConfig), CacheModule.register()],
   providers: [
     NocoDBService,
     DatabaseInitializationService,
