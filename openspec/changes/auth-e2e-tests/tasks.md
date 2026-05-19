@@ -14,9 +14,10 @@
 
 ## 3. PermissionsGuard E2E Tests
 
-- [ ] 3.1 PermissionsGuard im Test-Modul mocken
-- [ ] 3.2 Test: `@RequireRead('users')` mit Berechtigung → 200
-- [ ] 3.3 Test: `@RequireRead('users')` ohne Berechtigung → 403
+- [ ] 3.1 `PermissionsService` im Test-Modul stubbeln (nicht den Guard selbst)
+- [ ] 3.2 Test-Controller mit `@RequireRead('users')` Endpoint bereitstellen
+- [ ] 3.3 Test: `PermissionsService.canUserPerformAction` gibt `true` zurück → 200 OK (Guard-Logik läuft real)
+- [ ] 3.4 Test: `PermissionsService.canUserPerformAction` gibt `false` zurück → 403 Forbidden
 
 ## 4. CI-Integration
 

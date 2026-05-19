@@ -40,11 +40,15 @@ Die E2E-Test-Suite SHALL den RolesGuard mit korrekten und inkorrekten Rollen tes
 Die E2E-Test-Suite SHALL den PermissionsGuard mit ausreichenden und unzureichenden Berechtigungen testen.
 
 #### Scenario: Ausreichende Berechtigung
-- **GIVEN** `PermissionsGuard.canActivate` gibt `true` zurück
-- **WHEN** ein GET-Request an `@RequireRead('users')` Endpoint gesendet wird
-- **THEN** wird der Request mit HTTP 200 beantwortet
+- **GIVEN** `PermissionsService.canUserPerformAction` ist gestubbt und gibt `true` zurück
+- **GIVEN** ein gültiger JWT mit `userId=1` liegt vor
+- **WHEN** ein GET-Request mit diesem JWT an `@RequireRead('users')` Endpoint gesendet wird
+- **THEN** durchläuft der PermissionsGuard die reale `canActivate`-Logik (Reflector-Metadaten, User-Extraktion, ForEach-Schleife)
+- **AND** wird der Request mit HTTP 200 beantwortet
 
 #### Scenario: Unzureichende Berechtigung
-- **GIVEN** `PermissionsGuard.canActivate` gibt eine ForbiddenException
-- **WHEN** ein GET-Request an `@RequireRead('users')` Endpoint gesendet wird
-- **THEN** wird der Request mit HTTP 403 Forbidden beantwortet
+- **GIVEN** `PermissionsService.canUserPerformAction` ist gestubbt und gibt `false` zurück
+- **GIVEN** ein gültiger JWT mit `userId=1` liegt vor
+- **WHEN** ein GET-Request mit diesem JWT an `@RequireRead('users')` Endpoint gesendet wird
+- **THEN** durchläuft der PermissionsGuard die reale `canActivate`-Logik
+- **AND** wird der Request mit HTTP 403 Forbidden beantwortet

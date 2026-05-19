@@ -21,11 +21,11 @@ Für E2E-Tests muss ein gültiger JWT generiert werden können, der gegen den ko
 
 - **JWT-Generierung in Tests**: `@nestjs/jwt` `JwtService` aus dem Test-Modul nutzen
 - **Test-Modul**: Vollständiges `Test.createTestingModule` mit allen Auth-Komponenten
-- **Permissions-Guard Testing**: Decorator-basierte Endpoints in einem speziellen Test-Controller
+- **Permissions-Guard Testing**: Decorator-basierte Endpoints in einem speziellen Test-Controller; `PermissionsService` wird gestubbt (nicht der Guard selbst), sodass die reale `PermissionsGuard.canActivate`-Logik inkl. Reflector-Metadaten, User-Extraktion und Loop durchlaufen wird
 - **Eigene Test-Datei**: `test/auth-flow.e2e-spec.ts` für klare Trennung
 
 ## Risks / Trade-offs
 
 - [Risk] E2E-Tests können durch Config-Änderungen brechen → Test-Konfiguration isoliert halten
 - [Risk] JWT-Secret in Tests muss mit CI-Secret übereinstimmen → `.env.test` oder inline-Secret
-- [Risk] PermissionsGuard braucht NocoDB-Zugriff → Mocking auf Guard-Ebene für E2E
+- [Risk] PermissionsGuard braucht NocoDB-Zugriff → `PermissionsService` wird gestubbt, Guard-Logik läuft real
