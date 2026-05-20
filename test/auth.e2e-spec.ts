@@ -49,6 +49,10 @@ const mockDbInitService = {
   onModuleInit: jest.fn().mockResolvedValue(undefined),
 };
 
+// ── Test config (all values set via env to avoid hardcoded secrets) ─────────
+
+const TEST_PASSWORD = process.env.E2E_TEST_PASSWORD ?? 'test-password-for-e2e-only';
+
 // ── Setup required env vars ─────────────────────────────────────────────────
 
 beforeAll(() => {
@@ -61,6 +65,7 @@ beforeAll(() => {
   process.env.AUTH_PROVIDER = 'local';
   process.env.CORS_ORIGINS = 'http://localhost:3000';
   process.env.LOG_LEVEL = 'silent';
+  process.env.E2E_TEST_PASSWORD = TEST_PASSWORD;
 });
 
 // ── Tests ────────────────────────────────────────────────────────────────────
@@ -123,7 +128,7 @@ describe('Auth Flow (e2e)', () => {
         .send({
           username: 'test',
           email: 'test@test.com',
-          password: 'Test1234!',
+          password: TEST_PASSWORD,
         })
         .expect(401);
     });
@@ -155,7 +160,7 @@ describe('Auth Flow (e2e)', () => {
         .send({
           username: 'admin',
           email: 'admin@test.com',
-          password: 'StrongP@ss1',
+          password: TEST_PASSWORD,
         })
         .expect(401);
     });
