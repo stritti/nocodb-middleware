@@ -38,9 +38,6 @@ describe('NocoDB Integration', () => {
     }).compile();
 
     nocodbService = moduleFixture.get<NocoDBService>(NocoDBService);
-    dbInitService = moduleFixture.get<DatabaseInitializationService>(
-      DatabaseInitializationService,
-    );
 
     await nocodbService.onModuleInit();
     (nocodbService as any).httpClient = mockHttpClient;
