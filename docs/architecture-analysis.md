@@ -100,7 +100,7 @@ Dieser Service sitzt als **Reverse Proxy / Middleware-Layer** zwischen beliebige
 Zentraler Datenzugriffs-Layer. Stellt bereit:
 
 - **NocoDBService**: Unified Service für Meta API v3 (Tabellen/Columns anlegen, listen) + Data API v3 (CRUD mit Filter/Sort/Pagination). Enthält client-seitiges Rate-Limiting (200ms = 5 req/s) und OTel-Tracing-Wrapper.
-- **BaseRepository<T>**: Abstrakte Klasse mit typsicheren CRUD-Methoden + Pagination-Unterstützung (PageDto/PageMetaDto).
+- **`BaseRepository<T>`**: Abstrakte Klasse mit typsicheren CRUD-Methoden + Pagination-Unterstützung (PageDto/PageMetaDto).
 - **TableCatalogService**: Listet alle nicht-internen Tabellen (filtert `users, roles, user_roles, table_permissions`).
 - **DatabaseInitializationService**: `OnModuleInit` – erstellt automatisch die 4 System-Tabellen und seedt Admin-Rolle + Default-User.
 - **NocoDbContextMiddleware**: Reichert Request um `x-nocodb-user-id` und `x-request-id` Header an.
