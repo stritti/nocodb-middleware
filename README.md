@@ -179,6 +179,7 @@ directory. It simplifies access to the Middleware API from Angular, Vue.js, Reac
 Svelte, and plain TypeScript projects.
 
 Key features:
+
 - Typed wrappers for all Middleware endpoints
 - Automatic JWT token refresh via an Axios interceptor
 - Pluggable token storage (in-memory by default, or your own `localStorage` / Pinia adapter)
