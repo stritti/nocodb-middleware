@@ -1,3 +1,4 @@
+## [0.2.9](https://github.com/stritti/nocodb-middleware/compare/v0.2.8...v0.2.9) (2026-05-21)
 ## [0.2.8](https://github.com/stritti/nocodb-middleware/compare/v0.2.6...v0.2.8) (2026-05-20)
 ## [0.2.7](https://github.com/stritti/nocodb-middleware/compare/v0.2.6...v0.2.7) (2026-05-20)
 
