@@ -10,12 +10,24 @@ export interface ClientConfig {
   tokenStorage?: TokenStorage;
   /** Optional request timeout in milliseconds (default: 30000). */
   timeout?: number;
+  /**
+   * Optional callback invoked by the 401 response interceptor to obtain a
+   * fresh access token.  Implement this when your identity provider supports
+   * silent token refresh (e.g. a rotating refresh-token flow).
+   *
+   * The callback should return the new access token on success, or throw on
+   * failure (the client will then clear the stored tokens and propagate the
+   * original 401 error).
+   *
+   * When omitted, 401 responses are propagated directly without a retry.
+   */
+  onRefresh?: () => Promise<string>;
 }
 
-/** A JWT token pair returned by the auth endpoints. */
+/** A JWT token pair stored by the client. */
 export interface TokenPair {
   accessToken: string;
-  refreshToken: string;
+  refreshToken?: string;
 }
 
 /** Interface for pluggable token persistence. */
@@ -23,41 +35,6 @@ export interface TokenStorage {
   get(): TokenPair | null;
   set(tokens: TokenPair): void;
   clear(): void;
-}
-
-/** Pagination metadata returned by list endpoints. */
-export interface PageInfo {
-  totalRows: number;
-  page: number;
-  pageSize: number;
-  isFirstPage: boolean;
-  isLastPage: boolean;
-}
-
-/** A paginated result set. */
-export interface PaginatedResult<T> {
-  list: T[];
-  pageInfo: PageInfo;
-}
-
-/** Options for list/filter operations on records. */
-export interface ListOptions {
-  /** NocoDB filter string, e.g. `(Name,eq,Alice)`. */
-  where?: string;
-  /** Sort string, e.g. `-CreatedAt` for descending. */
-  sort?: string;
-  /** Comma-separated field names to return. */
-  fields?: string;
-  /** Maximum number of records to return. */
-  limit?: number;
-  /** Number of records to skip. */
-  offset?: number;
-}
-
-/** Options for reading a single record. */
-export interface ReadOptions {
-  /** Comma-separated field names to return. */
-  fields?: string;
 }
 
 /**

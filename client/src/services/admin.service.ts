@@ -92,7 +92,7 @@ export class AdminService {
     permissions: Omit<TablePermissions, 'tableName'>,
   ): Promise<void> {
     try {
-      await this.http.post('/admin/permissions/tables', {
+      await this.http.post('/admin/permissions/table-permissions', {
         roleId,
         tableName,
         ...permissions,

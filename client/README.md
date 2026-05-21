@@ -6,6 +6,11 @@
 Works out of the box with **Angular**, **Vue.js**, **React**, **Svelte**, and plain
 Node.js scripts.
 
+> **Note:** The NocoDB Middleware validates JWTs but does **not** issue them.
+> There is no built-in login flow. Obtain tokens from your external identity
+> provider (NocoDB sign-in, Auth0, Keycloak, etc.) and inject them with
+> `client.auth.setTokens(tokens)`.
+
 ---
 
 ## Installation
@@ -36,15 +41,21 @@ const client = new NocodbMiddlewareClient({
   baseUrl: 'https://api.example.com',
 });
 
-await client.auth.signIn('alice@example.com', 'P@ssword1');
+// Inject tokens obtained from your external IdP:
+client.auth.setTokens({ accessToken: '<your-jwt>' });
 
-const { list } = await client.records.list('tbl_abc123', {
-  where: '(Status,eq,active)',
-  sort: '-CreatedAt',
-  limit: 25,
+// List tables exposed by the middleware:
+const tables = await client.admin.listTables();
+console.log(tables);
+
+// Manage roles and permissions:
+await client.admin.createRole('editor', 'Can create and edit content');
+await client.admin.setTablePermissions(1, 'products', {
+  canCreate: true,
+  canRead: true,
+  canUpdate: true,
+  canDelete: false,
 });
-
-console.log(list);
 ```
 
 ---
@@ -71,11 +82,11 @@ import { inject, Injectable } from '@angular/core';
 import { NOCODB_CLIENT } from '../app.config';
 
 @Injectable({ providedIn: 'root' })
-export class ProductsService {
+export class TableService {
   private client = inject(NOCODB_CLIENT);
 
-  getProducts() {
-    return this.client.records.list('tbl_products');
+  getTables() {
+    return this.client.admin.listTables();
   }
 }
 ```
@@ -96,18 +107,18 @@ export function useNocodb() {
   return client;
 }
 
-// ProductList.vue
+// RoleList.vue
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useNocodb } from '../composables/useNocodb';
 
-const products = ref([]);
+const roles = ref([]);
 
 onMounted(async () => {
   const client = useNocodb();
-  await client.auth.signIn(username, password);
-  const result = await client.records.list('tbl_products');
-  products.value = result.list;
+  // Inject token from your IdP before making authenticated calls
+  client.auth.setTokens({ accessToken: myIdpToken });
+  roles.value = await client.admin.listRoles();
 });
 </script>
 ```
@@ -134,21 +145,21 @@ export function useNocodbClient() {
   }, []);
 }
 
-// ProductList.tsx
+// RoleList.tsx
 import { useEffect, useState } from 'react';
 import { useNocodbClient } from '../hooks/useNocodbClient';
 
-export function ProductList() {
+export function RoleList() {
   const client = useNocodbClient();
-  const [products, setProducts] = useState<any[]>([]);
+  const [roles, setRoles] = useState<any[]>([]);
 
   useEffect(() => {
-    client.records
-      .list('tbl_products')
-      .then(({ list }) => setProducts(list));
+    // Inject token from your IdP first
+    client.auth.setTokens({ accessToken: myIdpToken });
+    client.admin.listRoles().then(setRoles);
   }, [client]);
 
-  return <ul>{products.map(p => <li key={p.Id}>{p.Name}</li>)}</ul>;
+  return <ul>{roles.map(r => <li key={r.id}>{r.roleName}</li>)}</ul>;
 }
 ```
 
@@ -183,36 +194,56 @@ const client = new NocodbMiddlewareClient({
 
 ---
 
+## Silent Token Refresh
+
+If your IdP supports silent refresh (e.g. a rotating refresh-token flow),
+supply an `onRefresh` callback. The HTTP client calls it automatically on
+any `401` response to obtain a new access token and retry the request.
+The interceptor is guarded against re-entrant calls, so a failed refresh
+propagates the original 401 instead of looping.
+
+Use a shared `TokenStorage` instance so the callback can update stored
+tokens without a circular reference to the client itself:
+
+```typescript
+import {
+  NocodbMiddlewareClient,
+  InMemoryTokenStorage,
+} from 'nocodb-middleware-client';
+
+const storage = new InMemoryTokenStorage();
+
+const client = new NocodbMiddlewareClient({
+  baseUrl: 'https://api.example.com',
+  tokenStorage: storage,
+  onRefresh: async () => {
+    const tokens = await myIdp.silentRenew();
+    storage.set(tokens);
+    return tokens.accessToken;
+  },
+});
+```
+
+---
+
 ## API Reference
 
 ### `NocodbMiddlewareClient`
 
-| Constructor option | Type             | Default      | Description                          |
-| ------------------ | ---------------- | ------------ | ------------------------------------ |
-| `baseUrl`          | `string`         | **required** | Base URL of the NocoDB Middleware    |
-| `tokenStorage`     | `TokenStorage`   | in-memory    | Custom token persistence adapter     |
-| `timeout`          | `number`         | `30000`      | Request timeout in milliseconds      |
+| Constructor option | Type                      | Default      | Description                                   |
+| ------------------ | ------------------------- | ------------ | --------------------------------------------- |
+| `baseUrl`          | `string`                  | **required** | Base URL of the NocoDB Middleware             |
+| `tokenStorage`     | `TokenStorage`            | in-memory    | Custom token persistence adapter              |
+| `timeout`          | `number`                  | `30000`      | Request timeout in milliseconds               |
+| `onRefresh`        | `() => Promise<string>`   | –            | Optional silent-refresh callback (see above)  |
 
 ### `client.auth` – `AuthService`
 
-| Method                              | Description                                       |
-| ----------------------------------- | ------------------------------------------------- |
-| `signIn(identifier, password)`      | Sign in, store tokens, return `TokenPair`         |
-| `signUp(username, email, password)` | Register, store tokens, return `TokenPair`        |
-| `refresh()`                         | Refresh access token, return new access token     |
-| `logout()`                          | Invalidate server session, clear token storage    |
-| `getProfile()`                      | Return the current user's `UserProfile`           |
-
-### `client.records` – `RecordsService`
-
-| Method                              | Description                                       |
-| ----------------------------------- | ------------------------------------------------- |
-| `list(tableId, options?)`           | List records with filter/sort/pagination          |
-| `read(tableId, recordId, options?)` | Read a single record by ID                       |
-| `create(tableId, data)`             | Create a new record                               |
-| `update(tableId, recordId, data)`   | Patch an existing record                          |
-| `delete(tableId, recordId)`         | Delete a record                                   |
-| `findOne(tableId, where)`           | Return the first matching record or `null`        |
+| Method                        | Description                                          |
+| ----------------------------- | ---------------------------------------------------- |
+| `setTokens(tokens)`           | Inject a `TokenPair` obtained from your IdP          |
+| `getTokens()`                 | Return the currently stored `TokenPair` or `null`    |
+| `clearTokens()`               | Clear stored tokens (client-side sign-out)           |
 
 ### `client.admin` – `AdminService`
 
@@ -235,7 +266,7 @@ All methods throw `MiddlewareError` on failure:
 import { MiddlewareError } from 'nocodb-middleware-client';
 
 try {
-  await client.records.read('tbl_abc', 999);
+  await client.admin.listTables();
 } catch (err) {
   if (err instanceof MiddlewareError) {
     console.error(`HTTP ${err.statusCode}: ${err.message}`);
@@ -248,8 +279,8 @@ try {
 | `0`          | Network error (server unreachable)   |
 | `401`        | Unauthorized / token expired         |
 | `403`        | Forbidden                            |
-| `404`        | Record or resource not found         |
-| `409`        | Conflict (e.g. duplicate username)   |
+| `404`        | Resource not found                   |
+| `409`        | Conflict (e.g. duplicate role name)  |
 | `5xx`        | Server-side error                    |
 
 ---

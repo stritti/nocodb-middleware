@@ -1,6 +1,5 @@
 import { createHttpClient } from './http-client';
 import { AuthService } from './services/auth.service';
-import { RecordsService } from './services/records.service';
 import { AdminService } from './services/admin.service';
 import { InMemoryTokenStorage } from './token-storage';
 import { ClientConfig, MiddlewareError } from './types';
@@ -8,16 +7,24 @@ import { ClientConfig, MiddlewareError } from './types';
 /**
  * Main entry-point for the NocoDB Middleware client library.
  *
+ * The NocoDB Middleware validates JWTs but does **not** issue them.  Obtain
+ * tokens from your external identity provider and inject them with
+ * `client.auth.setTokens(tokens)`.
+ *
  * @example
  * ```typescript
  * const client = new NocodbMiddlewareClient({ baseUrl: 'https://api.example.com' });
- * await client.auth.signIn('alice@example.com', 'P@ssword1');
- * const { list } = await client.records.list('tbl_abc123');
+ *
+ * // Inject tokens obtained from your IdP:
+ * client.auth.setTokens({ accessToken: '<token>' });
+ *
+ * // Manage roles and permissions:
+ * const tables = await client.admin.listTables();
+ * await client.admin.createRole('editor', 'Can create and edit content');
  * ```
  */
 export class NocodbMiddlewareClient {
   private readonly _auth: AuthService;
-  private readonly _records: RecordsService;
   private readonly _admin: AdminService;
 
   constructor(config: ClientConfig) {
@@ -35,24 +42,18 @@ export class NocodbMiddlewareClient {
       config.baseUrl,
       storage,
       timeout,
-      // Refresh callback used by the 401 interceptor
-      () => authService.refresh(),
+      config.onRefresh,
     );
 
-    const authService = new AuthService(http, storage);
-    this._auth = authService;
-    this._records = new RecordsService(http);
+    // AuthService only manages token storage; it no longer needs the HTTP
+    // client because the middleware does not expose auth endpoints.
+    this._auth = new AuthService(storage);
     this._admin = new AdminService(http);
   }
 
-  /** Authentication service (sign-in, sign-up, refresh, logout, profile). */
+  /** Token management (set/get/clear tokens obtained from your identity provider). */
   get auth(): AuthService {
     return this._auth;
-  }
-
-  /** Records service (CRUD + list/filter for any table). */
-  get records(): RecordsService {
-    return this._records;
   }
 
   /** Admin service (roles, permissions, user provisioning, health). */

@@ -65,7 +65,7 @@ describe('AdminService', () => {
         canDelete: false,
       });
 
-      expect(http.post).toHaveBeenCalledWith('/admin/permissions/tables', {
+      expect(http.post).toHaveBeenCalledWith('/admin/permissions/table-permissions', {
         roleId: 1,
         tableName: 'products',
         canCreate: true,

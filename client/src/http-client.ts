@@ -17,20 +17,24 @@ interface RetryableConfig extends InternalAxiosRequestConfig {
  *
  * Two interceptors are attached:
  * 1. **Request** – adds `Authorization: Bearer <accessToken>` when a token is stored.
- * 2. **Response (error)** – on 401, attempts a single token refresh, then retries the
- *    original request. A `_isRetry` flag prevents infinite loops.
+ * 2. **Response (error)** – on 401, attempts a single token refresh via the
+ *    optional `onRefresh` callback, then retries the original request.
+ *    An `isRefreshing` guard prevents re-entry if the refresh call itself
+ *    returns 401, avoiding an infinite recursive loop.
  *
  * @param baseUrl       The middleware base URL.
  * @param tokenStorage  Token persistence implementation.
  * @param timeout       Request timeout in ms (default 30 000).
- * @param onRefresh     Callback invoked by the interceptor to perform a token refresh.
- *                      It returns the new access token on success, or throws on failure.
+ * @param onRefresh     Optional callback invoked by the interceptor to perform a
+ *                      token refresh.  It returns the new access token on success,
+ *                      or throws on failure.  When omitted, 401 responses are
+ *                      propagated without a retry.
  */
 export function createHttpClient(
   baseUrl: string,
   tokenStorage: TokenStorage,
   timeout: number,
-  onRefresh: () => Promise<string>,
+  onRefresh?: () => Promise<string>,
 ): AxiosInstance {
   const instance = axios.create({
     baseURL: baseUrl,
@@ -51,25 +55,34 @@ export function createHttpClient(
   });
 
   // ── Response interceptor: 401 → refresh → retry ───────────────────────────
+  // Guard against re-entrant refresh calls: if the refresh request itself
+  // returns 401, we must not call onRefresh() again.
+  let isRefreshing = false;
+
   instance.interceptors.response.use(
     (response) => response,
     async (error: AxiosError) => {
       const originalRequest = error.config as RetryableConfig | undefined;
 
-      // Only attempt refresh once per request
+      // Only attempt refresh once per request, and only when not already refreshing
       if (
         error.response?.status === 401 &&
         originalRequest &&
-        !originalRequest[RETRY_FLAG]
+        !originalRequest[RETRY_FLAG] &&
+        !isRefreshing &&
+        onRefresh
       ) {
         originalRequest[RETRY_FLAG] = true;
+        isRefreshing = true;
 
         try {
           const newAccessToken = await onRefresh();
+          isRefreshing = false;
           originalRequest.headers = originalRequest.headers ?? {};
           originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
           return instance(originalRequest);
         } catch {
+          isRefreshing = false;
           // Refresh failed – clear tokens and propagate the original error
           tokenStorage.clear();
           throw normaliseError(error);

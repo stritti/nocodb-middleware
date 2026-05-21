@@ -1,135 +1,42 @@
-import { AxiosInstance } from 'axios';
-import { normaliseError } from '../http-client';
 import { TokenPair, TokenStorage } from '../types';
 
-/** Shape of the sign-in / sign-up / refresh response. */
-interface AuthResponse {
-  accessToken: string;
-  refreshToken: string;
-}
-
-/** Shape of the user profile response. */
-export interface UserProfile {
-  userId: string;
-  email: string;
-  username: string;
-  role: string;
-}
-
 /**
- * Provides authentication operations against the NocoDB Middleware.
+ * Manages JWT tokens for the NocoDB Middleware client.
  *
- * Tokens are automatically persisted in the configured {@link TokenStorage}
- * after every successful auth call.
+ * The NocoDB Middleware validates JWTs but does **not** issue them — there is
+ * no built-in login flow on the server.  Tokens must be obtained from your
+ * external identity provider (NocoDB sign-in, Auth0, Keycloak, etc.) and
+ * then injected here via {@link setTokens}.
+ *
+ * @example
+ * ```typescript
+ * // Obtain tokens from your IdP, then inject them:
+ * const tokens = await myIdp.signIn(email, password);
+ * client.auth.setTokens(tokens);
+ * ```
  */
 export class AuthService {
-  constructor(
-    private readonly http: AxiosInstance,
-    private readonly tokenStorage: TokenStorage,
-  ) {}
+  constructor(private readonly tokenStorage: TokenStorage) {}
 
   /**
-   * Sign in with an email/username and password.
-   * Stores the returned token pair in token storage.
+   * Persist a token pair obtained from an external identity provider.
+   * All subsequent requests will use the stored access token.
    */
-  async signIn(identifier: string, password: string): Promise<TokenPair> {
-    try {
-      const response = await this.http.post<AuthResponse>('/auth/signin', {
-        identifier,
-        password,
-      });
-      const tokens: TokenPair = {
-        accessToken: response.data.accessToken,
-        refreshToken: response.data.refreshToken,
-      };
-      this.tokenStorage.set(tokens);
-      return tokens;
-    } catch (error) {
-      throw normaliseError(error);
-    }
+  setTokens(tokens: TokenPair): void {
+    this.tokenStorage.set(tokens);
   }
 
   /**
-   * Register a new account.
-   * Stores the returned token pair in token storage.
+   * Return the currently stored token pair, or `null` if not set.
    */
-  async signUp(
-    username: string,
-    email: string,
-    password: string,
-  ): Promise<TokenPair> {
-    try {
-      const response = await this.http.post<AuthResponse>('/auth/signup', {
-        username,
-        email,
-        password,
-      });
-      const tokens: TokenPair = {
-        accessToken: response.data.accessToken,
-        refreshToken: response.data.refreshToken,
-      };
-      this.tokenStorage.set(tokens);
-      return tokens;
-    } catch (error) {
-      throw normaliseError(error);
-    }
+  getTokens(): TokenPair | null {
+    return this.tokenStorage.get();
   }
 
   /**
-   * Refresh the access token using the stored refresh token.
-   * Updates token storage with the new token pair on success.
-   * Clears storage and throws on failure.
+   * Clear stored tokens (effectively signing the user out on the client side).
    */
-  async refresh(): Promise<string> {
-    const tokens = this.tokenStorage.get();
-    if (!tokens?.refreshToken) {
-      this.tokenStorage.clear();
-      throw normaliseError(new Error('No refresh token available'));
-    }
-
-    try {
-      const response = await this.http.post<AuthResponse>(
-        '/auth/refresh',
-        {},
-        {
-          headers: { Authorization: `Bearer ${tokens.refreshToken}` },
-        },
-      );
-      const newTokens: TokenPair = {
-        accessToken: response.data.accessToken,
-        refreshToken: response.data.refreshToken,
-      };
-      this.tokenStorage.set(newTokens);
-      return newTokens.accessToken;
-    } catch (error) {
-      this.tokenStorage.clear();
-      throw normaliseError(error);
-    }
-  }
-
-  /**
-   * Sign out the current user.
-   * Calls the logout endpoint and clears token storage regardless of the response.
-   */
-  async logout(): Promise<void> {
-    try {
-      await this.http.post('/auth/logout');
-    } catch {
-      // Best-effort: always clear local tokens regardless of server response
-    } finally {
-      this.tokenStorage.clear();
-    }
-  }
-
-  /**
-   * Retrieve the profile of the currently authenticated user.
-   */
-  async getProfile(): Promise<UserProfile> {
-    try {
-      const response = await this.http.get<UserProfile>('/auth/profile');
-      return response.data;
-    } catch (error) {
-      throw normaliseError(error);
-    }
+  clearTokens(): void {
+    this.tokenStorage.clear();
   }
 }
