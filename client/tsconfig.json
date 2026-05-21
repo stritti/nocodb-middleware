@@ -1,7 +1,6 @@
 {
   "compilerOptions": {
     "target": "ES2019",
-    "module": "commonjs",
     "lib": ["ES2019"],
     "strict": true,
     "esModuleInterop": true,
@@ -16,5 +15,5 @@
     "types": ["jest", "node"]
   },
   "include": ["src/**/*", "test/**/*"],
-  "exclude": ["node_modules", "dist", "test"]
+  "exclude": ["node_modules", "dist"]
 }
