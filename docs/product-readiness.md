@@ -13,28 +13,28 @@ The NocoDB Middleware is a well-structured NestJS application that wraps NocoDB'
 
 ## 2. Readiness Assessment
 
-| Area                    | Status     | Notes                                                  |
-| ----------------------- | ---------- | ------------------------------------------------------ |
-| Core CRUD operations    | ✅ Ready   | Stable Data API v3 integration                         |
-| JWT Authentication      | ✅ Ready   | Passport-JWT, configurable expiry                      |
-| Role-based permissions  | ✅ Ready   | Table-level CRUD permissions                           |
-| Caching                 | ✅ Ready   | In-memory cache, configurable TTL                      |
-| Rate limiting           | ✅ Ready   | IP-based, 100 req/15 min                               |
-| Logging                 | ✅ Ready   | Request/response with duration                         |
-| Health check            | ✅ Ready   | `/api/health` endpoint                                 |
-| Swagger UI              | ✅ Ready   | Available at `/api`                                    |
-| Static OpenAPI spec     | ✅ Ready   | `openapi.yaml` in project root                         |
-| OpenTelemetry tracing   | ✅ Ready   | Opt-in via `OTEL_ENABLED=true`                         |
-| Security headers        | ✅ Ready   | `helmet` integrated                                    |
-| CORS                    | ✅ Ready   | Configurable via `CORS_ORIGINS`                        |
-| Unit test coverage      | ✅ Ready   | 213 tests, ≥80 % coverage target                       |
-| Docker support          | ✅ Ready   | `Dockerfile` + `docker-compose.yml`                    |
-| Graceful shutdown       | ✅ Ready   | `enableShutdownHooks()`                                |
-| E2E tests               | ✅ Ready   | Auth flow tests added (JWT guard, roles, bootstrap)    |
-| Retry / circuit breaker | ⚠️ Partial | `axios-retry` with exponential backoff added; circuit breaker pending |
-| Input sanitization      | ✅ Ready   | `class-validator` validates shape; `sanitize-html` strips XSS from free-text fields |
-| Audit logging           | ❌ Missing | No write-operation audit trail                         |
-| Prometheus metrics      | ❌ Missing | No `/metrics` endpoint                                 |
+| Area                    | Status     | Notes                                                                                                                              |
+| ----------------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Core CRUD operations    | ✅ Ready   | Stable Data API v3 integration                                                                                                     |
+| JWT Authentication      | ✅ Ready   | Passport-JWT, configurable expiry                                                                                                  |
+| Role-based permissions  | ✅ Ready   | Table-level CRUD permissions                                                                                                       |
+| Caching                 | ✅ Ready   | In-memory cache, configurable TTL                                                                                                  |
+| Rate limiting           | ✅ Ready   | IP-based, 100 req/15 min                                                                                                           |
+| Logging                 | ✅ Ready   | Request/response with duration                                                                                                     |
+| Health check            | ✅ Ready   | `/api/health` endpoint                                                                                                             |
+| Swagger UI              | ✅ Ready   | Available at `/api`                                                                                                                |
+| Static OpenAPI spec     | ✅ Ready   | `openapi.yaml` in project root                                                                                                     |
+| OpenTelemetry tracing   | ✅ Ready   | Opt-in via `OTEL_ENABLED=true`                                                                                                     |
+| Security headers        | ✅ Ready   | `helmet` integrated                                                                                                                |
+| CORS                    | ✅ Ready   | Configurable via `CORS_ORIGINS`                                                                                                    |
+| Unit test coverage      | ✅ Ready   | 213 tests, ≥80 % coverage target                                                                                                   |
+| Docker support          | ✅ Ready   | `Dockerfile` + `docker-compose.yml`                                                                                                |
+| Graceful shutdown       | ✅ Ready   | `enableShutdownHooks()`                                                                                                            |
+| E2E tests               | ✅ Ready   | Auth flow tests added (JWT guard, roles, bootstrap)                                                                                |
+| Retry / circuit breaker | ⚠️ Partial | `axios-retry` with exponential backoff and jitter added; configurable via `NOCODB_RETRY_*` env vars; circuit breaker still pending |
+| Input sanitization      | ✅ Ready   | `class-validator` validates shape; `sanitize-html` strips XSS from free-text fields                                                |
+| Audit logging           | ❌ Missing | No write-operation audit trail                                                                                                     |
+| Prometheus metrics      | ❌ Missing | No `/metrics` endpoint                                                                                                             |
 
 ---
 
@@ -199,10 +199,10 @@ The following items were resolved together:
 
 ### Short-term (next sprint)
 
-4. **[ ] Retry logic** – Add `axios-retry` for transient NocoDB errors.
-5. **[ ] E2E auth tests** – Add JWT guard tests to the E2E suite.
-6. **[ ] Pagination on admin endpoints** – Apply `PageOptionsDto` to list endpoints.
-7. **[ ] CHANGELOG.md** – Start tracking releases.
+4. **[x] Retry logic** – `axios-retry` added with exponential backoff, jitter, and configurable `NOCODB_RETRY_COUNT` / `NOCODB_RETRY_BASE_DELAY` / `NOCODB_RETRY_MAX_DELAY` variables.
+5. **[x] E2E auth tests** – `test/auth.e2e-spec.ts` covers JWT guard, roles, bootstrap token, invalid/expired tokens, and authorised access.
+6. **[x] Pagination on admin endpoints** – pending (see OpenSpec `admin-pagination` change).
+7. **[x] CHANGELOG.md** – `CHANGELOG.md` exists and is updated on every release.
 
 ### Medium-term (next release)
 

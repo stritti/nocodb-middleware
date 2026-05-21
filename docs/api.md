@@ -1,22 +1,32 @@
 # API
 
-Diese Seite beschreibt den aktuellen API-Stand der Middleware inklusive Auth-Modi und Beispiel-Requests.
+This page describes the current API of the middleware, including auth modes and example requests.
 
-## Basis-URLs
+## Base URLs
 
-- API Prefix: `http://localhost:3000/api`
-- Swagger UI: `http://localhost:3000/api/docs`
-- Statische Spezifikation: `openapi.yaml` im Repository Root
+- API prefix: `http://localhost:3000/api`
+- Swagger UI (dev only): `http://localhost:3000/api/docs`
+- Static spec: `openapi.yaml` in the repository root
 
-## Authentifizierung
+## Authentication
 
-### 1. JWT für geschützte Endpunkte
+### 1. JWT for protected endpoints
 
 ```http
 Authorization: Bearer <jwt>
 ```
 
-Minimal erwartete JWT Claims (aus `JwtStrategy`):
+All of the following claim fields are accepted by `IdentityClaimsNormalizerService`:
+
+| JWT claim                          | Internal field | Notes                                                                |
+| ---------------------------------- | -------------- | -------------------------------------------------------------------- |
+| `sub`                              | `userId`       | **Required.** Numeric string for `local`, any string for `external`. |
+| `username` or `preferred_username` | `username`     | `preferred_username` takes priority (OIDC standard).                 |
+| `email`                            | `email`        | Optional.                                                            |
+| `roles` or `role`                  | `roles[]`      | Arrays or space/comma-separated strings are both accepted.           |
+| `scope` or `scp`                   | `scope[]`      | Relevant for external providers.                                     |
+
+Minimal example (local provider):
 
 ```json
 {
@@ -26,26 +36,37 @@ Minimal erwartete JWT Claims (aus `JwtStrategy`):
 }
 ```
 
-### 2. Bootstrap-Token für Initial-Admin
+OIDC-compatible example (external provider):
 
-Der Endpoint `POST /api/bootstrap/admin` nutzt **kein JWT**, sondern den Header:
+```json
+{
+  "sub": "a1b2c3",
+  "preferred_username": "alice",
+  "email": "alice@example.com",
+  "roles": ["admin", "editor"]
+}
+```
+
+### 2. Bootstrap token for the initial admin
+
+The `POST /api/bootstrap/admin` endpoint uses **no JWT**. Instead it reads:
 
 ```http
 x-bootstrap-token: <BOOTSTRAP_ADMIN_TOKEN>
 ```
 
-## Kernendpunkte
+## Endpoints
 
 ### Health
 
 - `GET /api/health`
-- Auth: nein
+- Auth: none
 
 ```bash
 curl http://localhost:3000/api/health
 ```
 
-Beispielantwort:
+Example response:
 
 ```json
 {
@@ -71,7 +92,7 @@ curl -X POST http://localhost:3000/api/bootstrap/admin \
   }'
 ```
 
-Beispielantwort:
+Example response:
 
 ```json
 {
@@ -82,33 +103,67 @@ Beispielantwort:
 }
 ```
 
-### RBAC: Rollen und Berechtigungen
+### User Provisioning (Admin only)
 
-Basispfad: `/api/admin/permissions`
+These endpoints require JWT + the `admin` role.
 
-- `POST /roles`
-- `GET /roles`
-- `DELETE /roles/:roleId`
-- `POST /table-permissions`
-- `POST /table-permissions/batch`
-- `GET /roles/:roleId/permissions`
-- `DELETE /roles/:roleId/permissions`
-- `POST /roles/:sourceRoleId/copy-to/:targetRoleId`
-- `POST /user-roles/assign`
-- `POST /user-roles/assign-multiple`
-- `DELETE /user-roles/users/:userId/roles/:roleId`
-- `GET /users/:userId/roles`
+#### Create user
 
-Hinweis: Neben JWT greift auf diesen Endpunkten zusätzlich der `PermissionsGuard` mit `@Require*`-Decorators.
+- `POST /api/users`
+- Auth: JWT (`admin` role required)
 
-Beispiel: Rollen abrufen
+```bash
+curl -X POST http://localhost:3000/api/users \
+  -H "Authorization: Bearer <jwt>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "alice",
+    "email": "alice@example.com",
+    "password": "StrongP@ssword123!"
+  }'
+```
+
+#### Update user status
+
+- `PATCH /api/users/:id/status`
+- Auth: JWT (`admin` role required)
+
+```bash
+curl -X PATCH http://localhost:3000/api/users/42/status \
+  -H "Authorization: Bearer <jwt>" \
+  -H "Content-Type: application/json" \
+  -d '{ "isActive": false }'
+```
+
+### RBAC: Roles and Permissions
+
+Base path: `/api/admin/permissions`
+
+All endpoints require JWT. The `PermissionsGuard` with `@Require*` decorators applies additional per-table checks.
+
+| Method   | Path                                         | Description                                   |
+| -------- | -------------------------------------------- | --------------------------------------------- |
+| `POST`   | `/roles`                                     | Create a role                                 |
+| `GET`    | `/roles`                                     | List all roles                                |
+| `DELETE` | `/roles/:roleId`                             | Delete a role                                 |
+| `POST`   | `/table-permissions`                         | Set/update CRUD rights for a role on a table  |
+| `POST`   | `/table-permissions/batch`                   | Set multiple table permissions in one request |
+| `GET`    | `/roles/:roleId/permissions`                 | List permissions of a role                    |
+| `DELETE` | `/roles/:roleId/permissions`                 | Delete all permissions of a role              |
+| `POST`   | `/roles/:sourceRoleId/copy-to/:targetRoleId` | Copy permissions from one role to another     |
+| `POST`   | `/user-roles/assign`                         | Assign a role to a user                       |
+| `POST`   | `/user-roles/assign-multiple`                | Assign multiple roles at once                 |
+| `DELETE` | `/user-roles/users/:userId/roles/:roleId`    | Remove a role from a user                     |
+| `GET`    | `/users/:userId/roles`                       | List roles of a user                          |
+
+Example: list roles
 
 ```bash
 curl http://localhost:3000/api/admin/permissions/roles \
   -H "Authorization: Bearer <jwt>"
 ```
 
-Beispiel: Tabellenberechtigung setzen
+Example: set table permission
 
 ```bash
 curl -X POST http://localhost:3000/api/admin/permissions/table-permissions \
@@ -124,7 +179,7 @@ curl -X POST http://localhost:3000/api/admin/permissions/table-permissions \
   }'
 ```
 
-Beispiel: Rolle einem User zuweisen
+Example: assign role to user
 
 ```bash
 curl -X POST http://localhost:3000/api/admin/permissions/user-roles/assign \
@@ -136,23 +191,25 @@ curl -X POST http://localhost:3000/api/admin/permissions/user-roles/assign \
   }'
 ```
 
-### Tabellenkatalog (Admin)
+### Table Catalog (Admin)
 
 - `GET /api/meta/tables`
-- Auth: JWT + Rolle `admin`
+- Auth: JWT + `admin` role
+
+Returns all non-system tables visible in the NocoDB workspace (excludes `users`, `roles`, `user_roles`, `table_permissions`).
 
 ```bash
 curl http://localhost:3000/api/meta/tables \
   -H "Authorization: Bearer <jwt>"
 ```
 
-## Validierung und Fehlerformat
+## Validation and Error Format
 
-Globale `ValidationPipe` ist aktiv:
+The global `ValidationPipe` is active with:
 
 - `whitelist: true`
 - `forbidNonWhitelisted: true`
 - `transform: true`
 
-Fehler werden über den globalen `NocoDBExceptionFilter` vereinheitlicht.
-Details: `docs/error-handling.md`.
+Errors are normalised by the global `NocoDBExceptionFilter`.
+See `docs/error-handling.md` for the full error schema.

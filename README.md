@@ -34,18 +34,19 @@ That distinction matters for security. A browser-only SPA should not be told to 
 ## Features
 
 - Type-safe repository pattern for NocoDB access
-- JWT authentication with Passport
+- JWT authentication with Passport (`AUTH_PROVIDER=local` or `AUTH_PROVIDER=external`)
 - Role-based access control for table-level CRUD operations
-- Request context middleware
+- Request context middleware (`x-nocodb-user-id`, `x-nocodb-user-roles`, `x-request-id`)
 - IP-based rate limiting
-- Logging to console and files
-- In-memory caching for GET-heavy workloads
+- Logging to console (structured JSON via Pino)
+- In-memory caching for GET-heavy workloads (60 s TTL)
 - Structured exception handling
 - `helmet` security headers
-- Swagger UI and static `openapi.yaml`
-- Global DTO validation with `class-validator`
+- Swagger UI (dev only) and static `openapi.yaml`
+- Global DTO validation with `class-validator` and XSS sanitization via `sanitize-html`
 - `/api/health` endpoint
 - Optional OpenTelemetry tracing
+- Retry logic for transient NocoDB errors (`axios-retry` with exponential back-off)
 - Unit and E2E test setup
 
 ## Quick start
@@ -77,7 +78,7 @@ PORT=3000
 LOG_DIR=logs
 ```
 
-Additional variables such as `BOOTSTRAP_ADMIN_TOKEN`, `NOCODB_BOOTSTRAP_ADMIN_USERNAME`, `OTEL_ENABLED`, `OTEL_SERVICE_NAME`, `OTEL_EXPORTER_OTLP_ENDPOINT`, and `LOG_LEVEL` are documented in `.env.example`.
+Additional variables such as `AUTH_PROVIDER` (`local` or `external`), `EXTERNAL_JWT_SECRET`, `BOOTSTRAP_ADMIN_TOKEN`, `NOCODB_BOOTSTRAP_ADMIN_USERNAME`, `NOCODB_RETRY_COUNT`, `OTEL_ENABLED`, `OTEL_SERVICE_NAME`, `OTEL_EXPORTER_OTLP_ENDPOINT`, and `LOG_LEVEL` are documented in `.env.example`. See also `docs/developer-guide.md` for the auth provider modes.
 
 ### 3. Run the application
 

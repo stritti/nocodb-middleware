@@ -9,12 +9,15 @@ Alle Endpunkte liegen unter `/admin/permissions`.
 ## 1) Rollen
 
 ### `POST /admin/permissions/roles`
+
 Erstellt eine Rolle.
 
 ### `GET /admin/permissions/roles`
+
 Liefert alle Rollen.
 
 ### `DELETE /admin/permissions/roles/:roleId`
+
 Löscht eine Rolle.
 
 ---
@@ -22,6 +25,7 @@ Löscht eine Rolle.
 ## 2) User-Rollen Zuordnung
 
 ### `POST /admin/permissions/user-roles/assign`
+
 Weist einem User eine Rolle zu.
 
 Body:
@@ -34,12 +38,15 @@ Body:
 ```
 
 ### `POST /admin/permissions/user-roles/assign-multiple`
+
 Weist mehrere Rollen zu.
 
 ### `GET /admin/permissions/users/:userId/roles`
+
 Liefert Rollen eines Users.
 
 ### `DELETE /admin/permissions/user-roles/users/:userId/roles/:roleId`
+
 Entfernt eine Rolle vom User.
 
 ---
@@ -47,18 +54,23 @@ Entfernt eine Rolle vom User.
 ## 3) Tabellen-Berechtigungen
 
 ### `POST /admin/permissions/table-permissions`
+
 Setzt/aktualisiert CRUD-Rechte einer Rolle auf eine Tabelle.
 
 ### `POST /admin/permissions/table-permissions/batch`
+
 Setzt mehrere Tabellenberechtigungen in einem Request.
 
 ### `GET /admin/permissions/roles/:roleId/permissions`
+
 Liefert Tabellenberechtigungen einer Rolle.
 
 ### `DELETE /admin/permissions/roles/:roleId/permissions`
+
 Löscht alle Tabellenberechtigungen einer Rolle.
 
 ### `POST /admin/permissions/roles/:sourceRoleId/copy-to/:targetRoleId`
+
 Kopiert Berechtigungen von einer Rolle auf eine andere.
 
 ---
@@ -85,6 +97,4 @@ findAll() {
 
 ---
 
-## Hinweis zur V3-Ausrichtung
-
-Die RBAC-Fachlogik ist vorhanden, aber Datenzugriffe sind aktuell noch teils v2-basiert. Die vollständige V3-Harmonisierung ist in OpenSpec-Changes geplant.
+> All data access in the permissions layer uses the NocoDB v3 API.

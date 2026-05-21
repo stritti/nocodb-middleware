@@ -132,40 +132,44 @@ Vollständiges RBAC-System auf Table-Ebene:
 ## 4. Datenmodell (NocoDB System-Tabellen)
 
 ### 4.1 `users`
-| Spalte | Typ | Zweck |
-|--------|-----|-------|
-| id | (autogen) | Primary Key |
-| username | SingleLineText | Login-Name |
-| email | Email | E-Mail |
-| password_hash | LongText | bcrypt-Hash |
-| is_active | Checkbox | Aktiv/Deaktiviert |
+
+| Spalte        | Typ            | Zweck             |
+| ------------- | -------------- | ----------------- |
+| id            | (autogen)      | Primary Key       |
+| username      | SingleLineText | Login-Name        |
+| email         | Email          | E-Mail            |
+| password_hash | LongText       | bcrypt-Hash       |
+| is_active     | Checkbox       | Aktiv/Deaktiviert |
 
 ### 4.2 `roles`
-| Spalte | Typ | Zweck |
-|--------|-----|-------|
-| id | (autogen) | Primary Key |
-| role_name | SingleLineText | Rollenname (z.B. admin, editor) |
-| description | LongText | Beschreibung |
-| is_system_role | Checkbox | System-Schutz |
+
+| Spalte         | Typ            | Zweck                           |
+| -------------- | -------------- | ------------------------------- |
+| id             | (autogen)      | Primary Key                     |
+| role_name      | SingleLineText | Rollenname (z.B. admin, editor) |
+| description    | LongText       | Beschreibung                    |
+| is_system_role | Checkbox       | System-Schutz                   |
 
 ### 4.3 `user_roles` (Junction)
-| Spalte | Typ | Zweck |
-|--------|-----|-------|
-| id | (autogen) | Primary Key |
-| user | Link → users | Benutzer |
-| role | Link → roles | Rolle |
-| assigned_at | DateTime | Zeitpunkt der Zuweisung |
+
+| Spalte      | Typ          | Zweck                   |
+| ----------- | ------------ | ----------------------- |
+| id          | (autogen)    | Primary Key             |
+| user        | Link → users | Benutzer                |
+| role        | Link → roles | Rolle                   |
+| assigned_at | DateTime     | Zeitpunkt der Zuweisung |
 
 ### 4.4 `table_permissions`
-| Spalte | Typ | Zweck |
-|--------|-----|-------|
-| id | (autogen) | Primary Key |
-| role | Link → roles | Rolle |
-| table_name | SingleLineText | Ziel-Tabelle |
-| can_create | Checkbox | CREATE-Berechtigung |
-| can_read | Checkbox | READ-Berechtigung |
-| can_update | Checkbox | UPDATE-Berechtigung |
-| can_delete | Checkbox | DELETE-Berechtigung |
+
+| Spalte     | Typ            | Zweck               |
+| ---------- | -------------- | ------------------- |
+| id         | (autogen)      | Primary Key         |
+| role       | Link → roles   | Rolle               |
+| table_name | SingleLineText | Ziel-Tabelle        |
+| can_create | Checkbox       | CREATE-Berechtigung |
+| can_read   | Checkbox       | READ-Berechtigung   |
+| can_update | Checkbox       | UPDATE-Berechtigung |
+| can_delete | Checkbox       | DELETE-Berechtigung |
 
 ---
 
@@ -213,38 +217,40 @@ Vollständiges RBAC-System auf Table-Ebene:
 
 ## 9. Bewertung: Stärken
 
-| Aspekt | Bewertung |
-|--------|-----------|
-| **Modularisierung** | Saubere NestJS-Module mit klaren Verantwortlichkeiten |
-| **Typsicherheit** | TypeScript strict mode, class-validator/transformer für DTOs |
-| **RBAC-System** | Table-Level CRUD Permissions, vollständig in NocoDB persistiert |
-| **Auto-Provisioning** | DatabaseInitializationService erstellt Tabellen automatisch |
-| **Caching** | Mehrschichtig: HTTP-Cache (5min), Permissions-Cache (5min), NocoDB-Rate-Limit |
-| **Observability** | Pino-Logging + optionales OpenTelemetry-Tracing |
-| **Testabdeckung** | 213 Tests, ≥ 80% Coverage |
-| **Sicherheit** | Helmet, CORS, Rate-Limiting, bcrypt, constant-time Token-Vergleich |
+| Aspekt                | Bewertung                                                                     |
+| --------------------- | ----------------------------------------------------------------------------- |
+| **Modularisierung**   | Saubere NestJS-Module mit klaren Verantwortlichkeiten                         |
+| **Typsicherheit**     | TypeScript strict mode, class-validator/transformer für DTOs                  |
+| **RBAC-System**       | Table-Level CRUD Permissions, vollständig in NocoDB persistiert               |
+| **Auto-Provisioning** | DatabaseInitializationService erstellt Tabellen automatisch                   |
+| **Caching**           | Mehrschichtig: HTTP-Cache (5min), Permissions-Cache (5min), NocoDB-Rate-Limit |
+| **Observability**     | Pino-Logging + optionales OpenTelemetry-Tracing                               |
+| **Testabdeckung**     | 213 Tests, ≥ 80% Coverage                                                     |
+| **Sicherheit**        | Helmet, CORS, Rate-Limiting, bcrypt, constant-time Token-Vergleich            |
 
 ---
 
 ## 10. Bewertung: Schwächen & Risiken
 
-| # | Schwäche | Risiko | Priorität |
-|---|----------|--------|-----------|
-| 1 | **Kein `@Public()`-Decorator** – JwtAuthGuard hat keine Skip-Logik | Endpoints wie Login/Webhooks lassen sich nicht ohne Auth bereitstellen | Hoch |
-| 2 | **Hardcodiertes Rate-Limit** (200ms) im NocoDBService | Nicht konfigurierbar, kann bei anderen NocoDB-Installationen zu langsam oder zu aggressiv sein | Mittel |
-| 3 | **Default-Passwort `password123`** im DatabaseInitializationService | Sicherheitsrisiko, wenn das Seeding unkontrolliert in Production läuft | Hoch |
-| 4 | **Seeding läuft bei jedem Start** – `onModuleInit` erstellt/seeded immer | Kann in Production zu unerwünschten Nebenwirkungen führen (z.B. User wird nicht nochmal erstellt, aber Lookups laufen immer) | Mittel |
-| 5 | **Swagger UI nicht environment-geschützt** – `/api/docs` in `main.ts` ohne `NODE_ENV`-Check | Swagger-UI wäre in Production erreichbar (Exposure der API-Dokumentation) | Niedrig |
-| 6 | **Keine XSS-Sanitierung** | Freitextfelder könnten XSS-Angriffe ermöglichen | Hoch |
-| 7 | **Keine Retry-Logik** bei NocoDB-Upstream-Fehlern | Transiente Fehler (5xx, Timeouts) führen sofort zum Fehlschlag | Mittel |
-| 8 | **Kein Circuit Breaker** | Bei anhaltenden NocoDB-Ausfällen kein Fail-Fast | Mittel |
-| 9 | **Kein Audit-Logging** | Schreiboperationen (CUD) werden nicht mit User-ID geloggt | Mittel |
-| 10 | **Kein Redis-Cache** | In-Memory-Cache skaliert nicht bei Multi-Instanz-Betrieb | Niedrig |
-| 11 | **Keine Prometheus-Metrics** | Operatives Monitoring fehlt | Niedrig |
-| 12 | **Keine Response-Kompression** | Größere Payloads werden unkomprimiert ausgeliefert | Niedrig |
-| 13 | **Pagination fehlt auf Admin-Endpoints** | `PermissionsManagementController` listet ohne Pagination | Mittel |
-| 14 | **Keine E2E-Tests für Auth-Flow** | Kritischer Auth-Pfad nicht integriert getestet | Mittel |
-| 15 | **CORS_ORIGINS muss explizit gesetzt werden** | Fehlende Konfiguration führt zu undefiniertem Verhalten | Hoch |
+> Items marked ✅ have been resolved since the initial analysis.
+
+| #   | Schwäche                                                                                                                                                                                 | Risiko                                                                                         | Priorität | Status                                                                           |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | --------- | -------------------------------------------------------------------------------- |
+| 1   | **Kein globaler `@Public()`-Decorator** – `JwtAuthGuard` ist kein globaler Guard; unauthenticated endpoints (Health, Bootstrap) are simply not decorated with `@UseGuards(JwtAuthGuard)` | Not a current bug, but adding a global guard later would require a `@Public()` skip mechanism  | Niedrig   | Open                                                                             |
+| 2   | **Hardcodiertes Rate-Limit** (200ms) im NocoDBService                                                                                                                                    | Nicht konfigurierbar, kann bei anderen NocoDB-Installationen zu langsam oder zu aggressiv sein | Mittel    | Open                                                                             |
+| 3   | **Default-Passwort `password123`** im DatabaseInitializationService                                                                                                                      | Sicherheitsrisiko, wenn das Seeding unkontrolliert in Production läuft                         | Hoch      | Open                                                                             |
+| 4   | **Seeding läuft bei jedem Start** – `onModuleInit` erstellt/seeded immer                                                                                                                 | Kann in Production zu unerwünschten Nebenwirkungen führen                                      | Mittel    | Open                                                                             |
+| 5   | ~~Swagger UI nicht environment-geschützt~~                                                                                                                                               | ~~Swagger-UI wäre in Production erreichbar~~                                                   | Niedrig   | ✅ Fixed – `main.ts` checks `NODE_ENV !== 'production'`                          |
+| 6   | ~~Keine XSS-Sanitierung~~                                                                                                                                                                | ~~Freitextfelder könnten XSS-Angriffe ermöglichen~~                                            | Hoch      | ✅ Fixed – `@SanitizeHtml()` decorator via `sanitize-html`                       |
+| 7   | ~~Keine Retry-Logik~~ bei NocoDB-Upstream-Fehlern                                                                                                                                        | ~~Transiente Fehler führen sofort zum Fehlschlag~~                                             | Mittel    | ✅ Fixed – `axios-retry` with exponential backoff + jitter                       |
+| 8   | **Kein Circuit Breaker**                                                                                                                                                                 | Bei anhaltenden NocoDB-Ausfällen kein Fail-Fast                                                | Mittel    | Open                                                                             |
+| 9   | **Kein Audit-Logging**                                                                                                                                                                   | Schreiboperationen (CUD) werden nicht mit User-ID geloggt                                      | Mittel    | Open                                                                             |
+| 10  | **Kein Redis-Cache**                                                                                                                                                                     | In-Memory-Cache skaliert nicht bei Multi-Instanz-Betrieb                                       | Niedrig   | Open                                                                             |
+| 11  | **Keine Prometheus-Metrics**                                                                                                                                                             | Operatives Monitoring fehlt                                                                    | Niedrig   | Open                                                                             |
+| 12  | **Keine Response-Kompression**                                                                                                                                                           | Größere Payloads werden unkomprimiert ausgeliefert                                             | Niedrig   | Open                                                                             |
+| 13  | **Pagination fehlt auf Admin-Endpoints**                                                                                                                                                 | `PermissionsManagementController` listet ohne Pagination                                       | Mittel    | Open                                                                             |
+| 14  | ~~Keine E2E-Tests für Auth-Flow~~                                                                                                                                                        | ~~Kritischer Auth-Pfad nicht integriert getestet~~                                             | Mittel    | ✅ Fixed – `test/auth.e2e-spec.ts` covers JWT guard, roles, bootstrap            |
+| 15  | ~~CORS_ORIGINS muss explizit gesetzt werden~~                                                                                                                                            | ~~Fehlende Konfiguration führt zu undefiniertem Verhalten~~                                    | Hoch      | ✅ Fixed – Startup validation with warnings for wildcard/localhost in production |
 
 ---
 
@@ -285,16 +291,16 @@ PermissionsGuard.canActivate()
 
 ## 12. Abhängigkeiten (Package.json)
 
-| Kategorie | Packages |
-|-----------|----------|
-| **NestJS Core** | `@nestjs/common`, `@nestjs/core`, `@nestjs/platform-express` |
-| **Auth** | `@nestjs/jwt`, `@nestjs/passport`, `passport`, `passport-jwt`, `bcrypt` |
-| **Config** | `@nestjs/config` |
-| **Caching** | `@nestjs/cache-manager`, `cache-manager` |
-| **Logging** | `nestjs-pino`, `pino-http`, `winston` (nest-winston) |
-| **NocoDB** | `nocodb-sdk` |
-| **HTTP** | `axios` |
-| **Security** | `helmet`, `express-rate-limit`, `class-validator`, `class-transformer` |
-| **Tracing** | `@opentelemetry/api`, `@opentelemetry/auto-instrumentations-node`, `@opentelemetry/sdk-node`, `@opentelemetry/exporter-trace-otlp-http` |
-| **Dokumentation** | `@nestjs/swagger`, `swagger-ui-express` |
-| **Dev** | `jest`, `ts-jest`, `supertest`, `eslint`, `prettier`, `vitepress`, `vitepress-openapi` |
+| Kategorie         | Packages                                                                                                                                |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| **NestJS Core**   | `@nestjs/common`, `@nestjs/core`, `@nestjs/platform-express`                                                                            |
+| **Auth**          | `@nestjs/jwt`, `@nestjs/passport`, `passport`, `passport-jwt`, `bcrypt`                                                                 |
+| **Config**        | `@nestjs/config`                                                                                                                        |
+| **Caching**       | `@nestjs/cache-manager`, `cache-manager`                                                                                                |
+| **Logging**       | `nestjs-pino`, `pino-http`, `winston` (nest-winston)                                                                                    |
+| **NocoDB**        | `nocodb-sdk`                                                                                                                            |
+| **HTTP**          | `axios`                                                                                                                                 |
+| **Security**      | `helmet`, `express-rate-limit`, `class-validator`, `class-transformer`                                                                  |
+| **Tracing**       | `@opentelemetry/api`, `@opentelemetry/auto-instrumentations-node`, `@opentelemetry/sdk-node`, `@opentelemetry/exporter-trace-otlp-http` |
+| **Dokumentation** | `@nestjs/swagger`, `swagger-ui-express`                                                                                                 |
+| **Dev**           | `jest`, `ts-jest`, `supertest`, `eslint`, `prettier`, `vitepress`, `vitepress-openapi`                                                  |
