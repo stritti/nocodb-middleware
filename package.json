@@ -2,7 +2,7 @@
   "name": "nocodb-middleware",
   "version": "0.2.9",
   "description": "",
-  "author": "",
+  "author": "Stephan Strittmatter",
   "private": true,
   "license": "MIT",
   "scripts": {
