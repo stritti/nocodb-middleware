@@ -1,7 +1,8 @@
 import { Injectable, OnModuleInit, Logger, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Api } from 'nocodb-sdk';
-import axios, { AxiosInstance } from 'axios';
+import axios, { AxiosInstance, AxiosError } from 'axios';
+import axiosRetry from 'axios-retry';
 import { TelemetryService } from '../tracing/telemetry.service';
 
 // ─── Data API option interfaces ─────────────────────────────────────────────
@@ -91,6 +92,55 @@ export class NocoDBService implements OnModuleInit {
       },
     });
 
+    // Configure retry logic with exponential backoff for transient failures
+    const retryCount = this.configService.get<number>('NOCODB_RETRY_COUNT', 3);
+    const retryBaseDelay = this.configService.get<number>(
+      'NOCODB_RETRY_BASE_DELAY',
+      1000,
+    );
+    const retryMaxDelay = this.configService.get<number>(
+      'NOCODB_RETRY_MAX_DELAY',
+      10000,
+    );
+
+    axiosRetry(this.httpClient, {
+      retries: retryCount,
+      retryDelay: (retryCountParam: number, _error: AxiosError) => {
+        const delay = Math.min(
+          retryBaseDelay * Math.pow(2, retryCountParam - 1),
+          retryMaxDelay,
+        );
+        // Add jitter (±25%) to avoid thundering herd
+        const jitter = delay * 0.25 * (Math.random() * 2 - 1);
+        return Math.round(delay + jitter);
+      },
+      retryCondition: (error: AxiosError) => {
+        // Retry on network errors or idempotent methods (GET, HEAD, PUT, DELETE, OPTIONS)
+        // that returned any error status – these are safe to replay.
+        if (axiosRetry.isNetworkOrIdempotentRequestError(error)) {
+          return true;
+        }
+        // 429 (rate limited) is safe to retry for all methods; the server
+        // did not process the request.
+        if (error.response?.status === 429) {
+          return true;
+        }
+        // Do NOT retry non-idempotent methods on 5xx – the request may have
+        // been processed (e.g. a POST that created a record before the
+        // connection dropped).
+        return false;
+      },
+      onRetry: (retryCountParam: number, error: AxiosError) => {
+        this.logger.warn(
+          `[axios-retry] Retrying NocoDB request (attempt ${retryCountParam}) after: ${error.message}`,
+        );
+      },
+    });
+
+    this.logger.log(
+      `HTTP client retry configured: ${retryCount} attempts, base delay ${retryBaseDelay}ms`,
+    );
+
     if (this.tablePrefix) {
       this.logger.log(
         `NocoDB Service initialized with table prefix: "${this.tablePrefix}"`,
@@ -101,20 +151,48 @@ export class NocoDBService implements OnModuleInit {
 
   // ── Accessor helpers ──────────────────────────────────────────────────────
 
+  /**
+   * Get the NocoDB SDK client for data operations
+   */
   getClient(): Api<any> {
     return this.client;
   }
 
+  /**
+   * Get the configured base ID
+   */
   getBaseId(): string {
     return this.baseId;
   }
 
+  /**
+   * Get the configured table prefix
+   */
   getTablePrefix(): string {
     return this.tablePrefix;
   }
 
+  /**
+   * Get the HTTP client for legacy direct API calls.
+   * Prefer dedicated NocoDBService methods so the privileged token stays
+   * encapsulated in this infrastructure boundary.
+   */
   getHttpClient(): AxiosInstance {
     return this.httpClient;
+  }
+
+  async getTableMetadata(tableId: string): Promise<any> {
+    const response = await this.httpClient.get(
+      `/api/v3/meta/tables/${tableId}`,
+    );
+    return response.data;
+  }
+
+  async listBaseTables(baseId = this.baseId): Promise<any[]> {
+    const response = await this.httpClient.get(
+      `/api/v3/meta/bases/${baseId}/tables`,
+    );
+    return response.data.list || [];
   }
 
   // ── Tracing helper ────────────────────────────────────────────────────────
@@ -145,10 +223,7 @@ export class NocoDBService implements OnModuleInit {
   async tableExists(tableName: string): Promise<boolean> {
     const prefixedName = this.getPrefixedTableName(tableName);
     try {
-      const response = await this.httpClient.get(
-        `/api/v3/meta/bases/${this.baseId}/tables`,
-      );
-      const tables = response.data.list || [];
+      const tables = await this.listTables();
       return tables.some((table: any) => table.table_name === prefixedName);
     } catch (error) {
       this.logger.error(
@@ -160,15 +235,24 @@ export class NocoDBService implements OnModuleInit {
   }
 
   /**
+   * List all tables in the base.
+   */
+  async listTables(): Promise<any[]> {
+    try {
+      return this.listBaseTables();
+    } catch (error) {
+      this.logger.error(`Error listing tables for base ${this.baseId}:`, error);
+      throw error;
+    }
+  }
+
+  /**
    * Get table details by name.
    */
   async getTableByName(tableName: string): Promise<any> {
     const prefixedName = this.getPrefixedTableName(tableName);
     try {
-      const response = await this.httpClient.get(
-        `/api/v3/meta/bases/${this.baseId}/tables`,
-      );
-      const tables = response.data.list || [];
+      const tables = await this.listTables();
       const table = tables.find((t: any) => t.table_name === prefixedName);
       if (!table) {
         this.logger.warn(`Table ${prefixedName} not found`);
@@ -238,19 +322,21 @@ export class NocoDBService implements OnModuleInit {
   private nextAllowedTime = 0;
 
   private enforceRateLimit(): Promise<void> {
-    const next = this.rateLimitChain.catch(() => {}).then(() => {
-      const now = Date.now();
-      const scheduledTime = Math.max(now, this.nextAllowedTime);
-      const delay = Math.max(0, scheduledTime - now);
+    const next = this.rateLimitChain
+      .catch(() => {})
+      .then(() => {
+        const now = Date.now();
+        const scheduledTime = Math.max(now, this.nextAllowedTime);
+        const delay = Math.max(0, scheduledTime - now);
 
-      this.nextAllowedTime = scheduledTime + this.minRequestInterval;
+        this.nextAllowedTime = scheduledTime + this.minRequestInterval;
 
-      if (delay === 0) {
-        return;
-      }
+        if (delay === 0) {
+          return;
+        }
 
-      return new Promise<void>((resolve) => setTimeout(resolve, delay));
-    });
+        return new Promise<void>((resolve) => setTimeout(resolve, delay));
+      });
     this.rateLimitChain = next;
     return next;
   }
@@ -505,7 +591,9 @@ export class NocoDBService implements OnModuleInit {
         results.push(await this.create(tableId, record));
       } catch (error) {
         this.logger.error('Error in batch create for record:', error);
-        results.push({ error: error.message });
+        results.push({
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
     return results;
@@ -524,7 +612,10 @@ export class NocoDBService implements OnModuleInit {
         results.push(await this.update(tableId, upd.id, upd.data));
       } catch (error) {
         this.logger.error(`Error in batch update for record ${upd.id}:`, error);
-        results.push({ id: upd.id, error: error.message });
+        results.push({
+          id: upd.id,
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
     return results;

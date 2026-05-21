@@ -1,13 +1,15 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { NocoDBService } from './nocodb.service';
-
-import * as crypto from 'crypto';
+import { andFilters, filterEq } from './nocodb-filter.util';
 
 interface ColumnDefinition {
   name: string;
   title: string;
   type: string;
-  options?: any;
+  options?: Record<string, any>;
+  parentId?: string;
+  pk?: boolean;
+  ai?: boolean;
 }
 
 interface TableDefinition {
@@ -32,7 +34,7 @@ export class DatabaseInitializationService implements OnModuleInit {
   }
 
   private async initializeTables() {
-    // 1. Create Base Tables (Users & Roles) - only simple columns
+    // 1. Create Core Tables
     const usersTableId = await this.ensureTableExists({
       tableName: 'users',
       title: 'Users',
@@ -41,6 +43,16 @@ export class DatabaseInitializationService implements OnModuleInit {
         { name: 'email', title: 'Email', type: 'Email' },
         { name: 'password_hash', title: 'Password Hash', type: 'LongText' },
         { name: 'is_active', title: 'Is Active', type: 'Checkbox' },
+        {
+          name: 'auth_provider',
+          title: 'Auth Provider',
+          type: 'SingleLineText',
+        },
+        {
+          name: 'external_subject',
+          title: 'External Subject',
+          type: 'SingleLineText',
+        },
       ],
     });
 
@@ -56,30 +68,25 @@ export class DatabaseInitializationService implements OnModuleInit {
 
     if (!usersTableId || !rolesTableId) {
       this.logger.error(
-        'Failed to initialize base tables. Skipping relations.',
+        'Failed to initialize base tables. Skipping relations and seeding.',
       );
       return;
     }
 
-    // 2. Create Junction Tables - WITHOUT link columns (must be created manually in UI)
-    // User Roles (Many-to-Many via Join Table)
+    // 2. Junction and Permission Tables
+    // Note: Link columns (user, role) must be verified or created manually if meta API fails
     await this.ensureTableExists({
       tableName: 'user_roles',
       title: 'User Roles',
       columns: [
-        // NOTE: Link columns 'user' and 'role' must be created manually in NocoDB UI!
-        // See docs/SETUP.md for instructions
         { name: 'assigned_at', title: 'Assigned At', type: 'DateTime' },
       ],
     });
 
-    // Table Permissions (Role -> Permissions)
     await this.ensureTableExists({
       tableName: 'table_permissions',
       title: 'Table Permissions',
       columns: [
-        // NOTE: Link column 'role' must be created manually in NocoDB UI!
-        // See docs/SETUP.md for instructions
         { name: 'table_name', title: 'Table Name', type: 'SingleLineText' },
         { name: 'can_create', title: 'Can Create', type: 'Checkbox' },
         { name: 'can_read', title: 'Can Read', type: 'Checkbox' },
@@ -88,13 +95,11 @@ export class DatabaseInitializationService implements OnModuleInit {
       ],
     });
 
-    // 3. Verify that link columns exist (must be created manually in UI)
-    this.logger.log('Verifying link columns exist...');
+    // 3. Verify relationships (Link columns)
     await this.verifyLinkColumnsExist();
 
-    // 4. Seed default data (uses v3 API with inline relationships)
+    // 4. Seed Data
     await this.seedDefaultPermissions();
-    await this.seedDefaultUser();
   }
 
   private async ensureTableExists(
@@ -123,23 +128,13 @@ export class DatabaseInitializationService implements OnModuleInit {
     this.logger.log(`Creating table ${fullTableName}...`);
 
     try {
-      // Split columns into initial (simple) and delayed (links)
-      const initialColumns = tableDef.columns.filter(
-        (col) => col.type !== 'LinkToAnotherRecord',
-      );
-      const linkColumns = tableDef.columns.filter(
-        (col) => col.type === 'LinkToAnotherRecord',
-      );
-
-      // Prepare initial columns for creation
-      const columnsPayload = initialColumns.map((col) => ({
+      const columnsPayload = tableDef.columns.map((col) => ({
         column_name: col.name,
         title: col.title,
         uidt: col.type,
         ...col.options,
       }));
 
-      // Create table WITH initial columns
       const response = await this.nocoDBService.createTable(
         tableDef.tableName,
         tableDef.title,
@@ -148,17 +143,6 @@ export class DatabaseInitializationService implements OnModuleInit {
 
       const tableId = response.id;
       this.logger.log(`Table ${fullTableName} created (ID: ${tableId})`);
-
-      // Wait for API stability
-      await this.delay(1000);
-
-      // Create Link Columns separately
-      await this.ensureColumnsExist(tableId, linkColumns, fullTableName);
-
-      this.logger.log(
-        `Table ${fullTableName} fully initialized with ${tableDef.columns.length} columns`,
-      );
-
       return tableId;
     } catch (error) {
       this.logger.error(`Failed to create table ${fullTableName}`, error);
@@ -166,149 +150,19 @@ export class DatabaseInitializationService implements OnModuleInit {
     }
   }
 
-  /**
-   * Verifies that required link columns exist in tables.
-   * Link columns MUST be created manually in NocoDB UI before running the app.
-   * This method only verifies they exist and logs helpful error messages if not.
-   */
-  private async verifyLinkColumnsExist() {
-    const requiredLinks = [
-      {
-        tableName: 'user_roles',
-        linkColumns: [
-          {
-            name: 'user',
-            targetTable: 'users',
-            description: 'Link to Users table',
-          },
-          {
-            name: 'role',
-            targetTable: 'roles',
-            description: 'Link to Roles table',
-          },
-        ],
-      },
-      {
-        tableName: 'table_permissions',
-        linkColumns: [
-          {
-            name: 'role',
-            targetTable: 'roles',
-            description: 'Link to Roles table',
-          },
-        ],
-      },
-    ];
-
-    const httpClient = this.nocoDBService.getHttpClient();
-    const missingLinks: string[] = [];
-
-    for (const tableSpec of requiredLinks) {
-      try {
-        const table = await this.nocoDBService.getTableByName(
-          tableSpec.tableName,
-        );
-        if (!table) {
-          this.logger.error(`Table ${tableSpec.tableName} not found`);
-          continue;
-        }
-
-        const schema = await httpClient.get(`/api/v3/meta/tables/${table.id}`);
-        const columns = schema.data.columns || [];
-
-        for (const linkSpec of tableSpec.linkColumns) {
-          const linkColumn = columns.find(
-            (c: any) =>
-              c.column_name === linkSpec.name &&
-              c.uidt === 'LinkToAnotherRecord',
-          );
-
-          if (!linkColumn) {
-            const errorMsg = `Missing link column: ${tableSpec.tableName}.${linkSpec.name} -> ${linkSpec.targetTable}`;
-            missingLinks.push(errorMsg);
-            this.logger.warn(errorMsg);
-          } else {
-            this.logger.log(
-              `✓ Link column verified: ${tableSpec.tableName}.${linkSpec.name}`,
-            );
-          }
-        }
-      } catch (error) {
-        this.logger.error(
-          `Error verifying links for ${tableSpec.tableName}`,
-          error,
-        );
-      }
-    }
-
-    if (missingLinks.length > 0) {
-      const setupInstructions = `
-================================================================================
-⚠️  MISSING LINK COLUMNS - MANUAL SETUP REQUIRED
-================================================================================
-
-The following link columns are missing and must be created manually in NocoDB UI:
-
-${missingLinks.map((msg, i) => `${i + 1}. ${msg}`).join('\n')}
-
-SETUP INSTRUCTIONS:
--------------------
-1. Open NocoDB UI: ${this.nocoDBService.getHttpClient().defaults.baseURL}
-2. Navigate to your base
-3. For each missing link column above:
-   a. Open the table (e.g., "user_roles")
-   b. Click "+ Add Column"
-   c. Select "Links" as the column type
-   d. Name it as specified (e.g., "user")
-   e. Select the target table (e.g., "users")
-   f. Choose relationship type (typically "Has Many" or "Belongs To")
-   g. Click "Save"
-
-4. After creating all link columns, restart the application
-
-For detailed instructions, see: docs/SETUP.md
-================================================================================
-`;
-
-      this.logger.error(setupInstructions);
-
-      throw new Error(
-        `Missing ${missingLinks.length} required link column(s). ` +
-          `Please create them manually in NocoDB UI and restart the application. ` +
-          `See server logs for detailed instructions.`,
-      );
-    }
-
-    this.logger.log('✓ All required link columns verified successfully');
-  }
-
-  /**
-   * Ensures non-link columns exist in a table.
-   * Link columns are NOT supported here - they must be created manually in UI.
-   */
   private async ensureColumnsExist(
     tableId: string,
     columns: ColumnDefinition[],
     tableName: string,
   ) {
     try {
-      // Get existing columns
-      const httpClient = this.nocoDBService.getHttpClient();
-      const response = await httpClient.get(`/api/v3/meta/tables/${tableId}`);
-      const existingColumns = response.data.columns || [];
+      const tableMetadata = await this.nocoDBService.getTableMetadata(tableId);
+      const existingColumns = tableMetadata.columns || [];
       const existingColumnNames = new Set(
         existingColumns.map((c: any) => c.column_name),
       );
 
       for (const col of columns) {
-        // Skip link columns - they must be created manually
-        if (col.type === 'LinkToAnotherRecord') {
-          this.logger.warn(
-            `Skipping link column ${col.name} - must be created manually in UI`,
-          );
-          continue;
-        }
-
         if (!existingColumnNames.has(col.name)) {
           this.logger.log(
             `Creating missing column ${col.name} in ${tableName}...`,
@@ -332,128 +186,159 @@ For detailed instructions, see: docs/SETUP.md
         }
       }
     } catch (error) {
-      this.logger.error(`Error ensuring columns exist for ${tableName}`, error);
+      this.logger.error(
+        `Error ensuring columns for table ${tableName}:`,
+        error,
+      );
+    }
+  }
+
+  private async verifyLinkColumnsExist() {
+    const requiredLinks = [
+      {
+        tableName: 'user_roles',
+        linkColumns: [
+          { name: 'user', targetTable: 'users' },
+          { name: 'role', targetTable: 'roles' },
+        ],
+      },
+      {
+        tableName: 'table_permissions',
+        linkColumns: [{ name: 'role', targetTable: 'roles' }],
+      },
+    ];
+
+    const missingLinks: string[] = [];
+
+    for (const tableSpec of requiredLinks) {
+      try {
+        const table = await this.nocoDBService.getTableByName(
+          tableSpec.tableName,
+        );
+        if (!table) continue;
+
+        const tableMetadata = await this.nocoDBService.getTableMetadata(
+          table.id,
+        );
+        const columns = tableMetadata.columns || [];
+        const existingColumnNames = new Set(
+          columns.map((c: any) => c.column_name),
+        );
+
+        for (const link of tableSpec.linkColumns) {
+          if (!existingColumnNames.has(link.name)) {
+            missingLinks.push(
+              `${tableSpec.tableName}.${link.name} -> ${link.targetTable}`,
+            );
+          }
+        }
+      } catch (error) {
+        this.logger.error(
+          `Error verifying links for ${tableSpec.tableName}`,
+          error,
+        );
+      }
+    }
+
+    if (missingLinks.length > 0) {
+      this.logger.error(
+        `MISSING LINK COLUMNS: ${missingLinks.join(', ')}. Please create them manually in NocoDB UI.`,
+      );
+      // We don't throw here to allow the app to start, but functional errors will occur if these are used.
+    } else {
+      this.logger.log('✓ All required link columns verified successfully');
     }
   }
 
   private async seedDefaultPermissions() {
     this.logger.log('Seeding default permissions...');
-
     try {
       const rolesTable = await this.nocoDBService.getTableByName('roles');
       const permissionsTable =
         await this.nocoDBService.getTableByName('table_permissions');
 
-      if (!rolesTable || !permissionsTable) {
-        this.logger.warn(
-          'Roles or Permissions table not found. Skipping seeding.',
-        );
-        return;
-      }
+      if (!rolesTable || !permissionsTable) return;
 
-      // Check if admin role exists using v3 API
       const rolesResult = await this.nocoDBService.list(rolesTable.id, {
-        where: '(role_name,eq,admin)',
+        where: filterEq('role_name', 'admin'),
         limit: 1,
       });
 
-      let adminRoleId;
+      let adminRole = rolesResult.list[0];
 
-      if (rolesResult.list.length === 0) {
-        this.logger.log('Creating default admin role...');
-        const createdRole = await this.nocoDBService.create(rolesTable.id, {
+      if (!adminRole) {
+        adminRole = await this.nocoDBService.create(rolesTable.id, {
           role_name: 'admin',
           description: 'System Administrator',
           is_system_role: true,
         });
-        adminRoleId = createdRole.id;
-      } else {
-        adminRoleId = rolesResult.list[0].id;
       }
 
-      // ... (rest of permissions seeding logic if needed, but assuming it's already there)
-      this.logger.log('Default permissions seeded successfully');
+      const adminRoleId = this.extractNumericId(adminRole);
+      await this.ensureAdminPermissions(permissionsTable.id, adminRoleId);
+
+      this.logger.log('Default permissions seeded (admin role ensured)');
     } catch (error) {
       this.logger.error('Failed to seed default permissions', error);
     }
   }
 
-  private async seedDefaultUser() {
-    this.logger.log('Seeding default user...');
-    try {
-      const usersTable = await this.nocoDBService.getTableByName('users');
-      const rolesTable = await this.nocoDBService.getTableByName('roles');
-      const userRolesTable =
-        await this.nocoDBService.getTableByName('user_roles');
+  private async ensureAdminPermissions(
+    permissionsTableId: string,
+    adminRoleId: number,
+  ): Promise<void> {
+    const protectedTables = [
+      'users',
+      'roles',
+      'user_roles',
+      'table_permissions',
+    ];
 
-      if (!usersTable || !rolesTable || !userRolesTable) {
-        this.logger.warn('Required tables not found. Skipping user seeding.');
-        return;
-      }
+    for (const tableName of protectedTables) {
+      const existing = await this.nocoDBService.findOne(
+        permissionsTableId,
+        andFilters(
+          filterEq('role.id', adminRoleId),
+          filterEq('table_name', tableName),
+        ),
+      );
 
-      // 1. Check if admin user exists using v3 API
-      const usersResult = await this.nocoDBService.list(usersTable.id, {
-        where: '(username,eq,admin)',
-        limit: 1,
-      });
+      const permissionData = {
+        role: [{ id: adminRoleId }],
+        table_name: tableName,
+        can_create: true,
+        can_read: true,
+        can_update: true,
+        can_delete: true,
+      };
 
-      let userId;
-
-      if (usersResult.list.length === 0) {
-        this.logger.log('Creating default admin user...');
-
-        // Simple SHA256 hash for demo purposes (should use bcrypt in production)
-        const passwordHash = crypto
-          .createHash('sha256')
-          .update('password123')
-          .digest('hex');
-
-        const createdUser = await this.nocoDBService.create(usersTable.id, {
-          username: 'admin',
-          email: 'admin@example.com',
-          password_hash: passwordHash,
-          is_active: true,
-        });
-        userId = createdUser.id;
-        this.logger.log(`Admin user created (ID: ${userId})`);
+      if (existing?.id) {
+        await this.nocoDBService.update(
+          permissionsTableId,
+          this.extractNumericId(existing),
+          permissionData,
+        );
       } else {
-        userId = usersResult.list[0].id;
-        this.logger.log(`Admin user already exists (ID: ${userId})`);
+        await this.nocoDBService.create(permissionsTableId, permissionData);
       }
-
-      // 2. Get Admin Role ID using v3 API
-      const rolesResult = await this.nocoDBService.list(rolesTable.id, {
-        where: '(role_name,eq,admin)',
-        limit: 1,
-      });
-
-      if (rolesResult.list.length === 0) {
-        this.logger.warn('Admin role not found. Cannot assign role to user.');
-        return;
-      }
-
-      const adminRoleId = rolesResult.list[0].id;
-
-      // 3. Check if user has admin role using v3 API
-      const userRolesResult = await this.nocoDBService.list(userRolesTable.id, {
-        where: `(user.id,eq,${userId})~and(role.id,eq,${adminRoleId})`,
-        limit: 1,
-      });
-
-      if (userRolesResult.list.length === 0) {
-        this.logger.log('Assigning admin role to admin user...');
-        await this.nocoDBService.create(userRolesTable.id, {
-          user: [{ id: userId }],
-          role: [{ id: adminRoleId }],
-          assigned_at: new Date().toISOString(),
-        });
-        this.logger.log('Admin role assigned successfully');
-      } else {
-        this.logger.log('Admin user already has admin role');
-      }
-    } catch (error) {
-      this.logger.error('Failed to seed default user', error);
     }
+  }
+
+  private extractNumericId(record: { id?: number | string }): number {
+    const rawId = record.id;
+
+    if (typeof rawId === 'number') {
+      return rawId;
+    }
+
+    if (typeof rawId === 'string' && rawId.length > 0) {
+      const parsed = Number(rawId);
+      if (!Number.isNaN(parsed)) {
+        return parsed;
+      }
+    }
+
+    throw new Error('Invalid NocoDB record ID payload');
   }
 
   private delay(ms: number): Promise<void> {

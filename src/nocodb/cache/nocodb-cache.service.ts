@@ -20,7 +20,11 @@ export class NocoDBCacheService {
     await this.cacheManager.del(key);
   }
 
+  async clear(): Promise<void> {
+    await this.cacheManager.clear();
+  }
+
   generateKey(prefix: string, params: any): string {
-    return `${prefix}:${JSON.stringify(params)}`;
+    return `${prefix}:${JSON.stringify(params || {})}`;
   }
 }

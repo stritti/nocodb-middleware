@@ -46,6 +46,10 @@ async function testPhase1() {
       console.log(`     - ${table.table_name} (${table.title})`);
     });
 
+    console.log('\n📋 Test 5: List Tables (using service method)');
+    const tableList = await nocoDBService.listTables();
+    console.log(`  ✅ Service listTables returned ${tableList.length} tables`);
+
     console.log('\n✅ Phase 1 Tests Completed Successfully!');
   } catch (error) {
     console.error('\n❌ Test failed:', error);

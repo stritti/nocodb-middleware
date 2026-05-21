@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { NocoDBService } from '../nocodb/nocodb.service';
+import { andFilters, filterEq, filterIn } from '../nocodb/nocodb-filter.util';
 import { CrudAction } from './enums/crud-action.enum';
 import { UserPermissions } from './interfaces/permission.interface';
 
@@ -16,13 +17,8 @@ export class PermissionsService {
    */
   async getAllWorkspaceTables(): Promise<string[]> {
     try {
-      const httpClient = this.nocoDBService.getHttpClient();
       const baseId = this.nocoDBService.getBaseId();
-      const response = await httpClient.get(
-        `/api/v3/meta/bases/${baseId}/tables`,
-      );
-
-      const tables = response.data.list || [];
+      const tables = await this.nocoDBService.listBaseTables(baseId);
       const prefix = this.nocoDBService.getTablePrefix();
 
       return tables
@@ -60,7 +56,7 @@ export class PermissionsService {
       }
 
       const userRolesResult = await this.nocoDBService.list(userRolesTable.id, {
-        where: `(user.id,eq,${userId})`,
+        where: filterEq('user.id', userId),
         includeRelations: ['role'],
       });
 
@@ -80,7 +76,7 @@ export class PermissionsService {
       }
 
       const rolesResult = await this.nocoDBService.list(rolesTable.id, {
-        where: `(id,in,${roleIds.join(',')})`,
+        where: filterIn('id', roleIds),
       });
 
       const roleNames = (rolesResult.list || []).map((r: any) => r.role_name);
@@ -94,7 +90,7 @@ export class PermissionsService {
 
       const permissionsResult = await this.nocoDBService.list(
         permissionsTable.id,
-        { where: `(role.id,in,${roleIds.join(',')})` },
+        { where: filterIn('role.id', roleIds) },
       );
 
       const permissionsMap = new Map<string, Set<CrudAction>>();
@@ -168,7 +164,10 @@ export class PermissionsService {
 
       const existing = await this.nocoDBService.findOne(
         permissionsTable.id,
-        `(role.id,eq,${roleId})~and(table_name,eq,${tableName})`,
+        andFilters(
+          filterEq('role.id', roleId),
+          filterEq('table_name', tableName),
+        ),
       );
 
       const permissionData = {

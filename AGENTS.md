@@ -7,6 +7,7 @@ Du bist ein erfahrener NestJS-Entwickler, der produktionsreife, sichere und skal
 ## Grundprinzipien
 
 ### Architektur
+
 - **Modulare Struktur**: Strikte Trennung in Module (Auth, Users, Resources, etc.)
 - **Dependency Injection**: Vollständige Nutzung des NestJS DI-Systems
 - **SOLID-Prinzipien**: Saubere Architektur mit klaren Verantwortlichkeiten
@@ -14,6 +15,7 @@ Du bist ein erfahrener NestJS-Entwickler, der produktionsreife, sichere und skal
 - **Repository Pattern**: Trennung von Business-Logik und Datenzugriff
 
 ### Code-Qualität
+
 - **TypeScript strict mode**: Immer aktiviert für maximale Typsicherheit
 - **DTOs für alle Inputs**: Validierung mit `class-validator` und `class-transformer`
 - **Swagger/OpenAPI**: Vollständige API-Dokumentation
@@ -49,7 +51,7 @@ export const config = () => ({
   // Server
   port: parseInt(process.env.PORT, 10) || 3000,
   nodeEnv: process.env.NODE_ENV || 'development',
-  
+
   // Database
   database: {
     host: process.env.DB_HOST || 'localhost',
@@ -58,7 +60,7 @@ export const config = () => ({
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
   },
-  
+
   // JWT Configuration
   jwt: {
     accessTokenSecret: process.env.JWT_ACCESS_SECRET,
@@ -66,16 +68,16 @@ export const config = () => ({
     refreshTokenSecret: process.env.JWT_REFRESH_SECRET,
     refreshTokenExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
   },
-  
+
   // Security
   bcryptRounds: parseInt(process.env.BCRYPT_ROUNDS, 10) || 12,
-  
+
   // Rate Limiting
   rateLimit: {
     ttl: parseInt(process.env.THROTTLE_TTL, 10) || 60000,
     limit: parseInt(process.env.THROTTLE_LIMIT, 10) || 10,
   },
-  
+
   // CORS
   cors: {
     origins: process.env.CORS_ORIGINS?.split(',') || ['http://localhost:3000'],
@@ -155,7 +157,14 @@ export class AuthModule {}
 
 ```typescript
 // src/users/entities/user.entity.ts
-import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, Index } from 'typeorm';
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  CreateDateColumn,
+  UpdateDateColumn,
+  Index,
+} from 'typeorm';
 import { Exclude } from 'class-transformer';
 
 export enum UserRole {
@@ -181,10 +190,10 @@ export class User {
   @Exclude() // Niemals im Response zurückgeben
   password: string;
 
-  @Column({ 
-    type: 'enum', 
-    enum: UserRole, 
-    default: UserRole.USER 
+  @Column({
+    type: 'enum',
+    enum: UserRole,
+    default: UserRole.USER,
   })
   role: UserRole;
 
@@ -210,7 +219,13 @@ export class User {
 
 ```typescript
 // src/auth/dto/signup.dto.ts
-import { IsEmail, IsString, MinLength, MaxLength, Matches } from 'class-validator';
+import {
+  IsEmail,
+  IsString,
+  MinLength,
+  MaxLength,
+  Matches,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class SignUpDto {
@@ -227,10 +242,10 @@ export class SignUpDto {
   @ApiProperty({ example: 'StrongP@ssw0rd!' })
   @IsString()
   @MinLength(8, { message: 'Passwort muss mindestens 8 Zeichen lang sein' })
-  @Matches(
-    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/,
-    { message: 'Passwort muss Groß- und Kleinbuchstaben, Zahlen und Sonderzeichen enthalten' }
-  )
+  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/, {
+    message:
+      'Passwort muss Groß- und Kleinbuchstaben, Zahlen und Sonderzeichen enthalten',
+  })
   password: string;
 }
 
@@ -253,7 +268,12 @@ export class SignInDto {
 
 ```typescript
 // src/auth/auth.service.ts
-import { Injectable, UnauthorizedException, ConflictException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
@@ -303,7 +323,7 @@ export class AuthService {
 
     // Tokens generieren
     const tokens = await this.generateTokens(user);
-    
+
     // Refresh Token hashen und speichern
     await this.updateRefreshToken(user.id, tokens.refreshToken);
 
@@ -336,14 +356,17 @@ export class AuthService {
 
     // Tokens generieren
     const tokens = await this.generateTokens(user);
-    
+
     // Refresh Token hashen und speichern
     await this.updateRefreshToken(user.id, tokens.refreshToken);
 
     return tokens;
   }
 
-  async refreshTokens(userId: string, refreshToken: string): Promise<AuthTokens> {
+  async refreshTokens(
+    userId: string,
+    refreshToken: string,
+  ): Promise<AuthTokens> {
     const user = await this.usersService.findById(userId);
 
     if (!user || !user.refreshToken) {
@@ -362,7 +385,7 @@ export class AuthService {
 
     // Neue Tokens generieren
     const tokens = await this.generateTokens(user);
-    
+
     // Neuen Refresh Token speichern
     await this.updateRefreshToken(user.id, tokens.refreshToken);
 
@@ -398,7 +421,10 @@ export class AuthService {
     };
   }
 
-  private async updateRefreshToken(userId: string, refreshToken: string): Promise<void> {
+  private async updateRefreshToken(
+    userId: string,
+    refreshToken: string,
+  ): Promise<void> {
     const hashedRefreshToken = await this.hashPassword(refreshToken);
     await this.usersService.updateRefreshToken(userId, hashedRefreshToken);
   }
@@ -409,13 +435,16 @@ export class AuthService {
   }
 
   async validateUser(identifier: string, password: string): Promise<any> {
-    const user = await this.usersService.findByEmailOrUsername(identifier, identifier);
-    
-    if (user && await bcrypt.compare(password, user.password)) {
+    const user = await this.usersService.findByEmailOrUsername(
+      identifier,
+      identifier,
+    );
+
+    if (user && (await bcrypt.compare(password, user.password))) {
       const { password, ...result } = user;
       return result;
     }
-    
+
     return null;
   }
 }
@@ -441,11 +470,11 @@ export class LocalStrategy extends PassportStrategy(Strategy, 'local') {
 
   async validate(identifier: string, password: string): Promise<any> {
     const user = await this.authService.validateUser(identifier, password);
-    
+
     if (!user) {
       throw new UnauthorizedException('Ungültige Anmeldedaten');
     }
-    
+
     return user;
   }
 }
@@ -473,11 +502,13 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
 
   async validate(payload: JwtPayload) {
     const user = await this.usersService.findById(payload.sub);
-    
+
     if (!user || !user.isActive) {
-      throw new UnauthorizedException('Benutzer nicht gefunden oder deaktiviert');
+      throw new UnauthorizedException(
+        'Benutzer nicht gefunden oder deaktiviert',
+      );
     }
-    
+
     return {
       userId: payload.sub,
       email: payload.email,
@@ -496,7 +527,10 @@ import { Request } from 'express';
 import { JwtPayload } from '../auth.service';
 
 @Injectable()
-export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh') {
+export class JwtRefreshStrategy extends PassportStrategy(
+  Strategy,
+  'jwt-refresh',
+) {
   constructor(private readonly configService: ConfigService) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -508,11 +542,11 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh'
 
   async validate(req: Request, payload: JwtPayload) {
     const refreshToken = req.get('Authorization')?.replace('Bearer', '').trim();
-    
+
     if (!refreshToken) {
       throw new UnauthorizedException('Refresh Token fehlt');
     }
-    
+
     return {
       userId: payload.sub,
       email: payload.email,
@@ -539,23 +573,30 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     super();
   }
 
-  canActivate(context: ExecutionContext): boolean | Promise<boolean> | Observable<boolean> {
+  canActivate(
+    context: ExecutionContext,
+  ): boolean | Promise<boolean> | Observable<boolean> {
     // Check for @Public() decorator
     const isPublic = this.reflector.getAllAndOverride<boolean>('isPublic', [
       context.getHandler(),
       context.getClass(),
     ]);
-    
+
     if (isPublic) {
       return true;
     }
-    
+
     return super.canActivate(context);
   }
 }
 
 // src/auth/guards/roles.guard.ts
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { UserRole } from '../../users/entities/user.entity';
 
@@ -564,27 +605,27 @@ export class RolesGuard implements CanActivate {
   constructor(private reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const requiredRoles = this.reflector.getAllAndOverride<UserRole[]>('roles', [
-      context.getHandler(),
-      context.getClass(),
-    ]);
-    
+    const requiredRoles = this.reflector.getAllAndOverride<UserRole[]>(
+      'roles',
+      [context.getHandler(), context.getClass()],
+    );
+
     if (!requiredRoles) {
       return true;
     }
-    
+
     const { user } = context.switchToHttp().getRequest();
-    
+
     if (!user) {
       throw new ForbiddenException('Zugriff verweigert');
     }
-    
+
     const hasRole = requiredRoles.some((role) => user.role === role);
-    
+
     if (!hasRole) {
       throw new ForbiddenException('Unzureichende Berechtigungen');
     }
-    
+
     return true;
   }
 }
@@ -613,7 +654,7 @@ export const CurrentUser = createParamDecorator(
   (data: string | undefined, ctx: ExecutionContext) => {
     const request = ctx.switchToHttp().getRequest();
     const user = request.user;
-    
+
     return data ? user?.[data] : user;
   },
 );
@@ -623,17 +664,22 @@ export const CurrentUser = createParamDecorator(
 
 ```typescript
 // src/auth/auth.controller.ts
-import { 
-  Controller, 
-  Post, 
-  Body, 
-  HttpCode, 
-  HttpStatus, 
+import {
+  Controller,
+  Post,
+  Body,
+  HttpCode,
+  HttpStatus,
   UseGuards,
   Get,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { SignUpDto } from './dto/signup.dto';
 import { SignInDto } from './dto/signin.dto';
@@ -649,7 +695,10 @@ export class AuthController {
   @Post('signup')
   @ApiOperation({ summary: 'Neuen Benutzer registrieren' })
   @ApiResponse({ status: 201, description: 'Benutzer erfolgreich registriert' })
-  @ApiResponse({ status: 409, description: 'Email oder Username bereits vergeben' })
+  @ApiResponse({
+    status: 409,
+    description: 'Email oder Username bereits vergeben',
+  })
   async signUp(@Body() signUpDto: SignUpDto) {
     return this.authService.signUp(signUpDto);
   }
@@ -710,22 +759,24 @@ import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  
+
   const configService = app.get(ConfigService);
-  
+
   // Security Headers
-  app.use(helmet({
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        styleSrc: ["'self'", "'unsafe-inline'"],
-        scriptSrc: ["'self'"],
-        imgSrc: ["'self'", 'data:', 'https:'],
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          scriptSrc: ["'self'"],
+          imgSrc: ["'self'", 'data:', 'https:'],
+        },
       },
-    },
-    crossOriginEmbedderPolicy: false,
-  }));
-  
+      crossOriginEmbedderPolicy: false,
+    }),
+  );
+
   // CORS Configuration
   const corsOrigins = configService.get<string[]>('cors.origins');
   app.enableCors({
@@ -734,16 +785,16 @@ async function bootstrap() {
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
   });
-  
+
   // Global Prefix
   app.setGlobalPrefix('api');
-  
+
   // API Versioning
   app.enableVersioning({
     type: VersioningType.URI,
     defaultVersion: '1',
   });
-  
+
   // Global Validation Pipe
   app.useGlobalPipes(
     new ValidationPipe({
@@ -755,7 +806,7 @@ async function bootstrap() {
       },
     }),
   );
-  
+
   // Swagger Documentation (nur in Development)
   if (configService.get('nodeEnv') !== 'production') {
     const config = new DocumentBuilder()
@@ -766,14 +817,14 @@ async function bootstrap() {
       .addTag('Authentication')
       .addTag('Users')
       .build();
-    
+
     const document = SwaggerModule.createDocument(app, config);
     SwaggerModule.setup('api/docs', app, document);
   }
-  
+
   const port = configService.get<number>('port');
   await app.listen(port);
-  
+
   console.log(`Application is running on: http://localhost:${port}/api`);
   console.log(`Swagger docs available at: http://localhost:${port}/api/docs`);
 }
@@ -802,7 +853,7 @@ import { UsersModule } from './users/users.module';
       load: [config],
       envFilePath: `.env.${process.env.NODE_ENV || 'development'}`,
     }),
-    
+
     // Rate Limiting
     ThrottlerModule.forRootAsync({
       imports: [ConfigModule],
@@ -825,7 +876,7 @@ import { UsersModule } from './users/users.module';
       ],
       inject: [ConfigService],
     }),
-    
+
     // Feature Modules
     AuthModule,
     UsersModule,
@@ -863,7 +914,7 @@ export class AuthController {
   async signIn(@Body() signInDto: SignInDto) {
     // ...
   }
-  
+
   // Kein Rate Limiting für Token Refresh
   @SkipThrottle()
   @Post('refresh')
@@ -876,6 +927,7 @@ export class AuthController {
 ## Production Deployment Checklist
 
 ### ✅ Environment Variables
+
 - [ ] Alle Secrets aus dem Code entfernt
 - [ ] Starke, zufällige JWT Secrets generiert (min. 256 Bit)
 - [ ] `.env` Dateien in `.gitignore`
@@ -883,6 +935,7 @@ export class AuthController {
 - [ ] Separate Konfiguration für dev/staging/production
 
 ### ✅ Security
+
 - [ ] Helmet middleware aktiviert
 - [ ] CORS richtig konfiguriert (nur vertrauenswürdige Origins)
 - [ ] Rate Limiting implementiert
@@ -894,6 +947,7 @@ export class AuthController {
 - [ ] CSRF Protection für Web-Frontends
 
 ### ✅ Authentication
+
 - [ ] Starke Passwort-Policies (min. 8 Zeichen, Komplexität)
 - [ ] Bcrypt mit mindestens 12 Rounds
 - [ ] JWT mit kurzen Ablaufzeiten (Access Token: 15min)
@@ -903,6 +957,7 @@ export class AuthController {
 - [ ] Account Lockout nach fehlgeschlagenen Login-Versuchen
 
 ### ✅ Database
+
 - [ ] Connection Pooling konfiguriert
 - [ ] Indizes auf häufig abgefragte Felder
 - [ ] Migrations für Schema-Änderungen
@@ -910,6 +965,7 @@ export class AuthController {
 - [ ] SSL-Verbindung zur Datenbank
 
 ### ✅ Logging & Monitoring
+
 - [ ] Strukturiertes Logging (Winston, Pino)
 - [ ] Error Tracking (Sentry, Rollbar)
 - [ ] Performance Monitoring (New Relic, DataDog)
@@ -917,6 +973,7 @@ export class AuthController {
 - [ ] Alerts für kritische Fehler
 
 ### ✅ Performance
+
 - [ ] Response Caching wo sinnvoll
 - [ ] Database Query Optimization
 - [ ] Kompression aktiviert (gzip/brotli)
@@ -924,12 +981,14 @@ export class AuthController {
 - [ ] Horizontal Scaling vorbereitet
 
 ### ✅ Testing
+
 - [ ] Unit Tests für Services (min. 80% Coverage)
 - [ ] Integration Tests für kritische Flows
 - [ ] E2E Tests für wichtige User Journeys
 - [ ] Security Tests (OWASP)
 
 ### ✅ CI/CD
+
 - [ ] Automatisierte Tests in Pipeline
 - [ ] Automatische Deployments
 - [ ] Rollback-Strategie definiert
@@ -939,18 +998,23 @@ export class AuthController {
 
 ```typescript
 // src/posts/posts.controller.ts
-import { 
-  Controller, 
-  Get, 
-  Post, 
-  Put, 
-  Delete, 
-  Body, 
-  Param, 
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
   UseGuards,
   ParseUUIDPipe,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBearerAuth,
+  ApiResponse,
+} from '@nestjs/swagger';
 import { PostsService } from './posts.service';
 import { CreatePostDto } from './dto/create-post.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
@@ -1099,7 +1163,7 @@ describe('AuthService', () => {
   const mockConfigService = {
     get: jest.fn((key: string) => {
       const config = {
-        'bcryptRounds': 12,
+        bcryptRounds: 12,
         'jwt.accessTokenSecret': 'test-access-secret',
         'jwt.accessTokenExpiresIn': '15m',
         'jwt.refreshTokenSecret': 'test-refresh-secret',
@@ -1160,7 +1224,9 @@ describe('AuthService', () => {
         email: signUpDto.email,
       });
 
-      await expect(service.signUp(signUpDto)).rejects.toThrow(ConflictException);
+      await expect(service.signUp(signUpDto)).rejects.toThrow(
+        ConflictException,
+      );
     });
   });
 
@@ -1192,7 +1258,9 @@ describe('AuthService', () => {
     it('should throw UnauthorizedException for invalid credentials', async () => {
       mockUsersService.findByEmailOrUsername.mockResolvedValue(null);
 
-      await expect(service.signIn(signInDto)).rejects.toThrow(UnauthorizedException);
+      await expect(service.signIn(signInDto)).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
   });
 });
@@ -1226,12 +1294,14 @@ describe('AuthService', () => {
 ## Zusammenfassung: Key Takeaways
 
 ### 🔐 Authentifizierung
+
 - JWT mit Access & Refresh Token Pattern
 - Bcrypt für Passwort-Hashing (min. 12 Rounds)
 - Passport.js Strategien (Local, JWT, JWT-Refresh)
 - Sichere Token-Speicherung (gehashed)
 
 ### 🛡️ Security
+
 - Helmet für HTTP Security Headers
 - CORS korrekt konfiguriert
 - Rate Limiting auf allen Endpoints
@@ -1239,6 +1309,7 @@ describe('AuthService', () => {
 - HTTPS in Production erzwingen
 
 ### 🏗️ Architektur
+
 - Modulare Struktur
 - Guards für Authentication & Authorization
 - Decorators für Clean Code (@Public, @Roles, @CurrentUser)
@@ -1246,6 +1317,7 @@ describe('AuthService', () => {
 - Repository Pattern
 
 ### 🚀 Production-Ready
+
 - Environment-spezifische Konfiguration
 - Logging & Monitoring
 - Error Handling
@@ -1253,4 +1325,5 @@ describe('AuthService', () => {
 - Comprehensive Testing
 
 ### 📋 Checkliste befolgen
+
 Arbeite systematisch die Deployment Checklist ab, bevor du in Production gehst. Security ist kein Zusatz-Feature, sondern muss von Anfang an eingebaut sein.

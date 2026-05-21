@@ -1,97 +1,67 @@
 # Testing Documentation
 
-This document describes the testing strategy and how to run tests for the NocoDB Middleware.
+## Test Commands
 
-## Testing Strategy
-
-The project uses a comprehensive testing approach:
-
-1. **Unit Tests**: Test individual components in isolation
-2. **Integration Tests (E2E)**: Test full request-response cycles
-3. **Coverage Reporting**: Track code coverage to ensure quality
-
-## Running Tests
-
-### Unit Tests
-Run all unit tests:
 ```bash
+# Unit tests
 npm test
-```
 
-Run tests in watch mode:
-```bash
+# Unit tests (watch)
 npm run test:watch
-```
 
-### Integration Tests
-Run E2E tests:
-```bash
+# E2E tests
 npm run test:e2e
-```
 
-### Coverage Report
-Generate and view coverage:
-```bash
+# Coverage
 npm run test:cov
+
+# Run only the auth E2E test
+npx jest --config ./test/jest-e2e.json test/auth.e2e-spec.ts
 ```
 
-The report will be generated in the `coverage/` directory.
+## Test Coverage
 
-## Test Structure
+### Unit Tests (`*.spec.ts`)
 
-### Unit Tests
-Located alongside the source files with `.spec.ts` extension:
-- `src/nocodb/nocodb.service.spec.ts`
-- `src/examples/examples.service.spec.ts`
-- `src/nocodb/cache/nocodb-cache.service.spec.ts`
+Der Testbestand deckt primär ab:
 
-### E2E Tests
-Located in `test/` directory:
-- `test/app.e2e-spec.ts`
+- NocoDB-Service-Schicht (`src/nocodb/*.spec.ts`)
+- Cache-Service (`src/nocodb/cache/*.spec.ts`)
+- Permissions/RBAC-Services (`src/permissions/*.spec.ts`)
+- Rollen-/User-Rollen-Services (`src/roles/*.spec.ts`, `src/users/*.spec.ts`)
+- JWT Strategy (`src/auth/strategies/*.spec.ts`)
+- Basis-App (`src/app.controller.spec.ts`)
 
-## Writing Tests
+### E2E Tests (`test/*.e2e-spec.ts`)
 
-### Unit Test Example
-```typescript
-describe('MyService', () => {
-  let service: MyService;
+- `test/app.e2e-spec.ts` — Basis-Smoke-Test (Hello World, 401 ohne Auth, Validation)
+- `test/auth.e2e-spec.ts` — Auth Flow Tests:
+  - Öffentliche Endpunkte (Health, Root)
+  - Unautorisierter Zugriff (401 ohne Token)
+  - Bootstrap-Admin-Token-Validierung
+  - Ungültige/abgelaufene/falsch-signierte Token
+  - Authorisierter Zugriff mit gültigem JWT
+  - User-Identity-Weitergabe aus JWT-Payload
 
-  beforeEach(async () => {
-    const module = await Test.createTestingModule({
-      providers: [MyService],
-    }).compile();
+**Hinweis:** E2E-Tests mocken den `NocoDBService`, da für die Testausführung keine
+laufende NocoDB-Instanz benötigt wird. Der Auth-Flow (JWT-Guard, RolesGuard,
+PermissionsGuard) wird dabei vollständig gegen die Mock-API getestet.
 
-    service = module.get<MyService>(MyService);
-  });
+## Bekannte Altlasten
 
-  it('should be defined', () => {
-    expect(service).toBeDefined();
-  });
-});
+Nicht alle Unit-Tests sind derzeit grün (vorhandene Altlasten):
+
+- `src/nocodb/database-initialization.service.spec.ts` — DI-Mocking für `NocoDBV3Service` unvollständig
+
+## Teststrategie
+
+1. Service-spezifische Unit-Tests zuerst
+2. Danach Integrationsnahe Tests für Init/RBAC-Flows
+3. E2E-Tests für kritische User-Journeys (Auth-Flow, geschützte Endpunkte)
+4. Am Ende vollständiger Lauf mit `npm test -- --runInBand`
+
+Für hängende Handles optional:
+
+```bash
+npm test -- --detectOpenHandles --runInBand
 ```
-
-### E2E Test Example
-```typescript
-it('should return 200', () => {
-  return request(app.getHttpServer())
-    .get('/endpoint')
-    .expect(200);
-});
-```
-
-## Mocking
-
-Use Jest mocks for dependencies:
-```typescript
-{
-  provide: Repository,
-  useValue: {
-    findOne: jest.fn(),
-  },
-}
-```
-
-## Coverage Goals
-
-- **Minimum**: 80% code coverage
-- **Focus areas**: Services, Controllers, Middleware

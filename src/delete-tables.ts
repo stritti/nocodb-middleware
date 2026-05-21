@@ -10,7 +10,6 @@ async function bootstrap() {
 
   try {
     const httpClient = nocoDBService.getHttpClient();
-    const baseId = nocoDBService.getBaseId();
 
     // Tables to delete
     const tablesToDelete = ['user_roles', 'table_permissions'];
@@ -45,4 +44,4 @@ async function bootstrap() {
   }
 }
 
-bootstrap();
+void bootstrap();

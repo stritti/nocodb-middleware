@@ -1,10 +1,4 @@
-import {
-  Module,
-  Global,
-  MiddlewareConsumer,
-  NestModule,
-  RequestMethod,
-} from '@nestjs/common';
+import { Module, Global, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { NocoDBService } from './nocodb.service';
 import { DatabaseInitializationService } from './database-initialization.service';
@@ -16,6 +10,8 @@ import { LoggingMiddleware } from './middleware/logging.middleware';
 import { ExampleRepository } from './repositories/example.repository';
 import { CacheModule } from '@nestjs/cache-manager';
 import { NocoDBCacheService } from './cache/nocodb-cache.service';
+import { TableCatalogService } from './table-catalog.service';
+import { TableCatalogController } from './table-catalog.controller';
 
 @Global()
 @Module({
@@ -25,15 +21,20 @@ import { NocoDBCacheService } from './cache/nocodb-cache.service';
     DatabaseInitializationService,
     ExampleRepository,
     NocoDBCacheService,
+    TableCatalogService,
   ],
-  exports: [NocoDBService, ExampleRepository, NocoDBCacheService],
+  controllers: [TableCatalogController],
+  exports: [
+    NocoDBService,
+    ExampleRepository,
+    NocoDBCacheService,
+    TableCatalogService,
+  ],
 })
 export class NocoDBModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     consumer.apply(LoggingMiddleware).forRoutes('*');
-
     consumer.apply(RateLimitMiddleware).forRoutes('*');
-
     consumer.apply(NocoDbContextMiddleware).forRoutes('*');
   }
 }

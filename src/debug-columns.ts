@@ -3,13 +3,28 @@ import { AppModule } from './app.module';
 import { NocoDBService } from './nocodb/nocodb.service';
 import { Logger } from '@nestjs/common';
 
+interface NocoTableRef {
+  id: string;
+}
+
+function asTableRef(value: unknown): NocoTableRef | null {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+
+  const candidate = value as { id?: unknown };
+  return typeof candidate.id === 'string' ? { id: candidate.id } : null;
+}
+
 async function bootstrap() {
   const app = await NestFactory.createApplicationContext(AppModule);
   const nocoDBService = app.get(NocoDBService);
   const logger = new Logger('DebugColumns');
 
   try {
-    const usersTable = await nocoDBService.getTableByName('users');
+    const table = await nocoDBService.getTableByName('users');
+    const usersTable = asTableRef(table);
+
     if (!usersTable) {
       logger.error('Users table not found');
       return;
@@ -31,35 +46,16 @@ async function bootstrap() {
             params: { where: filter },
           },
         );
-        logger.log(
-          `Filter ${filter} success. Records: ${response.data.list.length}`,
-        );
+        const listLen = Array.isArray(response.data.list)
+          ? response.data.list.length
+          : 0;
+        logger.log(`Filter ${filter} success. Records: ${listLen}`);
       } catch (err: any) {
         logger.error(
           `Filter ${filter} failed: ${err.response?.data?.msg || err.message}`,
         );
       }
     }
-
-    /*
-        // Fetch records to see actual column names
-        try {
-            const recordsResponse = await httpClient.get(`/api/v3/tables/${usersTable.id}/records`, {
-                params: { limit: 1 }
-            });
-
-            logger.log('Records found: ' + recordsResponse.data.list.length);
-            if (recordsResponse.data.list.length > 0) {
-                const record = recordsResponse.data.list[0];
-                logger.log('Record Keys:', Object.keys(record));
-                logger.log('Record Data:', JSON.stringify(record, null, 2));
-            } else {
-                logger.log('No records found in table.');
-            }
-        } catch (recordError) {
-            logger.error('Error fetching records', recordError);
-        }
-        */
   } catch (error) {
     logger.error('Error fetching columns', error);
   } finally {
@@ -67,4 +63,4 @@ async function bootstrap() {
   }
 }
 
-bootstrap();
+void bootstrap();

@@ -5,8 +5,11 @@ import { RolesGuard } from './roles.guard';
 function makeContext(userRoles: string[] | undefined): ExecutionContext {
   return {
     getHandler: jest.fn(),
+    getClass: jest.fn(),
     switchToHttp: () => ({
-      getRequest: () => ({ user: userRoles !== undefined ? { roles: userRoles } : undefined }),
+      getRequest: () => ({
+        user: userRoles !== undefined ? { roles: userRoles } : undefined,
+      }),
     }),
   } as unknown as ExecutionContext;
 }
@@ -16,42 +19,40 @@ describe('RolesGuard', () => {
   let reflector: Reflector;
 
   beforeEach(() => {
-    reflector = { get: jest.fn() } as unknown as Reflector;
+    reflector = {
+      get: jest.fn(),
+      getAllAndOverride: jest.fn(),
+    } as unknown as Reflector;
     guard = new RolesGuard(reflector);
   });
 
   it('should allow when no roles are required', () => {
-    (reflector.get as jest.Mock).mockReturnValue(null);
+    (reflector.getAllAndOverride as jest.Mock).mockReturnValue(null);
     const ctx = makeContext(['user']);
     expect(guard.canActivate(ctx)).toBe(true);
   });
 
   it('should allow when user has a required role', () => {
-    (reflector.get as jest.Mock).mockReturnValue(['admin']);
+    (reflector.getAllAndOverride as jest.Mock).mockReturnValue(['admin']);
     const ctx = makeContext(['admin', 'user']);
     expect(guard.canActivate(ctx)).toBe(true);
   });
 
   it('should deny when user does not have any required role', () => {
-    (reflector.get as jest.Mock).mockReturnValue(['admin']);
+    (reflector.getAllAndOverride as jest.Mock).mockReturnValue(['admin']);
     const ctx = makeContext(['user']);
     expect(guard.canActivate(ctx)).toBe(false);
   });
 
   it('should deny when user has no roles', () => {
-    (reflector.get as jest.Mock).mockReturnValue(['admin']);
+    (reflector.getAllAndOverride as jest.Mock).mockReturnValue(['admin']);
     const ctx = makeContext([]);
     expect(guard.canActivate(ctx)).toBe(false);
   });
 
   it('should deny when user roles is undefined', () => {
-    (reflector.get as jest.Mock).mockReturnValue(['admin']);
-    const ctx = {
-      getHandler: jest.fn(),
-      switchToHttp: () => ({
-        getRequest: () => ({ user: { roles: undefined } }),
-      }),
-    } as unknown as ExecutionContext;
+    (reflector.getAllAndOverride as jest.Mock).mockReturnValue(['admin']);
+    const ctx = makeContext(undefined);
     expect(guard.canActivate(ctx)).toBe(false);
   });
 });

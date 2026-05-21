@@ -2,15 +2,23 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { NocoDBCacheService } from './nocodb-cache.service';
 
+type CacheManagerMock = {
+  get: jest.Mock<Promise<unknown>, [string]>;
+  set: jest.Mock<Promise<void>, [string, unknown, number?]>;
+  del: jest.Mock<Promise<void>, [string]>;
+  clear: jest.Mock<Promise<void>, []>;
+};
+
 describe('NocoDBCacheService', () => {
   let service: NocoDBCacheService;
-  let cacheManager: any;
+  let cacheManager: CacheManagerMock;
 
   beforeEach(async () => {
-    const mockCacheManager = {
+    const mockCacheManager: CacheManagerMock = {
       get: jest.fn(),
       set: jest.fn(),
       del: jest.fn(),
+      clear: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -54,6 +62,21 @@ describe('NocoDBCacheService', () => {
       await service.set(key, value, ttl);
 
       expect(cacheManager.set).toHaveBeenCalledWith(key, value, ttl);
+    });
+  });
+
+  describe('del', () => {
+    it('should delete value from cache', async () => {
+      const key = 'test-key';
+      await service.del(key);
+      expect(cacheManager.del).toHaveBeenCalledWith(key);
+    });
+  });
+
+  describe('clear', () => {
+    it('should clear all cache', async () => {
+      await service.clear();
+      expect(cacheManager.clear).toHaveBeenCalled();
     });
   });
 

@@ -32,9 +32,11 @@ async function testPhase2() {
 
       if (exists) {
         const table = await nocoDBService.getTableByName(tableName);
-        console.log(
-          `     ID: ${table.id}, Columns: ${table.columns?.length || 'unknown'}`,
-        );
+        if (table) {
+          console.log(
+            `     ID: ${table.id}, Columns: ${table.columns?.length || 'unknown'}`,
+          );
+        }
       }
     }
 

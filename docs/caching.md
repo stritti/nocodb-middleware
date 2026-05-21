@@ -1,47 +1,27 @@
-# Caching Documentation
+# Caching
 
-This document describes the caching layer implemented in the NocoDB Middleware.
+## Überblick
 
-## Overview
+Caching basiert auf `@nestjs/cache-manager` mit In-Memory-Store.
 
-The application uses `@nestjs/cache-manager` to provide an in-memory caching mechanism. This helps reduce the load on the NocoDB API for frequently accessed data.
-
-## Components
+## Komponenten
 
 ### `NocoDBCacheService`
-- **File**: `src/nocodb/cache/nocodb-cache.service.ts`
-- **Purpose**: A wrapper around the underlying cache manager.
-- **Methods**:
-  - `get<T>(key)`: Retrieve a value from the cache.
-  - `set(key, value, ttl?)`: Store a value in the cache.
-  - `del(key)`: Remove a value from the cache.
+- Datei: `src/nocodb/cache/nocodb-cache.service.ts`
+- Wrapper für `get/set/del`.
 
 ### `CacheInterceptor`
-- **File**: `src/nocodb/interceptors/cache.interceptor.ts`
-- **Purpose**: Automatically caches GET requests.
-- **Behavior**:
-  - Checks if a response for the current URL exists in the cache.
-  - If found (Cache Hit), returns the cached response immediately.
-  - If not found (Cache Miss), proceeds with the request and caches the response for 60 seconds (default).
+- Datei: `src/nocodb/interceptors/cache.interceptor.ts`
+- Cacht nur `GET`-Requests.
+- Aktuelle Default-TTL im Interceptor: 60 Sekunden.
 
-## Configuration
+## Aktueller Einsatz
 
-The cache is configured in `NocoDBModule` using `CacheModule.register()`. By default, it uses an in-memory store.
+- Cache-Infrastruktur ist vorhanden.
+- Permissions-Service nutzt zusätzlich eigenen In-Memory-Cache mit TTL für Berechtigungsauflösung.
 
-## Usage
+## Geplante Schärfung (OpenSpec)
 
-To use caching on a specific controller or route, apply the `CacheInterceptor`:
-
-```typescript
-import { UseInterceptors } from '@nestjs/common';
-import { CacheInterceptor } from './nocodb/interceptors/cache.interceptor';
-
-@Controller('my-resource')
-@UseInterceptors(CacheInterceptor)
-export class MyController {
-  @Get()
-  findAll() {
-    // ...
-  }
-}
-```
+- Endpunkt-spezifische Cache-Strategie statt pauschaler Defaults
+- Klare Invalidierung bei Rechtemutationen
+- Operative Metriken für Cache-Hit/Miss-Verhalten

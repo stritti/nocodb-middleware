@@ -4,7 +4,11 @@ import { PermissionsGuard } from './permissions.guard';
 import { PermissionsService } from './permissions.service';
 import { CrudAction } from './enums/crud-action.enum';
 
-function makeContext(user: any, handler = jest.fn(), clazz = class {}): ExecutionContext {
+function makeContext(
+  user: any,
+  handler = jest.fn(),
+  clazz = class {},
+): ExecutionContext {
   return {
     getHandler: () => handler,
     getClass: () => clazz,

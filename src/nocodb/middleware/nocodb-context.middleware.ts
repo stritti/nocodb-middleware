@@ -1,5 +1,6 @@
 import { Injectable, NestMiddleware } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class NocoDbContextMiddleware implements NestMiddleware {
@@ -11,7 +12,7 @@ export class NocoDbContextMiddleware implements NestMiddleware {
     if (user) {
       // Set NocoDB specific headers or context based on user.
       // Header values must always be strings, so coerce both fields explicitly.
-      req.headers['x-nocodb-user-id'] = String(user.userId);
+      req.headers['x-nocodb-user-id'] = String(user.userId ?? '');
       req.headers['x-nocodb-user-roles'] = Array.isArray(user.roles)
         ? user.roles.join(',')
         : '';

@@ -6,6 +6,10 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { NocoDBService } from '../nocodb/nocodb.service';
+import { PageOptionsDto } from '../nocodb/dto/page-options.dto';
+import { PageMetaDto } from '../nocodb/dto/page-meta.dto';
+import { PageDto } from '../nocodb/dto/page.dto';
+import { filterEq } from '../nocodb/nocodb-filter.util';
 import { CreateRoleDto } from './dto/create-role.dto';
 
 @Injectable()
@@ -49,12 +53,11 @@ export class RolesService {
    * Find role by name
    */
   async findRoleByName(roleName: string): Promise<any> {
-    if (!/^[a-zA-Z0-9_\-]+(?: [a-zA-Z0-9_\-]+)*$/.test(roleName)) {
+    if (!/^[a-zA-Z0-9_-]+(?: [a-zA-Z0-9_-]+)*$/.test(roleName)) {
       throw new BadRequestException(
         'Role name contains invalid characters. Only alphanumeric characters, spaces, underscores, and hyphens are allowed.',
       );
     }
-
     try {
       const rolesTable = await this.nocoDBService.getTableByName('roles');
       if (!rolesTable) {
@@ -63,7 +66,7 @@ export class RolesService {
 
       return await this.nocoDBService.findOne(
         rolesTable.id,
-        `(role_name,eq,${roleName})`,
+        filterEq('role_name', roleName),
       );
     } catch (error) {
       this.logger.error('Error finding role:', error);
@@ -72,17 +75,38 @@ export class RolesService {
   }
 
   /**
-   * Get all roles
+   * Get all roles (paginated)
    */
-  async getAllRoles(): Promise<any[]> {
+  async getAllRoles(pageOptionsDto?: PageOptionsDto): Promise<PageDto<any>> {
     try {
       const rolesTable = await this.nocoDBService.getTableByName('roles');
       if (!rolesTable) {
-        return [];
+        return new PageDto(
+          [],
+          new PageMetaDto({
+            pageOptionsDto: pageOptionsDto || new PageOptionsDto(),
+            itemCount: 0,
+          }),
+        );
       }
 
-      const response = await this.nocoDBService.list(rolesTable.id);
-      return response.list || [];
+      const limit = pageOptionsDto?.take ?? 10;
+      const offset = pageOptionsDto?.skip ?? 0;
+
+      const response = await this.nocoDBService.list(rolesTable.id, {
+        limit,
+        offset,
+      });
+
+      const data = response.list || [];
+      const totalRows = response.pageInfo?.totalRows ?? data.length;
+
+      const meta = new PageMetaDto({
+        pageOptionsDto: pageOptionsDto || new PageOptionsDto(),
+        itemCount: pageOptionsDto ? totalRows : data.length,
+      });
+
+      return new PageDto(data, meta);
     } catch (error) {
       this.logger.error('Error fetching roles:', error);
       throw error;

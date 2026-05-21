@@ -8,7 +8,6 @@ import { Logger } from '@nestjs/common';
 
 describe('NocoDB Integration', () => {
   let nocodbService: NocoDBService;
-  let dbInitService: DatabaseInitializationService;
   let mockHttpClient: any;
 
   beforeEach(async () => {
@@ -39,9 +38,6 @@ describe('NocoDB Integration', () => {
     }).compile();
 
     nocodbService = moduleFixture.get<NocoDBService>(NocoDBService);
-    dbInitService = moduleFixture.get<DatabaseInitializationService>(
-      DatabaseInitializationService,
-    );
 
     await nocodbService.onModuleInit();
     (nocodbService as any).httpClient = mockHttpClient;

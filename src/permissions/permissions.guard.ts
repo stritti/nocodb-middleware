@@ -16,6 +16,11 @@ export interface RequiredPermission {
   action: CrudAction;
 }
 
+interface RequestUser {
+  userId?: number | string;
+  scope?: string[];
+}
+
 @Injectable()
 export class PermissionsGuard implements CanActivate {
   private readonly logger = new Logger(PermissionsGuard.name);
@@ -36,7 +41,7 @@ export class PermissionsGuard implements CanActivate {
     }
 
     const request = context.switchToHttp().getRequest();
-    const user = request.user;
+    const user = request.user as RequestUser | undefined;
 
     if (!user || !user.userId) {
       this.logger.warn('User not authenticated');
@@ -45,11 +50,13 @@ export class PermissionsGuard implements CanActivate {
 
     // Check all required permissions
     for (const permission of requiredPermissions) {
-      const hasPermission = await this.permissionsService.canUserPerformAction(
-        user.userId,
-        permission.table,
-        permission.action,
-      );
+      const hasPermission =
+        hasScopePermission(user, permission) ||
+        (await this.permissionsService.canUserPerformAction(
+          Number(user.userId),
+          permission.table,
+          permission.action,
+        ));
 
       if (!hasPermission) {
         this.logger.warn(
@@ -64,4 +71,25 @@ export class PermissionsGuard implements CanActivate {
     // All permissions satisfied
     return true;
   }
+}
+
+function hasScopePermission(
+  user: RequestUser,
+  requiredPermission: RequiredPermission,
+): boolean {
+  const scope = Array.isArray(user.scope) ? user.scope : [];
+
+  if (scope.length === 0) {
+    return false;
+  }
+
+  const action = requiredPermission.action;
+  const table = requiredPermission.table;
+
+  return (
+    scope.includes(`${table}:${action}`) ||
+    scope.includes(`${table}:*`) ||
+    scope.includes(`*:${action}`) ||
+    scope.includes('*:*')
+  );
 }

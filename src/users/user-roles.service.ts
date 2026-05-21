@@ -5,6 +5,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { NocoDBService } from '../nocodb/nocodb.service';
+import { PageOptionsDto } from '../nocodb/dto/page-options.dto';
+import { PageMetaDto } from '../nocodb/dto/page-meta.dto';
+import { PageDto } from '../nocodb/dto/page.dto';
+import { andFilters, filterEq } from '../nocodb/nocodb-filter.util';
 import { AssignRoleDto, AssignMultipleRolesDto } from './dto/assign-role.dto';
 import { PermissionsService } from '../permissions/permissions.service';
 
@@ -30,7 +34,10 @@ export class UserRolesService {
 
       const existing = await this.nocoDBService.findOne(
         userRolesTable.id,
-        `(user.id,eq,${dto.userId})~and(role.id,eq,${dto.roleId})`,
+        andFilters(
+          filterEq('user.id', dto.userId),
+          filterEq('role.id', dto.roleId),
+        ),
       );
 
       if (existing) {
@@ -102,7 +109,7 @@ export class UserRolesService {
 
       const assignment = await this.nocoDBService.findOne(
         userRolesTable.id,
-        `(user.id,eq,${userId})~and(role.id,eq,${roleId})`,
+        andFilters(filterEq('user.id', userId), filterEq('role.id', roleId)),
       );
 
       if (!assignment) {
@@ -123,25 +130,48 @@ export class UserRolesService {
   }
 
   /**
-   * Get all roles for a user with nested role data
+   * Get all roles for a user with nested role data (paginated)
    */
-  async getUserRoles(userId: number): Promise<any[]> {
+  async getUserRoles(
+    userId: number,
+    pageOptionsDto?: PageOptionsDto,
+  ): Promise<PageDto<any>> {
     try {
       const userRolesTable =
         await this.nocoDBService.getTableByName('user_roles');
 
       if (!userRolesTable) {
-        return [];
+        return new PageDto(
+          [],
+          new PageMetaDto({
+            pageOptionsDto: pageOptionsDto || new PageOptionsDto(),
+            itemCount: 0,
+          }),
+        );
       }
 
+      const limit = pageOptionsDto?.take ?? 10;
+      const offset = pageOptionsDto?.skip ?? 0;
+
       const response = await this.nocoDBService.list(userRolesTable.id, {
-        where: `(user.id,eq,${userId})`,
+        where: filterEq('user.id', userId),
         includeRelations: ['role'],
+        limit,
+        offset,
       });
 
-      return (response.list || [])
+      const data = (response.list || [])
         .filter((ur: any) => ur.role && ur.role.length > 0)
         .map((ur: any) => ur.role[0]);
+
+      const totalRows = response.pageInfo?.totalRows ?? data.length;
+
+      const meta = new PageMetaDto({
+        pageOptionsDto: pageOptionsDto || new PageOptionsDto(),
+        itemCount: pageOptionsDto ? totalRows : data.length,
+      });
+
+      return new PageDto(data, meta);
     } catch (error) {
       this.logger.error('Error fetching user roles:', error);
       throw error;

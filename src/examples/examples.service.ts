@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ExampleRepository } from '../nocodb/repositories/example.repository';
 import { CreateExampleDto } from './dto/create-example.dto';
-import { UpdateExampleDto } from './dto/update-example.dto';
 import { PageOptionsDto } from '../nocodb/dto/page-options.dto';
 
 @Injectable()
