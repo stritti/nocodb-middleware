@@ -1,3 +1,14 @@
+# [0.3.0](https://github.com/stritti/nocodb-middleware/compare/v0.2.8...v0.3.0) (2026-05-22)
+
+
+### Bug Fixes
+
+* format CHANGELOG.md to pass Prettier check ([#128](https://github.com/stritti/nocodb-middleware/issues/128)) ([db85818](https://github.com/stritti/nocodb-middleware/commit/db85818dc697b140d19889f7584f88e7811e7818))
+
+
+### Features
+
+* add SPA client library (nocodb-middleware-client) ([#129](https://github.com/stritti/nocodb-middleware/issues/129)) ([d93e54a](https://github.com/stritti/nocodb-middleware/commit/d93e54a6480b1f08dd95fc0fcb3390a44895d49c))
 ## [0.2.9](https://github.com/stritti/nocodb-middleware/compare/v0.2.8...v0.2.9) (2026-05-21)
 
 ## [0.2.8](https://github.com/stritti/nocodb-middleware/compare/v0.2.6...v0.2.8) (2026-05-20)
