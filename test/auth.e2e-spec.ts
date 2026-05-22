@@ -51,7 +51,8 @@ const mockDbInitService = {
 
 // ── Test config (all values set via env to avoid hardcoded secrets) ─────────
 
-const TEST_PASSWORD = process.env.E2E_TEST_PASSWORD ?? 'test-password-for-e2e-only';
+const TEST_PASSWORD =
+  process.env.E2E_TEST_PASSWORD ?? 'test-password-for-e2e-only';
 
 // ── Setup required env vars ─────────────────────────────────────────────────
 

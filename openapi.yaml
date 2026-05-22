@@ -115,13 +115,13 @@ paths:
       parameters: []
       responses:
         '200':
-          description: List of roles
+          description: Paginated list of roles
         '401':
           description: Unauthorized
         '403':
           description: Forbidden – insufficient permissions
       security: *ref_2
-      summary: List all roles
+      summary: List all roles (paginated)
       tags: *ref_3
   /admin/permissions/roles/{roleId}:
     delete:
@@ -201,13 +201,13 @@ paths:
             type: number
       responses:
         '200':
-          description: Role permissions
+          description: Paginated role permissions
         '401':
           description: Unauthorized
         '403':
           description: Forbidden – insufficient permissions
       security: *ref_2
-      summary: Get all table permissions for a role
+      summary: Get all table permissions for a role (paginated)
       tags: *ref_3
     delete:
       operationId: PermissionsManagementController_deleteRolePermissions
@@ -336,20 +336,20 @@ paths:
             type: number
       responses:
         '200':
-          description: User roles
+          description: Paginated user roles
         '401':
           description: Unauthorized
         '403':
           description: Forbidden – insufficient permissions
       security: *ref_2
-      summary: Get all roles assigned to a user
+      summary: Get all roles assigned to a user (paginated)
       tags: *ref_3
 info:
   title: NocoDB Middleware API
   description: >-
     REST API for the NocoDB Middleware – provides JWT-secured access to NocoDB with role-based permissions, caching,
     rate limiting, and distributed tracing.
-  version: 0.0.1
+  version: 0.2.9
   contact: {}
 tags: []
 servers:

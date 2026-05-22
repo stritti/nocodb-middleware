@@ -172,6 +172,21 @@ Deployment guidance for local Docker, VPS, reverse proxy, observability, and pro
 - `docs/testing.md` for test strategy
 - `docs/versioning.md` for release semantics
 
+## Client Library for SPAs
+
+A framework-agnostic TypeScript client library is included in the [`client/`](client/)
+directory. It simplifies access to the Middleware API from Angular, Vue.js, React,
+Svelte, and plain TypeScript projects.
+
+Key features:
+
+- Typed wrappers for all Middleware endpoints
+- Automatic JWT token refresh via an Axios interceptor
+- Pluggable token storage (in-memory by default, or your own `localStorage` / Pinia adapter)
+- Dual ESM + CJS build output
+
+See the [client/README.md](client/README.md) for installation and quick-start examples.
+
 ## Generate static OpenAPI spec
 
 ```bash
