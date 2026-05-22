@@ -3,7 +3,7 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { AppModule } from './../src/app.module';
 import { NocoDBService } from './../src/nocodb/nocodb.service';
 import { DatabaseInitializationService } from './../src/nocodb/database-initialization.service';
-import * as request from 'supertest';
+import request from 'supertest';
 import * as jwt from 'jsonwebtoken';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -51,7 +51,8 @@ const mockDbInitService = {
 
 // ── Test config (all values set via env to avoid hardcoded secrets) ─────────
 
-const TEST_PASSWORD = process.env.E2E_TEST_PASSWORD ?? 'test-password-for-e2e-only';
+const TEST_PASSWORD =
+  process.env.E2E_TEST_PASSWORD ?? 'test-password-for-e2e-only';
 
 // ── Setup required env vars ─────────────────────────────────────────────────
 

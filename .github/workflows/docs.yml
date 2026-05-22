@@ -43,6 +43,9 @@ jobs:
       - name: Validate package semver
         run: node -e "const semver=require('semver'); const pkg=require('./package.json'); if(!semver.valid(pkg.version)){throw new Error('package.json version must be valid semver')}"
 
+      - name: Lint Documentation
+        run: markdownlint "docs/**/*.md"
+
       - name: Build documentation
         run: npm run docs:build
 
