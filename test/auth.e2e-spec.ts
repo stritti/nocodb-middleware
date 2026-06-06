@@ -3,7 +3,7 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { AppModule } from './../src/app.module';
 import { NocoDBService } from './../src/nocodb/nocodb.service';
 import { DatabaseInitializationService } from './../src/nocodb/database-initialization.service';
-import * as request from 'supertest';
+import request from 'supertest';
 import * as jwt from 'jsonwebtoken';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
