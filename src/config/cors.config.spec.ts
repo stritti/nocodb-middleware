@@ -1,4 +1,4 @@
-import { parseAndValidateCorsOrigins } from './cors.config';
+import { parseAndValidateCorsOrigins, logCorsWarnings } from './cors.config';
 
 describe('parseAndValidateCorsOrigins', () => {
   describe('development mode (isProduction=false)', () => {
@@ -138,7 +138,6 @@ describe('parseAndValidateCorsOrigins', () => {
         'https://app.example.com',
         true,
       );
-      const { logCorsWarnings } = require('./cors.config');
       logCorsWarnings(result, mockLogger as any);
 
       expect(mockLogger.log).toHaveBeenCalledWith(
@@ -150,7 +149,6 @@ describe('parseAndValidateCorsOrigins', () => {
 
     it('should warn when CORS is disabled', () => {
       const result = parseAndValidateCorsOrigins('', true);
-      const { logCorsWarnings } = require('./cors.config');
       logCorsWarnings(result, mockLogger as any);
 
       expect(mockLogger.warn).toHaveBeenCalledWith(
@@ -163,11 +161,12 @@ describe('parseAndValidateCorsOrigins', () => {
       process.env.NODE_ENV = 'production';
 
       const result = parseAndValidateCorsOrigins('*', true);
-      const { logCorsWarnings } = require('./cors.config');
 
       expect(() => {
         logCorsWarnings(result, mockLogger as any);
-      }).toThrow('CORS configuration error in production: CORS_ORIGINS contains wildcard "*" which is NOT allowed in production. Please set explicit origins.');
+      }).toThrow(
+        'CORS configuration error in production: CORS_ORIGINS contains wildcard "*" which is NOT allowed in production. Please set explicit origins.',
+      );
 
       expect(mockLogger.error).toHaveBeenCalled();
 
@@ -175,15 +174,13 @@ describe('parseAndValidateCorsOrigins', () => {
     });
 
     it('should warn for localhost in production', () => {
-      const result = parseAndValidateCorsOrigins(
-        'http://localhost:3000',
-        true,
-      );
-      const { logCorsWarnings } = require('./cors.config');
+      const result = parseAndValidateCorsOrigins('http://localhost:3000', true);
       logCorsWarnings(result, mockLogger as any);
 
       expect(mockLogger.warn).toHaveBeenCalledWith(
-        expect.stringContaining('localhost origins should not be used in production'),
+        expect.stringContaining(
+          'localhost origins should not be used in production',
+        ),
       );
     });
   });
