@@ -20,7 +20,9 @@ export class RateLimitMiddleware implements NestMiddleware {
     legacyHeaders: false,
     keyGenerator: (req: Request) => req.ip || 'unknown',
     handler: (req: Request, res: Response) => {
-      this.logger.warn(`IP Rate limit exceeded for ${req.ip} on ${req.originalUrl}`);
+      this.logger.warn(
+        `IP Rate limit exceeded for ${req.ip} on ${req.originalUrl}`,
+      );
       res.status(429).json({
         statusCode: 429,
         message: 'Too many requests from this IP, please try again later.',
@@ -64,7 +66,12 @@ export class RateLimitMiddleware implements NestMiddleware {
     this.userLimiter(req, res, (err) => {
       if (err) {
         // If user limiter fails, check if it's a rate limit error
-        if (typeof err === 'object' && err !== null && 'statusCode' in err && err.statusCode === 429) {
+        if (
+          typeof err === 'object' &&
+          err !== null &&
+          'statusCode' in err &&
+          err.statusCode === 429
+        ) {
           return;
         }
         return next(err);
