@@ -1,12 +1,6 @@
 import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import * as promClient from 'prom-client';
 
-// Re-export types for convenience
-type Counter = promClient.Counter;
-type Histogram = promClient.Histogram;
-type Gauge = promClient.Gauge;
-const register = promClient.register;
-
 /**
  * Service for collecting and exposing Prometheus metrics.
  * Provides default HTTP metrics and allows custom metric registration.
@@ -16,21 +10,21 @@ export class MetricsService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(MetricsService.name);
 
   // Default HTTP metrics
-  private httpRequestCounter: Counter<string>;
-  private httpRequestDuration: Histogram<string>;
-  private httpRequestSize: Histogram<string>;
-  private httpResponseSize: Histogram<string>;
-  private activeConnections: Gauge<string>;
+  private httpRequestCounter: promClient.Counter;
+  private httpRequestDuration: promClient.Histogram;
+  private httpRequestSize: promClient.Histogram;
+  private httpResponseSize: promClient.Histogram;
+  private activeConnections: promClient.Gauge;
 
   // NocoDB API metrics
-  private nocodbRequestCounter: Counter<string>;
-  private nocodbRequestDuration: Histogram<string>;
-  private nocodbErrors: Counter<string>;
+  private nocodbRequestCounter: promClient.Counter;
+  private nocodbRequestDuration: promClient.Histogram;
+  private nocodbErrors: promClient.Counter;
 
   // Cache metrics
-  private cacheHits: Counter<string>;
-  private cacheMisses: Counter<string>;
-  private cacheDuration: Histogram<string>;
+  private cacheHits: promClient.Counter;
+  private cacheMisses: promClient.Counter;
+  private cacheDuration: promClient.Histogram;
 
   constructor() {
     this.initializeMetrics();
@@ -47,14 +41,14 @@ export class MetricsService implements OnModuleInit, OnModuleDestroy {
 
   private initializeMetrics(): void {
     // HTTP Request Counter
-    this.httpRequestCounter = new Counter({
+    this.httpRequestCounter = new promClient.Counter({
       name: 'http_requests_total',
       help: 'Total number of HTTP requests',
       labelNames: ['method', 'route', 'status_code', 'service'],
     });
 
     // HTTP Request Duration
-    this.httpRequestDuration = new Histogram({
+    this.httpRequestDuration = new promClient.Histogram({
       name: 'http_request_duration_seconds',
       help: 'Duration of HTTP requests in seconds',
       labelNames: ['method', 'route', 'status_code', 'service'],
@@ -62,7 +56,7 @@ export class MetricsService implements OnModuleInit, OnModuleDestroy {
     });
 
     // HTTP Request Size
-    this.httpRequestSize = new Histogram({
+    this.httpRequestSize = new promClient.Histogram({
       name: 'http_request_size_bytes',
       help: 'Size of HTTP requests in bytes',
       labelNames: ['method', 'route'],
@@ -70,7 +64,7 @@ export class MetricsService implements OnModuleInit, OnModuleDestroy {
     });
 
     // HTTP Response Size
-    this.httpResponseSize = new Histogram({
+    this.httpResponseSize = new promClient.Histogram({
       name: 'http_response_size_bytes',
       help: 'Size of HTTP responses in bytes',
       labelNames: ['method', 'route', 'status_code'],
@@ -78,46 +72,46 @@ export class MetricsService implements OnModuleInit, OnModuleDestroy {
     });
 
     // Active Connections
-    this.activeConnections = new Gauge({
+    this.activeConnections = new promClient.Gauge({
       name: 'http_active_connections',
       help: 'Number of active HTTP connections',
       labelNames: ['service'],
     });
 
     // NocoDB API metrics
-    this.nocodbRequestCounter = new Counter({
+    this.nocodbRequestCounter = new promClient.Counter({
       name: 'nocodb_api_requests_total',
       help: 'Total number of NocoDB API requests',
       labelNames: ['method', 'endpoint', 'status_code'],
     });
 
-    this.nocodbRequestDuration = new Histogram({
+    this.nocodbRequestDuration = new promClient.Histogram({
       name: 'nocodb_api_request_duration_seconds',
       help: 'Duration of NocoDB API requests in seconds',
       labelNames: ['method', 'endpoint'],
       buckets: [0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 1, 2.5, 5],
     });
 
-    this.nocodbErrors = new Counter({
+    this.nocodbErrors = new promClient.Counter({
       name: 'nocodb_api_errors_total',
       help: 'Total number of NocoDB API errors',
       labelNames: ['method', 'endpoint', 'error_type'],
     });
 
     // Cache metrics
-    this.cacheHits = new Counter({
+    this.cacheHits = new promClient.Counter({
       name: 'cache_hits_total',
       help: 'Total number of cache hits',
       labelNames: ['cache_key'],
     });
 
-    this.cacheMisses = new Counter({
+    this.cacheMisses = new promClient.Counter({
       name: 'cache_misses_total',
       help: 'Total number of cache misses',
       labelNames: ['cache_key'],
     });
 
-    this.cacheDuration = new Histogram({
+    this.cacheDuration = new promClient.Histogram({
       name: 'cache_operation_duration_seconds',
       help: 'Duration of cache operations in seconds',
       labelNames: ['operation', 'cache_key'],
@@ -240,14 +234,14 @@ export class MetricsService implements OnModuleInit, OnModuleDestroy {
    * Get all metrics as string for the /metrics endpoint
    */
   async getMetrics(): Promise<string> {
-    return register.metrics();
+    return promClient.register.metrics();
   }
 
   /**
    * Reset all metrics (useful for testing)
    */
   resetMetrics(): void {
-    client.register.clear();
+    promClient.register.clear();
     this.logger.log('All Prometheus metrics have been reset');
   }
 }
