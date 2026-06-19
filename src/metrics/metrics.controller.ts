@@ -1,7 +1,9 @@
 import { Controller, Get, Res } from '@nestjs/common';
 import { Response } from 'express';
-import { register } from 'prom-client';
+import * as promClient from 'prom-client';
 import { MetricsService } from './metrics.service';
+
+const register = promClient.register;
 
 /**
  * Controller for exposing Prometheus metrics endpoint.

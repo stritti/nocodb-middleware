@@ -1,5 +1,11 @@
 import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
-import { Counter, Histogram, Gauge, register } from 'prom-client';
+import * as promClient from 'prom-client';
+
+// Re-export types for convenience
+type Counter = promClient.Counter;
+type Histogram = promClient.Histogram;
+type Gauge = promClient.Gauge;
+const register = promClient.register;
 
 /**
  * Service for collecting and exposing Prometheus metrics.
