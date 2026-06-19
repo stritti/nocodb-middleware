@@ -1,6 +1,6 @@
 import { Controller, Get, Res } from '@nestjs/common';
 import { Response } from 'express';
-import * as client from 'prom-client';
+import { register } from 'prom-client';
 import { MetricsService } from './metrics.service';
 
 /**
@@ -20,7 +20,7 @@ export class MetricsController {
   async getMetrics(@Res() res: Response): Promise<void> {
     try {
       const metrics = await this.metricsService.getMetrics();
-      res.set('Content-Type', client.register.contentType);
+      res.set('Content-Type', register.contentType);
       res.send(metrics);
     } catch (error: any) {
       res.status(500).json({

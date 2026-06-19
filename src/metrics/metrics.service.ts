@@ -1,5 +1,5 @@
 import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
-import * as client from 'prom-client';
+import { Counter, Histogram, Gauge, register } from 'prom-client';
 
 /**
  * Service for collecting and exposing Prometheus metrics.
@@ -10,21 +10,21 @@ export class MetricsService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(MetricsService.name);
 
   // Default HTTP metrics
-  private httpRequestCounter: client.Counter<string>;
-  private httpRequestDuration: client.Histogram<string>;
-  private httpRequestSize: client.Histogram<string>;
-  private httpResponseSize: client.Histogram<string>;
-  private activeConnections: client.Gauge<string>;
+  private httpRequestCounter: Counter<string>;
+  private httpRequestDuration: Histogram<string>;
+  private httpRequestSize: Histogram<string>;
+  private httpResponseSize: Histogram<string>;
+  private activeConnections: Gauge<string>;
 
   // NocoDB API metrics
-  private nocodbRequestCounter: client.Counter<string>;
-  private nocodbRequestDuration: client.Histogram<string>;
-  private nocodbErrors: client.Counter<string>;
+  private nocodbRequestCounter: Counter<string>;
+  private nocodbRequestDuration: Histogram<string>;
+  private nocodbErrors: Counter<string>;
 
   // Cache metrics
-  private cacheHits: client.Counter<string>;
-  private cacheMisses: client.Counter<string>;
-  private cacheDuration: client.Histogram<string>;
+  private cacheHits: Counter<string>;
+  private cacheMisses: Counter<string>;
+  private cacheDuration: Histogram<string>;
 
   constructor() {
     this.initializeMetrics();
@@ -41,92 +41,81 @@ export class MetricsService implements OnModuleInit, OnModuleDestroy {
 
   private initializeMetrics(): void {
     // HTTP Request Counter
-    this.httpRequestCounter = new client.Counter({
+    this.httpRequestCounter = new Counter({
       name: 'http_requests_total',
       help: 'Total number of HTTP requests',
       labelNames: ['method', 'route', 'status_code', 'service'],
-      registers: [client.register],
     });
 
     // HTTP Request Duration
-    this.httpRequestDuration = new client.Histogram({
+    this.httpRequestDuration = new Histogram({
       name: 'http_request_duration_seconds',
       help: 'Duration of HTTP requests in seconds',
       labelNames: ['method', 'route', 'status_code', 'service'],
       buckets: [0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1, 2.5, 5, 10],
-      registers: [client.register],
     });
 
     // HTTP Request Size
-    this.httpRequestSize = new client.Histogram({
+    this.httpRequestSize = new Histogram({
       name: 'http_request_size_bytes',
       help: 'Size of HTTP requests in bytes',
       labelNames: ['method', 'route'],
       buckets: [100, 1000, 10000, 100000, 1000000],
-      registers: [client.register],
     });
 
     // HTTP Response Size
-    this.httpResponseSize = new client.Histogram({
+    this.httpResponseSize = new Histogram({
       name: 'http_response_size_bytes',
       help: 'Size of HTTP responses in bytes',
       labelNames: ['method', 'route', 'status_code'],
       buckets: [100, 1000, 10000, 100000, 1000000],
-      registers: [client.register],
     });
 
     // Active Connections
-    this.activeConnections = new client.Gauge({
+    this.activeConnections = new Gauge({
       name: 'http_active_connections',
       help: 'Number of active HTTP connections',
       labelNames: ['service'],
-      registers: [client.register],
     });
 
     // NocoDB API metrics
-    this.nocodbRequestCounter = new client.Counter({
+    this.nocodbRequestCounter = new Counter({
       name: 'nocodb_api_requests_total',
       help: 'Total number of NocoDB API requests',
       labelNames: ['method', 'endpoint', 'status_code'],
-      registers: [client.register],
     });
 
-    this.nocodbRequestDuration = new client.Histogram({
+    this.nocodbRequestDuration = new Histogram({
       name: 'nocodb_api_request_duration_seconds',
       help: 'Duration of NocoDB API requests in seconds',
       labelNames: ['method', 'endpoint'],
       buckets: [0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 1, 2.5, 5],
-      registers: [client.register],
     });
 
-    this.nocodbErrors = new client.Counter({
+    this.nocodbErrors = new Counter({
       name: 'nocodb_api_errors_total',
       help: 'Total number of NocoDB API errors',
       labelNames: ['method', 'endpoint', 'error_type'],
-      registers: [client.register],
     });
 
     // Cache metrics
-    this.cacheHits = new client.Counter({
+    this.cacheHits = new Counter({
       name: 'cache_hits_total',
       help: 'Total number of cache hits',
       labelNames: ['cache_key'],
-      registers: [client.register],
     });
 
-    this.cacheMisses = new client.Counter({
+    this.cacheMisses = new Counter({
       name: 'cache_misses_total',
       help: 'Total number of cache misses',
       labelNames: ['cache_key'],
-      registers: [client.register],
     });
 
-    this.cacheDuration = new client.Histogram({
+    this.cacheDuration = new Histogram({
       name: 'cache_operation_duration_seconds',
       help: 'Duration of cache operations in seconds',
       labelNames: ['operation', 'cache_key'],
       buckets: [0.001, 0.005, 0.01, 0.025, 0.05, 0.1],
-      registers: [client.register],
     });
   }
 
@@ -245,7 +234,7 @@ export class MetricsService implements OnModuleInit, OnModuleDestroy {
    * Get all metrics as string for the /metrics endpoint
    */
   async getMetrics(): Promise<string> {
-    return client.register.metrics();
+    return register.metrics();
   }
 
   /**
