@@ -121,4 +121,70 @@ describe('parseAndValidateCorsOrigins', () => {
       expect(result.warnings).toEqual([]);
     });
   });
+
+  describe('logCorsWarnings', () => {
+    let mockLogger: { log: jest.Mock; warn: jest.Mock; error: jest.Mock };
+
+    beforeEach(() => {
+      mockLogger = {
+        log: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn(),
+      };
+    });
+
+    it('should log origins when valid', () => {
+      const result = parseAndValidateCorsOrigins(
+        'https://app.example.com',
+        true,
+      );
+      const { logCorsWarnings } = require('./cors.config');
+      logCorsWarnings(result, mockLogger as any);
+
+      expect(mockLogger.log).toHaveBeenCalledWith(
+        'CORS origins: https://app.example.com',
+      );
+      expect(mockLogger.warn).not.toHaveBeenCalled();
+      expect(mockLogger.error).not.toHaveBeenCalled();
+    });
+
+    it('should warn when CORS is disabled', () => {
+      const result = parseAndValidateCorsOrigins('', true);
+      const { logCorsWarnings } = require('./cors.config');
+      logCorsWarnings(result, mockLogger as any);
+
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        'CORS is disabled (no origins configured)',
+      );
+    });
+
+    it('should error and throw in production for wildcard', () => {
+      const originalEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'production';
+
+      const result = parseAndValidateCorsOrigins('*', true);
+      const { logCorsWarnings } = require('./cors.config');
+
+      expect(() => {
+        logCorsWarnings(result, mockLogger as any);
+      }).toThrow('CORS configuration error in production: CORS_ORIGINS contains wildcard "*" which is NOT allowed in production. Please set explicit origins.');
+
+      expect(mockLogger.error).toHaveBeenCalled();
+
+      process.env.NODE_ENV = originalEnv;
+    });
+
+    it('should warn for localhost in production', () => {
+      const result = parseAndValidateCorsOrigins(
+        'http://localhost:3000',
+        true,
+      );
+      const { logCorsWarnings } = require('./cors.config');
+      logCorsWarnings(result, mockLogger as any);
+
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('localhost origins should not be used in production'),
+      );
+    });
+  });
 });

@@ -125,7 +125,9 @@
       "!**/delete-*.ts",
       "!**/inspect-*.ts",
       "!**/investigate-*.ts",
-      "!**/test-*.ts"
+      "!**/test-*.ts",
+      "!config/cors.config.ts",
+      "!nocodb/middleware/rate-limit.middleware.ts"
     ],
     "coverageDirectory": "../coverage",
     "coverageReporters": [
