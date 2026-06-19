@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { LoggerModule } from 'nestjs-pino';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { NocoDBModule } from './nocodb/nocodb.module';
@@ -8,6 +9,8 @@ import { AuthModule } from './auth/auth.module';
 import { HealthModule } from './health/health.module';
 import { PermissionsModule } from './permissions/permissions.module';
 import { TelemetryModule } from './tracing/telemetry.module';
+import { MetricsModule } from './metrics/metrics.module';
+import { SanitizeInterceptor } from './common/interceptors/sanitize.interceptor';
 
 @Module({
   imports: [
@@ -29,7 +32,7 @@ import { TelemetryModule } from './tracing/telemetry.module';
             : undefined,
         redact: ['req.headers.authorization', 'req.headers.cookie'],
         autoLogging: {
-          ignore: (req) => req.url === '/health',
+          ignore: (req) => req.url === '/health' || req.url === '/metrics',
         },
       },
     }),
@@ -38,8 +41,15 @@ import { TelemetryModule } from './tracing/telemetry.module';
     AuthModule,
     HealthModule,
     PermissionsModule,
+    MetricsModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: SanitizeInterceptor,
+    },
+  ],
 })
 export class AppModule {}
