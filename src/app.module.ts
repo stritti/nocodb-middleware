@@ -9,7 +9,7 @@ import { AuthModule } from './auth/auth.module';
 import { HealthModule } from './health/health.module';
 import { PermissionsModule } from './permissions/permissions.module';
 import { TelemetryModule } from './tracing/telemetry.module';
-import { MetricsModule } from './metrics/metrics.module';
+
 import { SanitizeInterceptor } from './common/interceptors/sanitize.interceptor';
 
 @Module({
@@ -32,7 +32,7 @@ import { SanitizeInterceptor } from './common/interceptors/sanitize.interceptor'
             : undefined,
         redact: ['req.headers.authorization', 'req.headers.cookie'],
         autoLogging: {
-          ignore: (req) => req.url === '/health' || req.url === '/metrics',
+          ignore: (req) => req.url === '/health',
         },
       },
     }),
@@ -41,7 +41,6 @@ import { SanitizeInterceptor } from './common/interceptors/sanitize.interceptor'
     AuthModule,
     HealthModule,
     PermissionsModule,
-    MetricsModule,
   ],
   controllers: [AppController],
   providers: [
