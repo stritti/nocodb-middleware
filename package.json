@@ -133,7 +133,10 @@
       "lcov",
       "json-summary"
     ],
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "fakeTimers": {
+      "enableGlobally": true
+    }
   },
   "overrides": {
     "lodash": "^4.18.1",
