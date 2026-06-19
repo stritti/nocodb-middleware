@@ -35,7 +35,6 @@ export class MetricsService implements OnModuleInit, OnModuleDestroy {
   }
 
   async onModuleDestroy() {
-    // Clean up metrics on shutdown
     this.logger.log('Cleaning up Prometheus metrics');
   }
 
