@@ -46,15 +46,6 @@ async function bootstrap() {
       crossOriginOpenerPolicy: { policy: 'same-origin' },
       crossOriginResourcePolicy: { policy: 'same-origin' },
       referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
-      permissionsPolicy: {
-        directives: {
-          camera: [],
-          geolocation: [],
-          microphone: [],
-          payment: [],
-          usb: [],
-        },
-      },
     }),
   );
 

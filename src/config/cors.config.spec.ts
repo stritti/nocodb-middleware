@@ -93,20 +93,23 @@ describe('parseAndValidateCorsOrigins', () => {
       expect(result.warnings[0]).toContain('localhost');
     });
 
-    it('warns about wildcard in production', () => {
+    it('throws error for wildcard in production', () => {
       const result = parseAndValidateCorsOrigins('*', true);
       expect(result.valid).toBe(false);
-      expect(result.warnings).toHaveLength(1);
-      expect(result.warnings[0]).toContain('wildcard');
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0]).toContain('wildcard');
     });
 
-    it('warns for each problematic origin', () => {
+    it('throws error for wildcard and warns for localhost in production', () => {
       const result = parseAndValidateCorsOrigins(
         '*,http://localhost:3000',
         true,
       );
       expect(result.valid).toBe(false);
-      expect(result.warnings).toHaveLength(2);
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0]).toContain('wildcard');
+      expect(result.warnings).toHaveLength(1);
+      expect(result.warnings[0]).toContain('localhost');
     });
 
     it('accepts multiple production origins', () => {

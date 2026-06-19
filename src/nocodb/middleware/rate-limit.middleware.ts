@@ -2,14 +2,10 @@ import { Injectable, NestMiddleware, Logger } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import rateLimit from 'express-rate-limit';
 
-// Extend Request type to include user property
-declare global {
-  namespace Express {
-    interface User {
-      id?: string;
-      role?: string;
-    }
-  }
+// Extend Express.User type for type safety
+interface ExpressUser {
+  id?: string;
+  role?: string;
 }
 
 @Injectable()
@@ -36,7 +32,7 @@ export class RateLimitMiddleware implements NestMiddleware {
   private userLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: (req: Request) => {
-      const user = req.user as Express.User | undefined;
+      const user = req.user as ExpressUser | undefined;
       // Admins get higher limits
       if (user?.role === 'admin') {
         return 1000; // 1000 requests per 15 minutes for admins
@@ -46,13 +42,13 @@ export class RateLimitMiddleware implements NestMiddleware {
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: (req: Request) => {
-      const user = req.user as Express.User | undefined;
+      const user = req.user as ExpressUser | undefined;
       // Use user ID if available, fall back to IP
       return (user?.id as string) || req.ip || 'unknown';
     },
     skip: (req: Request) => !req.user,
     handler: (req: Request, res: Response) => {
-      const user = req.user as Express.User | undefined;
+      const user = req.user as ExpressUser | undefined;
       this.logger.warn(
         `User rate limit exceeded for user ${(user?.id as string) || req.ip} on ${req.originalUrl}`,
       );
@@ -65,10 +61,10 @@ export class RateLimitMiddleware implements NestMiddleware {
 
   use(req: Request, res: Response, next: NextFunction) {
     // Apply user-based limiter first (if user is authenticated)
-    this.userLimiter(req, res, (err: Error | undefined) => {
+    this.userLimiter(req, res, (err) => {
       if (err) {
         // If user limiter fails, check if it's a rate limit error
-        if ('statusCode' in err && err.statusCode === 429) {
+        if (typeof err === 'object' && err !== null && 'statusCode' in err && err.statusCode === 429) {
           return;
         }
         return next(err);
