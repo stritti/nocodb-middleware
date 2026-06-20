@@ -101,12 +101,21 @@ check_coverage() {
 # Function to check OpenAPI spec
 check_openapi() {
     echo "🔍 Checking OpenAPI spec..."
-    if npm run generate:openapi > /dev/null 2>&1; then
+    # Generate OpenAPI spec
+    if ! npm run generate:openapi > /dev/null 2>&1; then
+        echo "❌ OpenAPI spec generation failed"
+        npm run generate:openapi 2>&1 | tail -20
+        return 1
+    fi
+    
+    # Check if there are uncommitted changes to openapi files
+    if git diff --quiet -- openapi.json openapi.yaml 2>/dev/null; then
         echo "✅ OpenAPI spec is fresh"
         return 0
     else
-        echo "❌ OpenAPI spec generation failed"
-        npm run generate:openapi 2>&1 | tail -20
+        echo "❌ OpenAPI spec has uncommitted changes"
+        echo "Run 'npm run generate:openapi' and commit the changes"
+        git diff -- openapi.json openapi.yaml 2>/dev/null | head -20
         return 1
     fi
 }
