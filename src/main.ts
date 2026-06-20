@@ -6,6 +6,7 @@ import { ValidationPipe, Logger as NestLogger } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { Logger } from 'nestjs-pino';
+import { RateLimitMiddleware } from './nocodb/middleware/rate-limit.middleware';
 import {
   parseAndValidateCorsOrigins,
   logCorsWarnings,
@@ -68,6 +69,10 @@ async function bootstrap() {
       'x-request-id',
     ],
   });
+
+  // Global rate limiting middleware (must be after CORS but before routes)
+  // This ensures req.user is available from JWT authentication
+  app.use(new RateLimitMiddleware().use.bind(new RateLimitMiddleware()));
 
   // Global filters
   app.useGlobalFilters(new NocoDBExceptionFilter());

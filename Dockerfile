@@ -7,6 +7,9 @@ WORKDIR /app
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
 
+# Make /app writable for nodejs user
+RUN chmod -R 775 /app
+
 # Copy package files
 COPY --chown=nodejs:nodejs package*.json ./
 

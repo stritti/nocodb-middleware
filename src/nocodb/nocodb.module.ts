@@ -4,7 +4,6 @@ import { NocoDBService } from './nocodb.service';
 import { DatabaseInitializationService } from './database-initialization.service';
 import nocodbConfig from '../config/nocodb.config';
 import { NocoDbContextMiddleware } from './middleware/nocodb-context.middleware';
-import { RateLimitMiddleware } from './middleware/rate-limit.middleware';
 import { LoggingMiddleware } from './middleware/logging.middleware';
 
 import { ExampleRepository } from './repositories/example.repository';
@@ -34,7 +33,6 @@ import { TableCatalogController } from './table-catalog.controller';
 export class NocoDBModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     consumer.apply(LoggingMiddleware).forRoutes('*');
-    consumer.apply(RateLimitMiddleware).forRoutes('*');
     consumer.apply(NocoDbContextMiddleware).forRoutes('*');
   }
 }
