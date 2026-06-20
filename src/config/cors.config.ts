@@ -4,6 +4,7 @@ export interface CorsValidationResult {
   origins: string[];
   valid: boolean;
   warnings: string[];
+  errors: string[];
 }
 
 /**
@@ -12,13 +13,15 @@ export interface CorsValidationResult {
  * - Splits comma-separated origins
  * - Trims whitespace
  * - Filters empty entries
- * - Returns warnings for misconfiguration
+ * - Returns warnings and errors for misconfiguration
+ * - Throws in production if wildcard '*' is used
  */
 export function parseAndValidateCorsOrigins(
   corsOriginsRaw: string | undefined,
   isProduction: boolean,
 ): CorsValidationResult {
   const warnings: string[] = [];
+  const errors: string[] = [];
   const origins = (corsOriginsRaw ?? '')
     .split(',')
     .map((o) => o.trim())
@@ -31,9 +34,15 @@ export function parseAndValidateCorsOrigins(
   } else {
     for (const origin of origins) {
       if (origin === '*') {
-        warnings.push(
-          'CORS_ORIGINS contains wildcard "*". This allows ALL origins and should NOT be used in production.',
-        );
+        if (isProduction) {
+          errors.push(
+            'CORS_ORIGINS contains wildcard "*" which is NOT allowed in production. Please set explicit origins.',
+          );
+        } else {
+          warnings.push(
+            'CORS_ORIGINS contains wildcard "*". This allows ALL origins and should NOT be used in production.',
+          );
+        }
       }
       if (isProduction && origin.includes('localhost')) {
         warnings.push(
@@ -45,13 +54,15 @@ export function parseAndValidateCorsOrigins(
 
   return {
     origins,
-    valid: warnings.length === 0,
+    valid: warnings.length === 0 && errors.length === 0,
     warnings,
+    errors,
   };
 }
 
 /**
- * Logs CORS configuration warnings at application startup.
+ * Logs CORS configuration warnings and errors at application startup.
+ * Throws an error in production if critical misconfigurations are found.
  * Call this during bootstrap after parsing CORS origins.
  */
 export function logCorsWarnings(
@@ -62,6 +73,18 @@ export function logCorsWarnings(
     logger.log(`CORS origins: ${result.origins.join(', ')}`);
   } else {
     logger.warn('CORS is disabled (no origins configured)');
+  }
+
+  if (result.errors.length > 0) {
+    for (const error of result.errors) {
+      logger.error(`CORS: ${error}`);
+    }
+    // In production, throw to prevent startup with insecure config
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(
+        'CORS configuration error in production: ' + result.errors.join('; '),
+      );
+    }
   }
 
   if (result.warnings.length > 0) {

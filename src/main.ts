@@ -6,6 +6,7 @@ import { ValidationPipe, Logger as NestLogger } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { Logger } from 'nestjs-pino';
+import { RateLimitMiddleware } from './nocodb/middleware/rate-limit.middleware';
 import {
   parseAndValidateCorsOrigins,
   logCorsWarnings,
@@ -24,18 +25,28 @@ async function bootstrap() {
     );
   }
 
-  // Security headers
+  // Security headers with strict CSP
   app.use(
     helmet({
       contentSecurityPolicy: {
         directives: {
-          defaultSrc: ["'self'"],
-          styleSrc: ["'self'", "'unsafe-inline'"],
+          defaultSrc: ["'none'"],
           scriptSrc: ["'self'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
           imgSrc: ["'self'", 'data:', 'https:'],
+          connectSrc: ["'self'"],
+          fontSrc: ["'self'"],
+          objectSrc: ["'none'"],
+          frameSrc: ["'none'"],
+          baseUri: ["'self'"],
+          formAction: ["'self'"],
+          frameAncestors: ["'none'"],
         },
       },
       crossOriginEmbedderPolicy: false,
+      crossOriginOpenerPolicy: { policy: 'same-origin' },
+      crossOriginResourcePolicy: { policy: 'same-origin' },
+      referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
     }),
   );
 
@@ -58,6 +69,10 @@ async function bootstrap() {
       'x-request-id',
     ],
   });
+
+  // Global rate limiting middleware (must be after CORS but before routes)
+  // This ensures req.user is available from JWT authentication
+  app.use(new RateLimitMiddleware().use.bind(new RateLimitMiddleware()));
 
   // Global filters
   app.useGlobalFilters(new NocoDBExceptionFilter());

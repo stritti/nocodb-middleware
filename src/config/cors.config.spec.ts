@@ -1,4 +1,4 @@
-import { parseAndValidateCorsOrigins } from './cors.config';
+import { parseAndValidateCorsOrigins, logCorsWarnings } from './cors.config';
 
 describe('parseAndValidateCorsOrigins', () => {
   describe('development mode (isProduction=false)', () => {
@@ -93,20 +93,23 @@ describe('parseAndValidateCorsOrigins', () => {
       expect(result.warnings[0]).toContain('localhost');
     });
 
-    it('warns about wildcard in production', () => {
+    it('throws error for wildcard in production', () => {
       const result = parseAndValidateCorsOrigins('*', true);
       expect(result.valid).toBe(false);
-      expect(result.warnings).toHaveLength(1);
-      expect(result.warnings[0]).toContain('wildcard');
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0]).toContain('wildcard');
     });
 
-    it('warns for each problematic origin', () => {
+    it('throws error for wildcard and warns for localhost in production', () => {
       const result = parseAndValidateCorsOrigins(
         '*,http://localhost:3000',
         true,
       );
       expect(result.valid).toBe(false);
-      expect(result.warnings).toHaveLength(2);
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0]).toContain('wildcard');
+      expect(result.warnings).toHaveLength(1);
+      expect(result.warnings[0]).toContain('localhost');
     });
 
     it('accepts multiple production origins', () => {
@@ -116,6 +119,69 @@ describe('parseAndValidateCorsOrigins', () => {
       );
       expect(result.valid).toBe(true);
       expect(result.warnings).toEqual([]);
+    });
+  });
+
+  describe('logCorsWarnings', () => {
+    let mockLogger: { log: jest.Mock; warn: jest.Mock; error: jest.Mock };
+
+    beforeEach(() => {
+      mockLogger = {
+        log: jest.fn(),
+        warn: jest.fn(),
+        error: jest.fn(),
+      };
+    });
+
+    it('should log origins when valid', () => {
+      const result = parseAndValidateCorsOrigins(
+        'https://app.example.com',
+        true,
+      );
+      logCorsWarnings(result, mockLogger as any);
+
+      expect(mockLogger.log).toHaveBeenCalledWith(
+        'CORS origins: https://app.example.com',
+      );
+      expect(mockLogger.warn).not.toHaveBeenCalled();
+      expect(mockLogger.error).not.toHaveBeenCalled();
+    });
+
+    it('should warn when CORS is disabled', () => {
+      const result = parseAndValidateCorsOrigins('', true);
+      logCorsWarnings(result, mockLogger as any);
+
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        'CORS is disabled (no origins configured)',
+      );
+    });
+
+    it('should error and throw in production for wildcard', () => {
+      const originalEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'production';
+
+      const result = parseAndValidateCorsOrigins('*', true);
+
+      expect(() => {
+        logCorsWarnings(result, mockLogger as any);
+      }).toThrow(
+        'CORS configuration error in production: CORS_ORIGINS contains wildcard "*" which is NOT allowed in production. Please set explicit origins.',
+      );
+
+      expect(mockLogger.error).toHaveBeenCalled();
+
+      process.env.NODE_ENV = originalEnv;
+    });
+
+    it('should warn for localhost in production', () => {
+      const result = parseAndValidateCorsOrigins('http://localhost:3000', true);
+      logCorsWarnings(result, mockLogger as any);
+
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'localhost origins should not be used in production',
+        ),
+      );
     });
   });
 });
