@@ -77,11 +77,21 @@ jobs:
             echo "coverage_passed=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Check OpenAPI Spec
+      - name: Check OpenAPI Spec Diff
         id: openapi
         run: |
-          if npm run generate:openapi; then
-            echo "openapi_passed=true" >> $GITHUB_OUTPUT
+          # Generate OpenAPI spec
+          npm run generate:openapi
+          
+          # Check if there are any diffs in the generated spec
+          if [ -f openapi.json ]; then
+            # Get the diff between current and generated spec
+            DIFF_OUTPUT=$(git diff --no-index -- openapi.json openapi.json 2>/dev/null || echo "")
+            if [ -z "$DIFF_OUTPUT" ]; then
+              echo "openapi_passed=true" >> $GITHUB_OUTPUT
+            else
+              echo "openapi_passed=false" >> $GITHUB_OUTPUT
+            fi
           else
             echo "openapi_passed=false" >> $GITHUB_OUTPUT
           fi
@@ -107,14 +117,14 @@ jobs:
           OPENAPI=${{ steps.openapi.outputs.openapi_passed }}
           AUDIT=${{ steps.audit.outputs.audit_passed }}
 
-          # Count failures
+          # Count failures (use string comparison)
           FAILURES=0
-          [ "$LINT" = "false" ] && FAILURES=$((FAILURES + 1))
-          [ "$FORMAT" = "false" ] && FAILURES=$((FAILURES + 1))
-          [ "$BUILD" = "false" ] && FAILURES=$((FAILURES + 1))
-          [ "$TESTS" = "false" ] && FAILURES=$((FAILURES + 1))
-          [ "$COVERAGE" = "false" ] && FAILURES=$((FAILURES + 1))
-          [ "$OPENAPI" = "false" ] && FAILURES=$((FAILURES + 1))
+          [ "$LINT" != "true" ] && FAILURES=$((FAILURES + 1))
+          [ "$FORMAT" != "true" ] && FAILURES=$((FAILURES + 1))
+          [ "$BUILD" != "true" ] && FAILURES=$((FAILURES + 1))
+          [ "$TESTS" != "true" ] && FAILURES=$((FAILURES + 1))
+          [ "$COVERAGE" != "true" ] && FAILURES=$((FAILURES + 1))
+          [ "$OPENAPI" != "true" ] && FAILURES=$((FAILURES + 1))
 
           echo "failures=$FAILURES" >> $GITHUB_OUTPUT
           echo "lint=$LINT" >> $GITHUB_OUTPUT
@@ -126,7 +136,7 @@ jobs:
           echo "audit=$AUDIT" >> $GITHUB_OUTPUT
 
       - name: Post Quality Gate Comment
-        if: always()
+        if: always() && github.token != ''
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -167,7 +177,7 @@ jobs:
               `| OpenAPI | ${emoji(openapi)} |`,
               `| npm Audit | ${emoji(audit)} |`,
               '',
-              failures === 0 ? 
+              failures === 0 ?
                 '🎉 This PR is ready for review!' :
                 '⚠️ Please fix the failed quality gates before marking as ready for review.',
               '',
