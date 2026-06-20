@@ -322,6 +322,12 @@ export class NocoDBService implements OnModuleInit {
   private nextAllowedTime = 0;
 
   private enforceRateLimit(): Promise<void> {
+    // In test environments, setTimeout may not be available (Jest 30 + Node.js 26)
+    // Skip rate limiting in such cases to avoid ReferenceError
+    if (typeof setTimeout !== 'function') {
+      return Promise.resolve();
+    }
+
     const next = this.rateLimitChain
       .catch(() => {})
       .then(() => {
