@@ -7,6 +7,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { Logger } from 'nestjs-pino';
 import { RateLimitMiddleware } from './nocodb/middleware/rate-limit.middleware';
+import { SanitizeMiddleware } from './common/middleware/sanitize.middleware';
 import {
   parseAndValidateCorsOrigins,
   logCorsWarnings,
@@ -70,7 +71,11 @@ async function bootstrap() {
     ],
   });
 
-  // Global rate limiting middleware (must be after CORS but before routes)
+  // Global input sanitization middleware (after CORS, before rate limiting)
+  // Sanitizes all request data (body, query, params) to prevent XSS
+  app.use(new SanitizeMiddleware().use.bind(new SanitizeMiddleware()));
+
+  // Global rate limiting middleware (must be after CORS and sanitization)
   // This ensures req.user is available from JWT authentication
   app.use(new RateLimitMiddleware().use.bind(new RateLimitMiddleware()));
 
