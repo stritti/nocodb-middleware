@@ -1,6 +1,7 @@
 import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { JwtPayload } from '../interfaces/user.interface';
+import { IS_PUBLIC_KEY } from '../../common/decorators/public.decorator';
 
 // Permission matrix based on the concept
 const PERMISSIONS = {
@@ -29,6 +30,13 @@ export class PermissionsGuard implements CanActivate {
   constructor(private reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
+    // Allow public routes (register, login, etc.) to bypass permission checks
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    if (isPublic) return true;
+
     const request = context.switchToHttp().getRequest();
     const user = request.user as JwtPayload;
     
@@ -83,12 +91,6 @@ export class PermissionsGuard implements CanActivate {
       if (userId && userId !== user.sub) {
         throw new ForbiddenException('Users can only access their own favorites');
       }
-    }
-
-    // For books, guests can only read books with price < 10
-    if (table === 'books' && user.role === 'guest' && action === 'read') {
-      // This would be handled in the service layer with filtering
-      // For now, we just allow the request and let the service handle filtering
     }
 
     return true;

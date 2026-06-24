@@ -185,8 +185,9 @@ class NocoDBSetup {
       console.log('   - alice: alice@example.com / password: password');
       console.log('   - bob: bob@example.com / password: password');
       console.log('   - guest: guest@example.com / password: password');
-    } catch (error) {
-      console.error('❌ Setup failed:', error.message);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error('❌ Setup failed:', message);
       process.exit(1);
     }
   }

@@ -11,6 +11,31 @@ export class UsersService {
     private readonly nocodbService: NocoDBService,
   ) {}
 
+  // ──────────────────────────────────────────────
+  //  Private helpers
+  // ──────────────────────────────────────────────
+
+  private getPaginationParams(
+    pageOptions: PageOptionsDto,
+    defaults: { sortBy?: string; sortOrder?: 'ASC' | 'DESC' } = {},
+  ) {
+    const { page = 1, limit = 10, sortBy = defaults.sortBy || 'username', sortOrder = defaults.sortOrder || 'ASC' } = pageOptions;
+    const offset = (page - 1) * limit;
+    return { page, limit, sortBy, sortOrder, offset };
+  }
+
+  private buildPaginationMeta<T>(data: T[], total: number, page: number, limit: number): PageDto<T> {
+    const totalPages = Math.ceil(total / limit);
+    return {
+      data,
+      meta: { total, page, limit, totalPages, hasNextPage: page < totalPages, hasPrevPage: page > 1 },
+    };
+  }
+
+  // ──────────────────────────────────────────────
+  //  Public API
+  // ──────────────────────────────────────────────
+
   /**
    * Register a new user
    */
@@ -30,11 +55,9 @@ export class UsersService {
    */
   async getCurrentUser(payload: JwtPayload): Promise<User> {
     const user = await this.authService.getCurrentUser(payload);
-    
     if (!user) {
       throw new NotFoundException('User not found');
     }
-
     return user;
   }
 
@@ -42,65 +65,40 @@ export class UsersService {
    * Get all users (admin only)
    */
   async findAll(pageOptions: PageOptionsDto): Promise<PageDto<User>> {
-    const { page = 1, limit = 10, sortBy = 'username', sortOrder = 'ASC', search } = pageOptions;
-    const offset = (page - 1) * limit;
+    const { page, limit, sortBy, sortOrder, offset } = this.getPaginationParams(pageOptions);
 
-    // Build where clause
     let where = '';
-    
-    if (search) {
-      where = `(username,contains,${search})~or~(email,contains,${search})`;
+    if (pageOptions.search) {
+      where = `(username,contains,${pageOptions.search})~or~(email,contains,${pageOptions.search})`;
     }
 
-    // Get users (without password hashes)
-    const usersWithPassword = await this.nocodbService.findAll('users', {
-      where,
-      limit,
-      offset,
-      sortBy,
-      sortOrder,
+    const [usersWithPassword, total] = await Promise.all([
+      this.nocodbService.findAll('users', { where, limit, offset, sortBy, sortOrder }),
+      this.nocodbService.count('users', where),
+    ]);
+
+    // Strip password hashes
+    const users = usersWithPassword.map((u: UserWithPassword) => {
+      const { password_hash, ...rest } = u;
+      return rest;
     });
 
-    // Remove password hashes
-    const users = usersWithPassword.map((user: UserWithPassword) => {
-      const { password_hash, ...userWithoutPassword } = user;
-      return userWithoutPassword;
-    });
-
-    // Get total count
-    const total = await this.nocodbService.count('users', where);
-
-    const totalPages = Math.ceil(total / limit);
-
-    return {
-      data: users,
-      meta: {
-        total,
-        page,
-        limit,
-        totalPages,
-        hasNextPage: page < totalPages,
-        hasPrevPage: page > 1,
-      },
-    };
+    return this.buildPaginationMeta(users, total, page, limit);
   }
 
   /**
    * Get a single user by ID
    */
   async findOne(currentUser: JwtPayload, id: number): Promise<User> {
-    // Users can only access their own data (unless they're admin)
     if (currentUser.role !== 'admin' && currentUser.sub !== id) {
       throw new ForbiddenException('You can only access your own user data');
     }
 
     const userWithPassword = await this.nocodbService.findOne('users', id);
-    
     if (!userWithPassword) {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
 
-    // Remove password hash
     const { password_hash, ...userWithoutPassword } = userWithPassword;
     return userWithoutPassword;
   }
@@ -109,18 +107,16 @@ export class UsersService {
    * Update user
    */
   async update(currentUser: JwtPayload, id: number, updateData: Partial<User>): Promise<User> {
-    // Users can only update their own data (unless they're admin)
     if (currentUser.role !== 'admin' && currentUser.sub !== id) {
       throw new ForbiddenException('You can only update your own user data');
     }
 
-    // Prevent updating role if not admin
+    // Prevent non-admins from changing roles
     if (currentUser.role !== 'admin' && updateData.role) {
       delete updateData.role;
     }
 
     const existingUser = await this.nocodbService.findOne('users', id);
-    
     if (!existingUser) {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
@@ -130,7 +126,6 @@ export class UsersService {
       updated_at: new Date().toISOString(),
     });
 
-    // Remove password hash
     const { password_hash, ...userWithoutPassword } = updatedUser;
     return userWithoutPassword;
   }
@@ -140,11 +135,9 @@ export class UsersService {
    */
   async delete(id: number): Promise<void> {
     const existingUser = await this.nocodbService.findOne('users', id);
-    
     if (!existingUser) {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
-
     await this.nocodbService.delete('users', id);
   }
 
@@ -159,61 +152,38 @@ export class UsersService {
    * Get user's favorite books
    */
   async getFavorites(user: JwtPayload, pageOptions: PageOptionsDto): Promise<PageDto<any>> {
-    const { page = 1, limit = 10, sortBy = 'title', sortOrder = 'ASC' } = pageOptions;
-    const offset = (page - 1) * limit;
+    const { page, limit, sortBy, sortOrder, offset } = this.getPaginationParams(pageOptions, { sortBy: 'title' });
 
     const where = `(user_id,eq,${user.sub})`;
 
-    // Get favorites
-    const favorites = await this.nocodbService.findAll('favorites', {
-      where,
-      limit,
-      offset,
-      sortBy,
-      sortOrder,
-    });
+    const [favorites, total] = await Promise.all([
+      this.nocodbService.findAll('favorites', { where, limit, offset, sortBy, sortOrder }),
+      this.nocodbService.count('favorites', where),
+    ]);
 
-    // Get book details for each favorite
     const enrichedFavorites = await Promise.all(
-      favorites.map(async (favorite) => {
+      favorites.map(async (fav) => {
         try {
-          const book = await this.nocodbService.findOne('books', favorite.book_id);
+          const book = await this.nocodbService.findOne('books', fav.book_id);
           if (book.author_id) {
             const author = await this.nocodbService.findOne('authors', book.author_id);
-            return { ...favorite, book: { ...book, author } };
+            return { ...fav, book: { ...book, author } };
           }
-          return { ...favorite, book };
-        } catch (error) {
-          return favorite;
+          return { ...fav, book };
+        } catch {
+          return fav;
         }
-      })
+      }),
     );
 
-    // Get total count
-    const total = await this.nocodbService.count('favorites', where);
-
-    const totalPages = Math.ceil(total / limit);
-
-    return {
-      data: enrichedFavorites,
-      meta: {
-        total,
-        page,
-        limit,
-        totalPages,
-        hasNextPage: page < totalPages,
-        hasPrevPage: page > 1,
-      },
-    };
+    return this.buildPaginationMeta(enrichedFavorites, total, page, limit);
   }
 
   /**
    * Add a book to user's favorites
    */
   async addFavorite(userId: number, bookId: number): Promise<any> {
-    // Check if book exists
     const book = await this.nocodbService.findOne('books', bookId);
-    
     if (!book) {
       throw new NotFoundException(`Book with ID ${bookId} not found`);
     }
@@ -228,24 +198,19 @@ export class UsersService {
       throw new Error('Book is already in favorites');
     }
 
-    // Add to favorites
     const favorite = await this.nocodbService.create('favorites', {
       user_id: userId,
       book_id: bookId,
     });
 
-    // Enrich with book data
-    const enrichedFavorite = {
-      ...favorite,
-      book: { ...book },
-    };
+    const enrichedFavorite: any = { ...favorite, book: { ...book } };
 
     if (book.author_id) {
       try {
         const author = await this.nocodbService.findOne('authors', book.author_id);
         enrichedFavorite.book.author = author;
-      } catch (error) {
-        // Ignore error
+      } catch {
+        // Ignore enrichment errors
       }
     }
 
@@ -256,7 +221,6 @@ export class UsersService {
    * Remove a book from user's favorites
    */
   async removeFavorite(userId: number, bookId: number): Promise<void> {
-    // Find the favorite
     const favorites = await this.nocodbService.findAll('favorites', {
       where: `(user_id,eq,${userId})~and~(book_id,eq,${bookId})`,
       limit: 1,

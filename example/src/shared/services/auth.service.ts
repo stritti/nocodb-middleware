@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { NocoDBService } from './nocodb.service';
@@ -6,10 +6,16 @@ import { User, UserWithPassword, AuthCredentials, AuthResponse, JwtPayload } fro
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly nocodbService: NocoDBService,
     private readonly jwtService: JwtService,
   ) {}
+
+  private getErrorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
+  }
 
   /**
    * Validate user credentials
@@ -36,8 +42,8 @@ export class AuthService {
       }
 
       return user;
-    } catch (error) {
-      console.error('Error validating user:', error.message);
+    } catch (error: unknown) {
+      this.logger.error(`Error validating user: ${this.getErrorMessage(error)}`);
       return null;
     }
   }
@@ -114,8 +120,8 @@ export class AuthService {
         access_token: accessToken,
         user: userWithoutPassword,
       };
-    } catch (error) {
-      console.error('Error registering user:', error.message);
+    } catch (error: unknown) {
+      this.logger.error(`Error registering user: ${this.getErrorMessage(error)}`);
       throw error;
     }
   }
@@ -134,8 +140,8 @@ export class AuthService {
       // Return user without password hash
       const { password_hash, ...userWithoutPassword } = user;
       return userWithoutPassword;
-    } catch (error) {
-      console.error('Error fetching current user:', error.message);
+    } catch (error: unknown) {
+      this.logger.error(`Error fetching current user: ${this.getErrorMessage(error)}`);
       return null;
     }
   }
@@ -169,8 +175,8 @@ export class AuthService {
       });
 
       return true;
-    } catch (error) {
-      console.error('Error updating password:', error.message);
+    } catch (error: unknown) {
+      this.logger.error(`Error updating password: ${this.getErrorMessage(error)}`);
       throw error;
     }
   }

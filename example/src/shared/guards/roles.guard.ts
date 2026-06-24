@@ -2,12 +2,20 @@ import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ROLES_KEY, RoleType } from '../decorators/roles.decorator';
 import { JwtPayload } from '../interfaces/user.interface';
+import { IS_PUBLIC_KEY } from '../../common/decorators/public.decorator';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
   constructor(private reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
+    // Allow public routes (register, login, etc.) to bypass all role checks
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    if (isPublic) return true;
+
     const requiredRoles = this.reflector.getAllAndOverride<(string | RoleType)[]>(ROLES_KEY, [
       context.getHandler(),
       context.getClass(),

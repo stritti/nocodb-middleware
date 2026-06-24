@@ -1,13 +1,11 @@
-import { Controller, Get, Post, Body, Param, Put, Delete, UseGuards, Request, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Put, Delete, Query } from '@nestjs/common';
 import { AuthorsService } from './authors.service';
-import { Author, CreateAuthorDto, UpdateAuthorDto, PageOptionsDto, PageDto } from '../shared/interfaces/book.interface';
+import { Author, PageOptionsDto, PageDto } from '../shared/interfaces/book.interface';
+import { CreateAuthorDto } from './dto/create-author.dto';
+import { UpdateAuthorDto } from './dto/update-author.dto';
 import { Roles } from '../shared/decorators/roles.decorator';
-import { RolesGuard } from '../shared/guards/roles.guard';
-import { PermissionsGuard } from '../shared/guards/permissions.guard';
-import { JwtPayload } from '../shared/interfaces/user.interface';
 
 @Controller('api/authors')
-@UseGuards(RolesGuard, PermissionsGuard)
 export class AuthorsController {
   constructor(private readonly authorsService: AuthorsService) {}
 

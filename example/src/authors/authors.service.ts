@@ -1,50 +1,55 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { NocoDBService } from '../shared/services/nocodb.service';
-import { Author, CreateAuthorDto, UpdateAuthorDto, PageOptionsDto, PageDto, Book } from '../shared/interfaces/book.interface';
+import { Author, PageOptionsDto, PageDto, Book } from '../shared/interfaces/book.interface';
+import { CreateAuthorDto } from './dto/create-author.dto';
+import { UpdateAuthorDto } from './dto/update-author.dto';
 
 @Injectable()
 export class AuthorsService {
   constructor(private readonly nocodbService: NocoDBService) {}
 
+  // ──────────────────────────────────────────────
+  //  Private helpers
+  // ──────────────────────────────────────────────
+
+  private getPaginationParams(
+    pageOptions: PageOptionsDto,
+    defaults: { sortBy?: string; sortOrder?: 'ASC' | 'DESC' } = {},
+  ) {
+    const { page = 1, limit = 10, sortBy = defaults.sortBy || 'name', sortOrder = defaults.sortOrder || 'ASC' } = pageOptions;
+    const offset = (page - 1) * limit;
+    return { page, limit, sortBy, sortOrder, offset };
+  }
+
+  private buildPaginationMeta<T>(data: T[], total: number, page: number, limit: number): PageDto<T> {
+    const totalPages = Math.ceil(total / limit);
+    return {
+      data,
+      meta: { total, page, limit, totalPages, hasNextPage: page < totalPages, hasPrevPage: page > 1 },
+    };
+  }
+
+  // ──────────────────────────────────────────────
+  //  Public API
+  // ──────────────────────────────────────────────
+
   /**
    * Get all authors with pagination
    */
   async findAll(pageOptions: PageOptionsDto): Promise<PageDto<Author>> {
-    const { page = 1, limit = 10, sortBy = 'name', sortOrder = 'ASC', search } = pageOptions;
-    const offset = (page - 1) * limit;
+    const { page, limit, sortBy, sortOrder, offset } = this.getPaginationParams(pageOptions);
 
-    // Build where clause
     let where = '';
-    
-    if (search) {
-      where = `(name,contains,${search})~or~(bio,contains,${search})`;
+    if (pageOptions.search) {
+      where = `(name,contains,${pageOptions.search})~or~(bio,contains,${pageOptions.search})`;
     }
 
-    // Get authors
-    const authors = await this.nocodbService.findAll('authors', {
-      where,
-      limit,
-      offset,
-      sortBy,
-      sortOrder,
-    });
+    const [authors, total] = await Promise.all([
+      this.nocodbService.findAll('authors', { where, limit, offset, sortBy, sortOrder }),
+      this.nocodbService.count('authors', where),
+    ]);
 
-    // Get total count
-    const total = await this.nocodbService.count('authors', where);
-
-    const totalPages = Math.ceil(total / limit);
-
-    return {
-      data: authors,
-      meta: {
-        total,
-        page,
-        limit,
-        totalPages,
-        hasNextPage: page < totalPages,
-        hasPrevPage: page > 1,
-      },
-    };
+    return this.buildPaginationMeta(authors, total, page, limit);
   }
 
   /**
@@ -52,11 +57,9 @@ export class AuthorsService {
    */
   async findOne(id: number): Promise<Author> {
     const author = await this.nocodbService.findOne('authors', id);
-    
     if (!author) {
       throw new NotFoundException(`Author with ID ${id} not found`);
     }
-
     return author;
   }
 
@@ -64,8 +67,7 @@ export class AuthorsService {
    * Create a new author
    */
   async create(createAuthorDto: CreateAuthorDto): Promise<Author> {
-    const author = await this.nocodbService.create('authors', createAuthorDto);
-    return author;
+    return this.nocodbService.create('authors', createAuthorDto);
   }
 
   /**
@@ -73,13 +75,10 @@ export class AuthorsService {
    */
   async update(id: number, updateAuthorDto: UpdateAuthorDto): Promise<Author> {
     const existingAuthor = await this.nocodbService.findOne('authors', id);
-    
     if (!existingAuthor) {
       throw new NotFoundException(`Author with ID ${id} not found`);
     }
-
-    const updatedAuthor = await this.nocodbService.update('authors', id, updateAuthorDto);
-    return updatedAuthor;
+    return this.nocodbService.update('authors', id, updateAuthorDto);
   }
 
   /**
@@ -87,11 +86,9 @@ export class AuthorsService {
    */
   async delete(id: number): Promise<void> {
     const existingAuthor = await this.nocodbService.findOne('authors', id);
-    
     if (!existingAuthor) {
       throw new NotFoundException(`Author with ID ${id} not found`);
     }
-
     await this.nocodbService.delete('authors', id);
   }
 
@@ -99,86 +96,45 @@ export class AuthorsService {
    * Get books by author
    */
   async getBooksByAuthor(authorId: number, pageOptions: PageOptionsDto): Promise<PageDto<Book>> {
-    const { page = 1, limit = 10, sortBy = 'title', sortOrder = 'ASC' } = pageOptions;
-    const offset = (page - 1) * limit;
+    const { page, limit, sortBy, sortOrder, offset } = this.getPaginationParams(pageOptions, { sortBy: 'title' });
 
     const where = `(author_id,eq,${authorId})`;
 
-    // Get books
-    const books = await this.nocodbService.findAll('books', {
-      where,
-      limit,
-      offset,
-      sortBy,
-      sortOrder,
-    });
+    const [books, total] = await Promise.all([
+      this.nocodbService.findAll('books', { where, limit, offset, sortBy, sortOrder }),
+      this.nocodbService.count('books', where),
+    ]);
 
-    // Get total count
-    const total = await this.nocodbService.count('books', where);
-
-    // Enrich books with author data
     const enrichedBooks = await Promise.all(
       books.map(async (book) => {
         if (book.author_id) {
           try {
             const author = await this.nocodbService.findOne('authors', book.author_id);
             return { ...book, author };
-          } catch (error) {
+          } catch {
             return book;
           }
         }
         return book;
-      })
+      }),
     );
 
-    const totalPages = Math.ceil(total / limit);
-
-    return {
-      data: enrichedBooks,
-      meta: {
-        total,
-        page,
-        limit,
-        totalPages,
-        hasNextPage: page < totalPages,
-        hasPrevPage: page > 1,
-      },
-    };
+    return this.buildPaginationMeta(enrichedBooks, total, page, limit);
   }
 
   /**
    * Search authors by name or bio
    */
   async search(query: string, pageOptions: PageOptionsDto): Promise<PageDto<Author>> {
-    const { page = 1, limit = 10, sortBy = 'name', sortOrder = 'ASC' } = pageOptions;
-    const offset = (page - 1) * limit;
+    const { page, limit, sortBy, sortOrder, offset } = this.getPaginationParams(pageOptions);
 
     const where = `(name,contains,${query})~or~(bio,contains,${query})`;
 
-    // Get authors
-    const authors = await this.nocodbService.findAll('authors', {
-      where,
-      limit,
-      offset,
-      sortBy,
-      sortOrder,
-    });
+    const [authors, total] = await Promise.all([
+      this.nocodbService.findAll('authors', { where, limit, offset, sortBy, sortOrder }),
+      this.nocodbService.count('authors', where),
+    ]);
 
-    // Get total count
-    const total = await this.nocodbService.count('authors', where);
-
-    const totalPages = Math.ceil(total / limit);
-
-    return {
-      data: authors,
-      meta: {
-        total,
-        page,
-        limit,
-        totalPages,
-        hasNextPage: page < totalPages,
-        hasPrevPage: page > 1,
-      },
-    };
+    return this.buildPaginationMeta(authors, total, page, limit);
   }
 }

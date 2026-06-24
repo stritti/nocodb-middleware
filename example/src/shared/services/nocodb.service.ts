@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import axios, { AxiosInstance } from 'axios';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
@@ -7,6 +7,7 @@ dotenv.config({ path: path.resolve(__dirname, '..', '..', '..', '.env') });
 
 @Injectable()
 export class NocoDBService {
+  private readonly logger = new Logger(NocoDBService.name);
   private readonly client: AxiosInstance;
   private readonly baseUrl: string;
   private readonly apiKey: string;
@@ -26,6 +27,10 @@ export class NocoDBService {
     });
   }
 
+  private getErrorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
+  }
+
   /**
    * Get all records from a table
    */
@@ -38,16 +43,10 @@ export class NocoDBService {
   } = {}): Promise<any[]> {
     try {
       const params: Record<string, any> = {};
-      
-      if (options.where) {
-        params.where = options.where;
-      }
-      if (options.limit) {
-        params.limit = options.limit;
-      }
-      if (options.offset) {
-        params.offset = options.offset;
-      }
+
+      if (options.where) params.where = options.where;
+      if (options.limit) params.limit = options.limit;
+      if (options.offset) params.offset = options.offset;
       if (options.sortBy) {
         params.sort = options.sortBy;
         if (options.sortOrder) {
@@ -57,8 +56,8 @@ export class NocoDBService {
 
       const response = await this.client.get(`/${this.dbName}/tables/${table}/records`, { params });
       return response.data.list || [];
-    } catch (error) {
-      console.error(`Error fetching records from ${table}:`, error.message);
+    } catch (error: unknown) {
+      this.logger.error(`Error fetching records from ${table}: ${this.getErrorMessage(error)}`);
       throw error;
     }
   }
@@ -70,8 +69,8 @@ export class NocoDBService {
     try {
       const response = await this.client.get(`/${this.dbName}/tables/${table}/records/${id}`);
       return response.data;
-    } catch (error) {
-      console.error(`Error fetching record ${id} from ${table}:`, error.message);
+    } catch (error: unknown) {
+      this.logger.error(`Error fetching record ${id} from ${table}: ${this.getErrorMessage(error)}`);
       throw error;
     }
   }
@@ -83,8 +82,8 @@ export class NocoDBService {
     try {
       const response = await this.client.post(`/${this.dbName}/tables/${table}/records`, data);
       return response.data;
-    } catch (error) {
-      console.error(`Error creating record in ${table}:`, error.message);
+    } catch (error: unknown) {
+      this.logger.error(`Error creating record in ${table}: ${this.getErrorMessage(error)}`);
       throw error;
     }
   }
@@ -96,8 +95,8 @@ export class NocoDBService {
     try {
       const response = await this.client.patch(`/${this.dbName}/tables/${table}/records/${id}`, data);
       return response.data;
-    } catch (error) {
-      console.error(`Error updating record ${id} in ${table}:`, error.message);
+    } catch (error: unknown) {
+      this.logger.error(`Error updating record ${id} in ${table}: ${this.getErrorMessage(error)}`);
       throw error;
     }
   }
@@ -108,8 +107,8 @@ export class NocoDBService {
   async delete(table: string, id: number): Promise<void> {
     try {
       await this.client.delete(`/${this.dbName}/tables/${table}/records/${id}`);
-    } catch (error) {
-      console.error(`Error deleting record ${id} from ${table}:`, error.message);
+    } catch (error: unknown) {
+      this.logger.error(`Error deleting record ${id} from ${table}: ${this.getErrorMessage(error)}`);
       throw error;
     }
   }
@@ -121,8 +120,8 @@ export class NocoDBService {
     try {
       const response = await this.client.post(`/${this.dbName}/sql`, { query: sql });
       return response.data.list || [];
-    } catch (error) {
-      console.error(`Error executing query:`, error.message);
+    } catch (error: unknown) {
+      this.logger.error(`Error executing query: ${this.getErrorMessage(error)}`);
       throw error;
     }
   }
@@ -134,8 +133,8 @@ export class NocoDBService {
     try {
       const response = await this.client.get(`/${this.dbName}/tables/${table}/schema`);
       return response.data;
-    } catch (error) {
-      console.error(`Error fetching schema for ${table}:`, error.message);
+    } catch (error: unknown) {
+      this.logger.error(`Error fetching schema for ${table}: ${this.getErrorMessage(error)}`);
       throw error;
     }
   }
@@ -146,14 +145,12 @@ export class NocoDBService {
   async count(table: string, where?: string): Promise<number> {
     try {
       const params: Record<string, any> = {};
-      if (where) {
-        params.where = where;
-      }
-      
+      if (where) params.where = where;
+
       const response = await this.client.get(`/${this.dbName}/tables/${table}/records/count`, { params });
       return response.data.count || 0;
-    } catch (error) {
-      console.error(`Error counting records in ${table}:`, error.message);
+    } catch (error: unknown) {
+      this.logger.error(`Error counting records in ${table}: ${this.getErrorMessage(error)}`);
       throw error;
     }
   }

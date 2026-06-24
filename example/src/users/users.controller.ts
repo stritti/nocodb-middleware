@@ -1,28 +1,29 @@
-import { Controller, Get, Post, Body, Param, Put, Delete, UseGuards, Request, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Put, Delete, Request, Query } from '@nestjs/common';
 import { UsersService } from './users.service';
-import { User, AuthCredentials, AuthResponse } from '../shared/interfaces/user.interface';
+import { User, AuthCredentials, AuthResponse, JwtPayload } from '../shared/interfaces/user.interface';
 import { Roles } from '../shared/decorators/roles.decorator';
-import { RolesGuard } from '../shared/guards/roles.guard';
-import { PermissionsGuard } from '../shared/guards/permissions.guard';
-import { JwtPayload } from '../shared/interfaces/user.interface';
+import { Public } from '../common/decorators/public.decorator';
 import { PageOptionsDto, PageDto } from '../shared/interfaces/book.interface';
+import { CreateUserDto } from './dto/create-user.dto';
+import { UpdatePasswordDto } from './dto/update-password.dto';
 
 @Controller('api/users')
-@UseGuards(RolesGuard, PermissionsGuard)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   /**
-   * Register a new user
+   * Register a new user (public, no auth required)
    */
+  @Public()
   @Post('register')
-  async register(@Body() credentials: AuthCredentials & { email: string }): Promise<AuthResponse> {
-    return this.usersService.register(credentials);
+  async register(@Body() createUserDto: CreateUserDto): Promise<AuthResponse> {
+    return this.usersService.register(createUserDto);
   }
 
   /**
-   * Login user
+   * Login user (public, no auth required)
    */
+  @Public()
   @Post('login')
   async login(@Body() credentials: AuthCredentials): Promise<AuthResponse> {
     return this.usersService.login(credentials);
@@ -84,7 +85,7 @@ export class UsersController {
   @Roles('admin', 'user', 'guest')
   async updatePassword(
     @Request() req: { user: JwtPayload },
-    @Body() passwordData: { currentPassword: string; newPassword: string },
+    @Body() passwordData: UpdatePasswordDto,
   ): Promise<{ success: boolean }> {
     const success = await this.usersService.updatePassword(
       req.user.sub,

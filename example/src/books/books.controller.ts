@@ -1,13 +1,12 @@
-import { Controller, Get, Post, Body, Param, Put, Delete, UseGuards, Request, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Put, Delete, Request, Query } from '@nestjs/common';
 import { BooksService } from './books.service';
-import { CreateBookDto, UpdateBookDto, PageOptionsDto, PageDto, Book } from '../shared/interfaces/book.interface';
+import { Book, PageOptionsDto, PageDto } from '../shared/interfaces/book.interface';
+import { CreateBookDto } from './dto/create-book.dto';
+import { UpdateBookDto } from './dto/update-book.dto';
 import { Roles } from '../shared/decorators/roles.decorator';
-import { RolesGuard } from '../shared/guards/roles.guard';
-import { PermissionsGuard } from '../shared/guards/permissions.guard';
 import { JwtPayload } from '../shared/interfaces/user.interface';
 
 @Controller('api/books')
-@UseGuards(RolesGuard, PermissionsGuard)
 export class BooksController {
   constructor(private readonly booksService: BooksService) {}
 
