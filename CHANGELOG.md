@@ -1,3 +1,23 @@
+# [0.4.0](https://github.com/stritti/nocodb-middleware/compare/v0.3.0...v0.4.0) (2026-06-24)
+
+### Bug Fixes
+
+- address all Codex review comments for PR [#189](https://github.com/stritti/nocodb-middleware/issues/189) ([e98d6d2](https://github.com/stritti/nocodb-middleware/commit/e98d6d251e497024d2cc13d481a0c11c54452646))
+- address Codex review comments for PR [#189](https://github.com/stritti/nocodb-middleware/issues/189) ([5e8c52b](https://github.com/stritti/nocodb-middleware/commit/5e8c52b14a218b707f9590ea8b114f3f6862a692))
+- address Codex review comments, linter warnings, GitGuardian alert, and merge conflicts ([#130](https://github.com/stritti/nocodb-middleware/issues/130)) ([a2d7e0e](https://github.com/stritti/nocodb-middleware/commit/a2d7e0e961c4418e2204c69126a01433c5f64cca))
+- address remaining Codex review comments ([42a49e4](https://github.com/stritti/nocodb-middleware/commit/42a49e4654d9dd807536fab218c663ac11e1a25f))
+- apply prettier formatting ([be154ef](https://github.com/stritti/nocodb-middleware/commit/be154ef92f283f2248b2be32979ae78da480f36e))
+- **ci:** use fallback npm install when npm ci fails ([08a4585](https://github.com/stritti/nocodb-middleware/commit/08a4585b83e44317d240cc79cb02bad6ac32ab52))
+- resolve lint and build errors in security optimizations ([f297906](https://github.com/stritti/nocodb-middleware/commit/f297906e6f78cab6dbeb150bc7e9a8eee0e665d6))
+- resolve lint errors in cors.config.spec.ts (replace require with ESM imports) ([2ab104c](https://github.com/stritti/nocodb-middleware/commit/2ab104ccd773766d7019ffba259253be5c7879c6))
+
+### Features
+
+- add input sanitization middleware for XSS prevention ([#191](https://github.com/stritti/nocodb-middleware/issues/191)) ([f26bd45](https://github.com/stritti/nocodb-middleware/commit/f26bd45a2cd3227407ea4c3003a05dafd6104ee8))
+- add security and deployment optimizations ([5f5e56c](https://github.com/stritti/nocodb-middleware/commit/5f5e56c5b0e697d3a13b09f493abe03072b368dc))
+- add security and deployment optimizations ([8ceb4a3](https://github.com/stritti/nocodb-middleware/commit/8ceb4a328f4878d625bd01e56db3af8f313c6c74))
+- add security and deployment optimizations with tests ([7212a77](https://github.com/stritti/nocodb-middleware/commit/7212a77d64f23bbbd53e67d1729cf4b42068d6bb))
+
 # [0.3.0](https://github.com/stritti/nocodb-middleware/compare/v0.2.8...v0.3.0) (2026-05-22)
 
 ### Bug Fixes
