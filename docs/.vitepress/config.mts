@@ -20,6 +20,7 @@ export default defineConfig({
       { text: 'Deployment', link: '/deployment' },
       { text: 'API', link: '/api' },
       { text: 'OpenAPI', link: '/openapi-spec' },
+      { text: 'Example', link: '/example' },
     ],
 
     sidebar: {
@@ -46,6 +47,17 @@ export default defineConfig({
             { text: 'Testing', link: '/testing' },
             { text: 'Product Readiness', link: '/product-readiness' },
             { text: 'Versioning', link: '/versioning' },
+          ],
+        },
+        {
+          text: 'Example Application',
+          items: [
+            { text: 'Books App Overview', link: '/example' },
+            { text: 'Quick Start', link: '/example#quick-start' },
+            { text: 'API Endpoints', link: '/example#api-endpoints' },
+            { text: 'Database Schema', link: '/example#database-schema' },
+            { text: 'Permissions', link: '/example#permissions-matrix' },
+            { text: 'Project Structure', link: '/example#project-structure' },
           ],
         },
       ],
