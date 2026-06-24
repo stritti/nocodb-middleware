@@ -24,5 +24,7 @@
       "@authors/*": ["src/authors/*"],
       "@users/*": ["src/users/*"]
     }
-  }
+  },
+  "include": ["src/**/*.ts", "setup/**/*.ts"],
+  "exclude": ["node_modules", "dist", "frontend"]
 }
