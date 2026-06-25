@@ -81,11 +81,17 @@ export class BooksService {
   /**
    * Get a single book by ID
    */
-  async findOne(id: number): Promise<Book> {
+  async findOne(id: number, user?: JwtPayload): Promise<Book> {
     const book = await this.nocodbService.findOne('books', id);
     if (!book) {
       throw new NotFoundException(`Book with ID ${id} not found`);
     }
+
+    // Guests can only view books under $10
+    if (user?.role === 'guest' && book.price >= 10) {
+      throw new NotFoundException(`Book with ID ${id} not found`);
+    }
+
     return this.enrichWithAuthor(book);
   }
 

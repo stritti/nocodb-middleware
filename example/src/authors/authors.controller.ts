@@ -19,6 +19,32 @@ export class AuthorsController {
   }
 
   /**
+   * Search authors by name
+   * (Static route — must be registered before :id to avoid being captured by findOne)
+   */
+  @Get('search')
+  @Roles('admin', 'user', 'guest')
+  async search(
+    @Query('q') query: string,
+    @Query() pageOptions: PageOptionsDto,
+  ): Promise<PageDto<Author>> {
+    return this.authorsService.search(query, pageOptions);
+  }
+
+  /**
+   * Get books by author
+   * (Static route — must be registered before :id)
+   */
+  @Get(':id/books')
+  @Roles('admin', 'user', 'guest')
+  async getBooksByAuthor(
+    @Param('id') authorId: number,
+    @Query() pageOptions: PageOptionsDto,
+  ): Promise<PageDto<any>> {
+    return this.authorsService.getBooksByAuthor(authorId, pageOptions);
+  }
+
+  /**
    * Get a single author by ID
    */
   @Get(':id')
@@ -55,29 +81,5 @@ export class AuthorsController {
   @Roles('admin')
   async delete(@Param('id') id: number): Promise<void> {
     return this.authorsService.delete(id);
-  }
-
-  /**
-   * Get books by author
-   */
-  @Get(':id/books')
-  @Roles('admin', 'user', 'guest')
-  async getBooksByAuthor(
-    @Param('id') authorId: number,
-    @Query() pageOptions: PageOptionsDto,
-  ): Promise<PageDto<any>> {
-    return this.authorsService.getBooksByAuthor(authorId, pageOptions);
-  }
-
-  /**
-   * Search authors by name
-   */
-  @Get('search')
-  @Roles('admin', 'user', 'guest')
-  async search(
-    @Query('q') query: string,
-    @Query() pageOptions: PageOptionsDto,
-  ): Promise<PageDto<Author>> {
-    return this.authorsService.search(query, pageOptions);
   }
 }

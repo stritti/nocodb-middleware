@@ -97,30 +97,26 @@ export class PermissionsGuard implements CanActivate {
   }
 
   private extractTableAndAction(path: string, method: string): { table: string | null; action: string } {
+    // Detect nested favorites routes (/api/users/me/favorites/...) as favorites table
+    if (/\/api\/users\/me\/favorites/i.test(path)) {
+      return { table: 'favorites', action: this.methodToAction(method) };
+    }
+
     // Extract table name from path
     const tableMatch = path.match(/\/api\/([a-zA-Z]+)/);
     const table = tableMatch ? tableMatch[1] : null;
 
-    // Map HTTP method to action
-    let action: string;
-    switch (method) {
-      case 'GET':
-        action = 'read';
-        break;
-      case 'POST':
-        action = 'create';
-        break;
-      case 'PUT':
-      case 'PATCH':
-        action = 'update';
-        break;
-      case 'DELETE':
-        action = 'delete';
-        break;
-      default:
-        action = 'read';
-    }
+    return { table, action: this.methodToAction(method) };
+  }
 
-    return { table, action };
+  private methodToAction(method: string): string {
+    switch (method) {
+      case 'GET': return 'read';
+      case 'POST': return 'create';
+      case 'PUT':
+      case 'PATCH': return 'update';
+      case 'DELETE': return 'delete';
+      default: return 'read';
+    }
   }
 }

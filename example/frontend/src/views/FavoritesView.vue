@@ -92,7 +92,7 @@ const getTotalPrice = () => {
             <router-link :to="`/books?search=${encodeURIComponent(fav.book?.title || '')}`" class="btn btn-outline btn-sm">
               View Details
             </router-link>
-            <button class="btn btn-danger btn-sm" @click="removeFromFavorites(fav.id, index)">
+            <button class="btn btn-danger btn-sm" @click="removeFromFavorites(fav.book_id, index)">
               ❤️ Remove
             </button>
           </div>

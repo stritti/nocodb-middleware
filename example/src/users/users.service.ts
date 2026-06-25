@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { AuthService } from '../shared/services/auth.service';
 import { NocoDBService } from '../shared/services/nocodb.service';
 import { User, UserWithPassword, AuthCredentials, AuthResponse, JwtPayload } from '../shared/interfaces/user.interface';
+import { UpdateUserDto } from './dto/update-user.dto';
 import { PageOptionsDto, PageDto } from '../shared/interfaces/book.interface';
 
 @Injectable()
@@ -106,14 +107,9 @@ export class UsersService {
   /**
    * Update user
    */
-  async update(currentUser: JwtPayload, id: number, updateData: Partial<User>): Promise<User> {
+  async update(currentUser: JwtPayload, id: number, updateData: UpdateUserDto): Promise<User> {
     if (currentUser.role !== 'admin' && currentUser.sub !== id) {
       throw new ForbiddenException('You can only update your own user data');
-    }
-
-    // Prevent non-admins from changing roles
-    if (currentUser.role !== 'admin' && updateData.role) {
-      delete updateData.role;
     }
 
     const existingUser = await this.nocodbService.findOne('users', id);
@@ -121,10 +117,13 @@ export class UsersService {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
 
-    const updatedUser = await this.nocodbService.update('users', id, {
-      ...updateData,
-      updated_at: new Date().toISOString(),
-    });
+    // Only allow whitelisted fields — never trust raw client payload
+    const safeData: Record<string, unknown> = {};
+    if (updateData.username !== undefined) safeData.username = updateData.username;
+    if (updateData.email !== undefined) safeData.email = updateData.email;
+    safeData.updated_at = new Date().toISOString();
+
+    const updatedUser = await this.nocodbService.update('users', id, safeData);
 
     const { password_hash, ...userWithoutPassword } = updatedUser;
     return userWithoutPassword;

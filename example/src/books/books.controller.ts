@@ -69,8 +69,11 @@ export class BooksController {
    */
   @Get(':id')
   @Roles('admin', 'user', 'guest')
-  async findOne(@Param('id') id: number): Promise<Book> {
-    return this.booksService.findOne(id);
+  async findOne(
+    @Request() req: { user: JwtPayload },
+    @Param('id') id: number,
+  ): Promise<Book> {
+    return this.booksService.findOne(id, req.user);
   }
 
   /**

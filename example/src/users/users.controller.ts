@@ -5,6 +5,7 @@ import { Roles } from '../shared/decorators/roles.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { PageOptionsDto, PageDto } from '../shared/interfaces/book.interface';
 import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 
 @Controller('users')
@@ -64,7 +65,7 @@ export class UsersController {
   async update(
     @Request() req: { user: JwtPayload },
     @Param('id') id: number,
-    @Body() updateData: Partial<User>,
+    @Body() updateData: UpdateUserDto,
   ): Promise<User> {
     return this.usersService.update(req.user, id, updateData);
   }
