@@ -6,7 +6,7 @@ import { UpdateBookDto } from './dto/update-book.dto';
 import { Roles } from '../shared/decorators/roles.decorator';
 import { JwtPayload } from '../shared/interfaces/user.interface';
 
-@Controller('api/books')
+@Controller('books')
 export class BooksController {
   constructor(private readonly booksService: BooksService) {}
 
@@ -20,6 +20,48 @@ export class BooksController {
     @Query() pageOptions: PageOptionsDto,
   ): Promise<PageDto<Book>> {
     return this.booksService.findAll(req.user, pageOptions);
+  }
+
+  /**
+   * Search books by title or description
+   * (Static route — must be registered before :id to avoid being captured by findOne)
+   */
+  @Get('search')
+  @Roles('admin', 'user', 'guest')
+  async search(
+    @Request() req: { user: JwtPayload },
+    @Query('q') query: string,
+    @Query() pageOptions: PageOptionsDto,
+  ): Promise<PageDto<Book>> {
+    return this.booksService.search(req.user, query, pageOptions);
+  }
+
+  /**
+   * Get books by author
+   * (Static route — must be registered before :id)
+   */
+  @Get('author/:authorId')
+  @Roles('admin', 'user', 'guest')
+  async findByAuthor(
+    @Param('authorId') authorId: number,
+    @Query() pageOptions: PageOptionsDto,
+  ): Promise<PageDto<Book>> {
+    return this.booksService.findByAuthor(authorId, pageOptions);
+  }
+
+  /**
+   * Get books by price range
+   * (Static route — must be registered before :id)
+   */
+  @Get('price-range')
+  @Roles('admin', 'user', 'guest')
+  async findByPriceRange(
+    @Request() req: { user: JwtPayload },
+    @Query('min') minPrice: number,
+    @Query('max') maxPrice: number,
+    @Query() pageOptions: PageOptionsDto,
+  ): Promise<PageDto<Book>> {
+    return this.booksService.findByPriceRange(req.user, minPrice, maxPrice, pageOptions);
   }
 
   /**
@@ -59,44 +101,5 @@ export class BooksController {
   @Roles('admin')
   async delete(@Param('id') id: number): Promise<void> {
     return this.booksService.delete(id);
-  }
-
-  /**
-   * Search books by title or description
-   */
-  @Get('search')
-  @Roles('admin', 'user', 'guest')
-  async search(
-    @Request() req: { user: JwtPayload },
-    @Query('q') query: string,
-    @Query() pageOptions: PageOptionsDto,
-  ): Promise<PageDto<Book>> {
-    return this.booksService.search(req.user, query, pageOptions);
-  }
-
-  /**
-   * Get books by author
-   */
-  @Get('author/:authorId')
-  @Roles('admin', 'user', 'guest')
-  async findByAuthor(
-    @Param('authorId') authorId: number,
-    @Query() pageOptions: PageOptionsDto,
-  ): Promise<PageDto<Book>> {
-    return this.booksService.findByAuthor(authorId, pageOptions);
-  }
-
-  /**
-   * Get books by price range
-   */
-  @Get('price-range')
-  @Roles('admin', 'user', 'guest')
-  async findByPriceRange(
-    @Request() req: { user: JwtPayload },
-    @Query('min') minPrice: number,
-    @Query('max') maxPrice: number,
-    @Query() pageOptions: PageOptionsDto,
-  ): Promise<PageDto<Book>> {
-    return this.booksService.findByPriceRange(req.user, minPrice, maxPrice, pageOptions);
   }
 }

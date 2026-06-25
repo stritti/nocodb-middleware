@@ -79,7 +79,7 @@ export class AuthService {
   /**
    * Register a new user
    */
-  async register(credentials: AuthCredentials & { email: string; role?: string }): Promise<AuthResponse> {
+  async register(credentials: AuthCredentials & { email: string }): Promise<AuthResponse> {
     try {
       // Check if user already exists
       const existingUsers = await this.nocodbService.findAll('users', {
@@ -99,7 +99,7 @@ export class AuthService {
         username: credentials.username,
         email: credentials.email,
         password_hash: passwordHash,
-        role: credentials.role || 'user',
+        role: 'user', // Force role — never trust client-supplied role
       };
 
       const newUser = await this.nocodbService.create('users', userData);

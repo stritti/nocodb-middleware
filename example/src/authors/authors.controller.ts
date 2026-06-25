@@ -5,7 +5,7 @@ import { CreateAuthorDto } from './dto/create-author.dto';
 import { UpdateAuthorDto } from './dto/update-author.dto';
 import { Roles } from '../shared/decorators/roles.decorator';
 
-@Controller('api/authors')
+@Controller('authors')
 export class AuthorsController {
   constructor(private readonly authorsService: AuthorsService) {}
 
