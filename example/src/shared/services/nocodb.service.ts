@@ -19,7 +19,7 @@ export class NocoDBService {
     this.dbName = process.env.EXAMPLE_DB_NAME || 'example_books_db';
 
     this.client = axios.create({
-      baseURL: `${this.baseUrl}/api/v1/db/data/noco`,
+      baseURL: `${this.baseUrl}/api/v2`,
       headers: {
         'xc-auth': this.apiKey,
         'Content-Type': 'application/json',
@@ -54,7 +54,7 @@ export class NocoDBService {
         }
       }
 
-      const response = await this.client.get(`/${this.dbName}/tables/${table}/records`, { params });
+      const response = await this.client.get(`/tables/${table}/records`, { params });
       return response.data.list || [];
     } catch (error: unknown) {
       this.logger.error(`Error fetching records from ${table}: ${this.getErrorMessage(error)}`);
@@ -67,7 +67,7 @@ export class NocoDBService {
    */
   async findOne(table: string, id: number): Promise<any> {
     try {
-      const response = await this.client.get(`/${this.dbName}/tables/${table}/records/${id}`);
+      const response = await this.client.get(`/tables/${table}/records/${id}`);
       return response.data;
     } catch (error: unknown) {
       this.logger.error(`Error fetching record ${id} from ${table}: ${this.getErrorMessage(error)}`);
@@ -80,7 +80,7 @@ export class NocoDBService {
    */
   async create(table: string, data: Record<string, any>): Promise<any> {
     try {
-      const response = await this.client.post(`/${this.dbName}/tables/${table}/records`, data);
+      const response = await this.client.post(`/tables/${table}/records`, data);
       return response.data;
     } catch (error: unknown) {
       this.logger.error(`Error creating record in ${table}: ${this.getErrorMessage(error)}`);
@@ -93,7 +93,7 @@ export class NocoDBService {
    */
   async update(table: string, id: number, data: Record<string, any>): Promise<any> {
     try {
-      const response = await this.client.patch(`/${this.dbName}/tables/${table}/records/${id}`, data);
+      const response = await this.client.patch(`/tables/${table}/records/${id}`, data);
       return response.data;
     } catch (error: unknown) {
       this.logger.error(`Error updating record ${id} in ${table}: ${this.getErrorMessage(error)}`);
@@ -106,7 +106,7 @@ export class NocoDBService {
    */
   async delete(table: string, id: number): Promise<void> {
     try {
-      await this.client.delete(`/${this.dbName}/tables/${table}/records/${id}`);
+      await this.client.delete(`/tables/${table}/records/${id}`);
     } catch (error: unknown) {
       this.logger.error(`Error deleting record ${id} from ${table}: ${this.getErrorMessage(error)}`);
       throw error;
@@ -118,7 +118,7 @@ export class NocoDBService {
    */
   async query(sql: string): Promise<any[]> {
     try {
-      const response = await this.client.post(`/${this.dbName}/sql`, { query: sql });
+      const response = await this.client.post(`/query`, { query: sql });
       return response.data.list || [];
     } catch (error: unknown) {
       this.logger.error(`Error executing query: ${this.getErrorMessage(error)}`);
@@ -131,7 +131,7 @@ export class NocoDBService {
    */
   async getTableSchema(table: string): Promise<any> {
     try {
-      const response = await this.client.get(`/${this.dbName}/tables/${table}/schema`);
+      const response = await this.client.get(`/tables/${table}/schema`);
       return response.data;
     } catch (error: unknown) {
       this.logger.error(`Error fetching schema for ${table}: ${this.getErrorMessage(error)}`);
@@ -147,7 +147,7 @@ export class NocoDBService {
       const params: Record<string, any> = {};
       if (where) params.where = where;
 
-      const response = await this.client.get(`/${this.dbName}/tables/${table}/records/count`, { params });
+      const response = await this.client.get(`/tables/${table}/records/count`, { params });
       return response.data.count || 0;
     } catch (error: unknown) {
       this.logger.error(`Error counting records in ${table}: ${this.getErrorMessage(error)}`);

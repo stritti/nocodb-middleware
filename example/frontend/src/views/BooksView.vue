@@ -19,24 +19,31 @@ watch([searchQuery, selectedAuthor, minPrice, maxPrice], () => {
   fetchBooks();
 });
 
-const fetchBooks = async () => {
+const fetchBooks = async (overrides: any = {}) => {
   try {
     const options: any = {
+      page: 1,
       limit: 10,
       sortBy: 'title',
       sortOrder: 'ASC',
+      ...overrides,
     };
 
     if (searchQuery.value) {
       options.search = searchQuery.value;
     }
 
-    if (selectedAuthor.value) {
-      // This would be implemented with actual author filtering
-      // For now, we'll just use the search
-    }
+    // Use price-range endpoint when custom range is set (non-guests only)
+    const isGuest = authStore.isGuest;
+    const isDefaultRange = minPrice.value === 0 && maxPrice.value === 100;
 
-    await booksStore.fetchBooks(options);
+    if (!isGuest && !isDefaultRange) {
+      await booksStore.fetchBooksByPriceRange(minPrice.value, maxPrice.value, options);
+    } else if (searchQuery.value) {
+      await booksStore.searchBooks(searchQuery.value, options);
+    } else {
+      await booksStore.fetchBooks(options);
+    }
   } catch (error) {
     console.error('Failed to fetch books:', error);
   }

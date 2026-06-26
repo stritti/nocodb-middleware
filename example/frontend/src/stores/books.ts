@@ -178,6 +178,33 @@ export const useBooksStore = defineStore('books', () => {
     }
   };
 
+  // Get books by price range
+  const fetchBooksByPriceRange = async (minPrice: number, maxPrice: number, options: PageOptions = {}) => {
+    try {
+      loading.value = true;
+      error.value = null;
+
+      const params: Record<string, any> = { min: minPrice, max: maxPrice };
+      if (options.page) params.page = options.page;
+      if (options.limit) params.limit = options.limit;
+      if (options.sortBy) params.sortBy = options.sortBy;
+      if (options.sortOrder) params.sortOrder = options.sortOrder;
+
+      const response = await authStore.api.get('/books/price-range', { params });
+      const data: PageDto<Book> = response.data;
+
+      books.value = data.data;
+      pageInfo.value = data.meta;
+
+      return data;
+    } catch (err) {
+      error.value = err.response?.data?.message || 'Failed to fetch books by price range';
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  };
+
   // Search books
   const searchBooks = async (query: string, options: PageOptions = {}) => {
     try {
@@ -245,6 +272,7 @@ export const useBooksStore = defineStore('books', () => {
     pageInfo,
     fetchBooks,
     fetchBook,
+    fetchBooksByPriceRange,
     createBook,
     updateBook,
     deleteBook,
