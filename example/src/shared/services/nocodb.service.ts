@@ -19,7 +19,7 @@ export class NocoDBService {
     this.dbName = process.env.EXAMPLE_DB_NAME || 'example_books_db';
 
     this.client = axios.create({
-      baseURL: `${this.baseUrl}/api/v2`,
+      baseURL: `${this.baseUrl}/api/v3`,
       headers: {
         'xc-auth': this.apiKey,
         'Content-Type': 'application/json',
