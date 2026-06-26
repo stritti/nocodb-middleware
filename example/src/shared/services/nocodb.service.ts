@@ -1,0 +1,157 @@
+import { Injectable, Logger } from '@nestjs/common';
+import axios, { AxiosInstance } from 'axios';
+import * as dotenv from 'dotenv';
+import * as path from 'path';
+
+dotenv.config({ path: path.resolve(__dirname, '..', '..', '..', '.env') });
+
+@Injectable()
+export class NocoDBService {
+  private readonly logger = new Logger(NocoDBService.name);
+  private readonly client: AxiosInstance;
+  private readonly baseUrl: string;
+  private readonly apiKey: string;
+  private readonly dbName: string;
+
+  constructor() {
+    this.baseUrl = process.env.NOCODB_BASE_URL || 'http://localhost:8080';
+    this.apiKey = process.env.NOCODB_API_KEY || '';
+    this.dbName = process.env.EXAMPLE_DB_NAME || 'example_books_db';
+
+    this.client = axios.create({
+      baseURL: `${this.baseUrl}/api/v3`,
+      headers: {
+        'xc-auth': this.apiKey,
+        'Content-Type': 'application/json',
+      },
+    });
+  }
+
+  private getErrorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
+  }
+
+  /**
+   * Get all records from a table
+   */
+  async findAll(table: string, options: {
+    where?: string;
+    limit?: number;
+    offset?: number;
+    sortBy?: string;
+    sortOrder?: 'ASC' | 'DESC';
+  } = {}): Promise<any[]> {
+    try {
+      const params: Record<string, any> = {};
+
+      if (options.where) params.where = options.where;
+      if (options.limit) params.limit = options.limit;
+      if (options.offset) params.offset = options.offset;
+      if (options.sortBy) {
+        params.sort = options.sortBy;
+        if (options.sortOrder) {
+          params.sort += ` ${options.sortOrder}`;
+        }
+      }
+
+      const response = await this.client.get(`/tables/${table}/records`, { params });
+      return response.data.list || [];
+    } catch (error: unknown) {
+      this.logger.error(`Error fetching records from ${table}: ${this.getErrorMessage(error)}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Get a single record by ID
+   */
+  async findOne(table: string, id: number): Promise<any> {
+    try {
+      const response = await this.client.get(`/tables/${table}/records/${id}`);
+      return response.data;
+    } catch (error: unknown) {
+      this.logger.error(`Error fetching record ${id} from ${table}: ${this.getErrorMessage(error)}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Create a new record
+   */
+  async create(table: string, data: Record<string, any>): Promise<any> {
+    try {
+      const response = await this.client.post(`/tables/${table}/records`, data);
+      return response.data;
+    } catch (error: unknown) {
+      this.logger.error(`Error creating record in ${table}: ${this.getErrorMessage(error)}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Update a record by ID
+   */
+  async update(table: string, id: number, data: Record<string, any>): Promise<any> {
+    try {
+      const response = await this.client.patch(`/tables/${table}/records/${id}`, data);
+      return response.data;
+    } catch (error: unknown) {
+      this.logger.error(`Error updating record ${id} in ${table}: ${this.getErrorMessage(error)}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete a record by ID
+   */
+  async delete(table: string, id: number): Promise<void> {
+    try {
+      await this.client.delete(`/tables/${table}/records/${id}`);
+    } catch (error: unknown) {
+      this.logger.error(`Error deleting record ${id} from ${table}: ${this.getErrorMessage(error)}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Execute a custom SQL query
+   */
+  async query(sql: string): Promise<any[]> {
+    try {
+      const response = await this.client.post(`/query`, { query: sql });
+      return response.data.list || [];
+    } catch (error: unknown) {
+      this.logger.error(`Error executing query: ${this.getErrorMessage(error)}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Get table schema
+   */
+  async getTableSchema(table: string): Promise<any> {
+    try {
+      const response = await this.client.get(`/tables/${table}/schema`);
+      return response.data;
+    } catch (error: unknown) {
+      this.logger.error(`Error fetching schema for ${table}: ${this.getErrorMessage(error)}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Count records in a table
+   */
+  async count(table: string, where?: string): Promise<number> {
+    try {
+      const params: Record<string, any> = {};
+      if (where) params.where = where;
+
+      const response = await this.client.get(`/tables/${table}/records/count`, { params });
+      return response.data.count || 0;
+    } catch (error: unknown) {
+      this.logger.error(`Error counting records in ${table}: ${this.getErrorMessage(error)}`);
+      throw error;
+    }
+  }
+}
