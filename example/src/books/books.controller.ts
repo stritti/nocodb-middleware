@@ -43,10 +43,11 @@ export class BooksController {
   @Get('author/:authorId')
   @Roles('admin', 'user', 'guest')
   async findByAuthor(
+    @Request() req: { user: JwtPayload },
     @Param('authorId') authorId: number,
     @Query() pageOptions: PageOptionsDto,
   ): Promise<PageDto<Book>> {
-    return this.booksService.findByAuthor(authorId, pageOptions);
+    return this.booksService.findByAuthor(req.user, authorId, pageOptions);
   }
 
   /**

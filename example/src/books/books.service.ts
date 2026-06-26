@@ -148,10 +148,13 @@ export class BooksService {
   /**
    * Get books by author
    */
-  async findByAuthor(authorId: number, pageOptions: PageOptionsDto): Promise<PageDto<Book>> {
+  async findByAuthor(user: JwtPayload, authorId: number, pageOptions: PageOptionsDto): Promise<PageDto<Book>> {
     const { page, limit, sortBy, sortOrder, offset } = this.getPaginationParams(pageOptions);
 
-    const where = `(author_id,eq,${authorId})`;
+    let where = `(author_id,eq,${authorId})`;
+    if (user.role === 'guest') {
+      where += '~and~(price,lt,10)';
+    }
 
     const [books, total] = await Promise.all([
       this.nocodbService.findAll('books', { where, limit, offset, sortBy, sortOrder }),

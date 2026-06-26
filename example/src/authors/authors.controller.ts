@@ -1,9 +1,10 @@
-import { Controller, Get, Post, Body, Param, Put, Delete, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Put, Delete, Query, Request } from '@nestjs/common';
 import { AuthorsService } from './authors.service';
 import { Author, PageOptionsDto, PageDto } from '../shared/interfaces/book.interface';
 import { CreateAuthorDto } from './dto/create-author.dto';
 import { UpdateAuthorDto } from './dto/update-author.dto';
 import { Roles } from '../shared/decorators/roles.decorator';
+import { JwtPayload } from '../shared/interfaces/user.interface';
 
 @Controller('authors')
 export class AuthorsController {
@@ -38,10 +39,11 @@ export class AuthorsController {
   @Get(':id/books')
   @Roles('admin', 'user', 'guest')
   async getBooksByAuthor(
+    @Request() req: { user: JwtPayload },
     @Param('id') authorId: number,
     @Query() pageOptions: PageOptionsDto,
   ): Promise<PageDto<any>> {
-    return this.authorsService.getBooksByAuthor(authorId, pageOptions);
+    return this.authorsService.getBooksByAuthor(req.user, authorId, pageOptions);
   }
 
   /**

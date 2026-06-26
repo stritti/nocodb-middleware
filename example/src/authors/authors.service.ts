@@ -3,6 +3,7 @@ import { NocoDBService } from '../shared/services/nocodb.service';
 import { Author, PageOptionsDto, PageDto, Book } from '../shared/interfaces/book.interface';
 import { CreateAuthorDto } from './dto/create-author.dto';
 import { UpdateAuthorDto } from './dto/update-author.dto';
+import { JwtPayload } from '../shared/interfaces/user.interface';
 
 @Injectable()
 export class AuthorsService {
@@ -95,10 +96,13 @@ export class AuthorsService {
   /**
    * Get books by author
    */
-  async getBooksByAuthor(authorId: number, pageOptions: PageOptionsDto): Promise<PageDto<Book>> {
+  async getBooksByAuthor(user: JwtPayload, authorId: number, pageOptions: PageOptionsDto): Promise<PageDto<Book>> {
     const { page, limit, sortBy, sortOrder, offset } = this.getPaginationParams(pageOptions, { sortBy: 'title' });
 
-    const where = `(author_id,eq,${authorId})`;
+    let where = `(author_id,eq,${authorId})`;
+    if (user.role === 'guest') {
+      where += '~and~(price,lt,10)';
+    }
 
     const [books, total] = await Promise.all([
       this.nocodbService.findAll('books', { where, limit, offset, sortBy, sortOrder }),
