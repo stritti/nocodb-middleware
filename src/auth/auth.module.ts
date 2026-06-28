@@ -64,6 +64,12 @@ import { NocoDBModule } from '../nocodb/nocodb.module';
       ],
     },
   ],
-  exports: [JwtAuthGuard, RolesGuard, RateLimitGuard, JwtModule, UserProvisioningService],
+  exports: [
+    JwtAuthGuard,
+    RolesGuard,
+    RateLimitGuard,
+    JwtModule,
+    UserProvisioningService,
+  ],
 })
 export class AuthModule {}
