@@ -2,6 +2,7 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PassportStrategy } from '@nestjs/passport';
 import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Algorithm } from 'jsonwebtoken';
 import { IdentityClaimsNormalizerService } from '../identity/identity-claims-normalizer.service';
 import { IdentityProviderPort } from '../identity/identity-provider.port';
 import { IDENTITY_PROVIDER } from '../identity/identity-provider.constants';
@@ -39,11 +40,18 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new Error('JWT_SECRET is required');
     }
 
+    const algorithms: Algorithm[] =
+      provider === 'external'
+        ? (configService.get<string>('EXTERNAL_JWT_ALGORITHMS') || 'RS256,ES256,HS256')
+            .split(',')
+            .map((a) => a.trim() as Algorithm)
+        : ['HS256'];
+
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
       secretOrKey: jwtSecret,
-      algorithms: ['HS256'],
+      algorithms,
       issuer:
         provider === 'external'
           ? configService.get<string>('EXTERNAL_JWT_ISSUER')
