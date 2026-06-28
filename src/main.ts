@@ -1,7 +1,7 @@
 import './tracing/tracing';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { NocoDBExceptionFilter } from './nocodb/filters/nocodb-exception.filter';
+import { AllExceptionsFilter } from './nocodb/filters/nocodb-exception.filter';
 import { ValidationPipe, Logger as NestLogger } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
@@ -80,7 +80,7 @@ async function bootstrap() {
   app.use(new RateLimitMiddleware().use.bind(new RateLimitMiddleware()));
 
   // Global filters
-  app.useGlobalFilters(new NocoDBExceptionFilter());
+  app.useGlobalFilters(new AllExceptionsFilter());
 
   // Global validation pipe
   app.useGlobalPipes(

@@ -1,5 +1,5 @@
 import { HttpException, HttpStatus, Logger } from '@nestjs/common';
-import { NocoDBExceptionFilter } from './nocodb-exception.filter';
+import { AllExceptionsFilter } from './nocodb-exception.filter';
 import { NocoDBException } from '../exceptions/nocodb.exception';
 
 function makeHost(url: string) {
@@ -17,11 +17,11 @@ function makeHost(url: string) {
   };
 }
 
-describe('NocoDBExceptionFilter', () => {
-  let filter: NocoDBExceptionFilter;
+describe('AllExceptionsFilter', () => {
+  let filter: AllExceptionsFilter;
 
   beforeEach(() => {
-    filter = new NocoDBExceptionFilter();
+    filter = new AllExceptionsFilter();
     jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
     jest.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
   });
