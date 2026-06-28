@@ -46,8 +46,6 @@ import { RateLimitMiddleware } from './nocodb/middleware/rate-limit.middleware';
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer
-      .apply(SanitizeMiddleware, RateLimitMiddleware)
-      .forRoutes('*');
+    consumer.apply(SanitizeMiddleware, RateLimitMiddleware).forRoutes('*');
   }
 }
