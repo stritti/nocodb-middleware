@@ -11,6 +11,7 @@ import {
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
+import { RateLimitGuard } from './guards/rate-limit.guard';
 import {
   ProvisionUserDto,
   UpdateUserStatusDto,
@@ -20,7 +21,7 @@ import { UserProvisioningService } from './user-provisioning.service';
 @ApiTags('Users')
 @ApiBearerAuth()
 @Controller('users')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, RateLimitGuard)
 export class UserProvisioningController {
   constructor(
     private readonly userProvisioningService: UserProvisioningService,
