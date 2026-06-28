@@ -221,5 +221,4 @@ export class UserProvisioningService {
       roles: tokenRoles,
     };
   }
-
 }

@@ -165,5 +165,4 @@ export class BootstrapAdminService {
       throw new UnauthorizedException('Invalid bootstrap token');
     }
   }
-
 }
