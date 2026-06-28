@@ -41,7 +41,9 @@ export class PermissionsService {
     }
 
     try {
-      const usersTable = await this.nocoDBService.getTableByName(TABLE_NAMES.USERS);
+      const usersTable = await this.nocoDBService.getTableByName(
+        TABLE_NAMES.USERS,
+      );
       if (!usersTable) {
         this.logger.warn('Users table not found');
         return this.createEmptyPermissions(userId, 'unknown');
@@ -49,8 +51,9 @@ export class PermissionsService {
 
       const user = await this.nocoDBService.read(usersTable.id, userId);
 
-      const userRolesTable =
-        await this.nocoDBService.getTableByName(TABLE_NAMES.USER_ROLES);
+      const userRolesTable = await this.nocoDBService.getTableByName(
+        TABLE_NAMES.USER_ROLES,
+      );
       if (!userRolesTable) {
         this.logger.warn('User_roles table not found');
         return this.createEmptyPermissions(userId, user.username);
@@ -70,7 +73,9 @@ export class PermissionsService {
         return this.createEmptyPermissions(userId, user.username);
       }
 
-      const rolesTable = await this.nocoDBService.getTableByName(TABLE_NAMES.ROLES);
+      const rolesTable = await this.nocoDBService.getTableByName(
+        TABLE_NAMES.ROLES,
+      );
       if (!rolesTable) {
         this.logger.warn('Roles table not found');
         return this.createEmptyPermissions(userId, user.username);
@@ -82,8 +87,9 @@ export class PermissionsService {
 
       const roleNames = (rolesResult.list || []).map((r: any) => r.role_name);
 
-      const permissionsTable =
-        await this.nocoDBService.getTableByName(TABLE_NAMES.TABLE_PERMISSIONS);
+      const permissionsTable = await this.nocoDBService.getTableByName(
+        TABLE_NAMES.TABLE_PERMISSIONS,
+      );
       if (!permissionsTable) {
         this.logger.warn('Table_permissions table not found');
         return this.createEmptyPermissions(userId, user.username);
@@ -156,8 +162,9 @@ export class PermissionsService {
     permissions: Partial<Record<CrudAction, boolean>>,
   ): Promise<void> {
     try {
-      const permissionsTable =
-        await this.nocoDBService.getTableByName(TABLE_NAMES.TABLE_PERMISSIONS);
+      const permissionsTable = await this.nocoDBService.getTableByName(
+        TABLE_NAMES.TABLE_PERMISSIONS,
+      );
 
       if (!permissionsTable) {
         throw new Error('Table_permissions table not found');

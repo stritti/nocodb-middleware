@@ -254,9 +254,12 @@ export class DatabaseInitializationService implements OnModuleInit {
   private async seedDefaultPermissions() {
     this.logger.log('Seeding default permissions...');
     try {
-      const rolesTable = await this.nocoDBService.getTableByName(TABLE_NAMES.ROLES);
-      const permissionsTable =
-        await this.nocoDBService.getTableByName(TABLE_NAMES.TABLE_PERMISSIONS);
+      const rolesTable = await this.nocoDBService.getTableByName(
+        TABLE_NAMES.ROLES,
+      );
+      const permissionsTable = await this.nocoDBService.getTableByName(
+        TABLE_NAMES.TABLE_PERMISSIONS,
+      );
 
       if (!rolesTable || !permissionsTable) return;
 

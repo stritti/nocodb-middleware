@@ -24,7 +24,9 @@ export class RolesService {
    */
   async createRole(createRoleDto: CreateRoleDto): Promise<any> {
     try {
-      const rolesTable = await this.nocoDBService.getTableByName(TABLE_NAMES.ROLES);
+      const rolesTable = await this.nocoDBService.getTableByName(
+        TABLE_NAMES.ROLES,
+      );
       if (!rolesTable) {
         throw new NotFoundException('Roles table not found');
       }
@@ -60,7 +62,9 @@ export class RolesService {
       );
     }
     try {
-      const rolesTable = await this.nocoDBService.getTableByName(TABLE_NAMES.ROLES);
+      const rolesTable = await this.nocoDBService.getTableByName(
+        TABLE_NAMES.ROLES,
+      );
       if (!rolesTable) {
         return null;
       }
@@ -80,7 +84,9 @@ export class RolesService {
    */
   async getAllRoles(pageOptionsDto?: PageOptionsDto): Promise<PageDto<any>> {
     try {
-      const rolesTable = await this.nocoDBService.getTableByName(TABLE_NAMES.ROLES);
+      const rolesTable = await this.nocoDBService.getTableByName(
+        TABLE_NAMES.ROLES,
+      );
       if (!rolesTable) {
         return new PageDto(
           [],
@@ -119,7 +125,9 @@ export class RolesService {
    */
   async deleteRole(roleId: number): Promise<void> {
     try {
-      const rolesTable = await this.nocoDBService.getTableByName(TABLE_NAMES.ROLES);
+      const rolesTable = await this.nocoDBService.getTableByName(
+        TABLE_NAMES.ROLES,
+      );
       if (!rolesTable) {
         throw new NotFoundException('Roles table not found');
       }
