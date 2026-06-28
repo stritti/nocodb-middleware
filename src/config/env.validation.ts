@@ -1,5 +1,11 @@
 import { plainToInstance } from 'class-transformer';
-import { IsString, IsUrl, IsOptional, IsNumber, validateSync } from 'class-validator';
+import {
+  IsString,
+  IsUrl,
+  IsOptional,
+  IsNumber,
+  validateSync,
+} from 'class-validator';
 
 export class EnvironmentVariables {
   @IsUrl({ require_tld: false })
@@ -85,7 +91,8 @@ export function validate(config: Record<string, unknown>) {
   });
   if (errors.length > 0) {
     const messages = errors.map(
-      (err) => `${err.property}: ${Object.values(err.constraints ?? {}).join(', ')}`
+      (err) =>
+        `${err.property}: ${Object.values(err.constraints ?? {}).join(', ')}`,
     );
     throw new Error(`Environment validation failed:\n${messages.join('\n')}`);
   }
