@@ -27,10 +27,14 @@ export class DatabaseInitializationService implements OnModuleInit {
   async onModuleInit() {
     const prefix = this.nocoDBService.getTablePrefix();
     const prefixInfo = prefix ? ` with prefix "${prefix}"` : '';
-
     this.logger.log(`Starting database initialization${prefixInfo}...`);
-    await this.initializeTables();
-    this.logger.log('Database initialization completed');
+    try {
+      await this.initializeTables();
+      this.logger.log('Database initialization completed');
+    } catch (err) {
+      this.logger.error('Database initialization failed, service will start in degraded mode', err);
+      // Don't re-throw — the app should still start
+    }
   }
 
   private async initializeTables() {
