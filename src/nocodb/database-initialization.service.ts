@@ -32,7 +32,10 @@ export class DatabaseInitializationService implements OnModuleInit {
       await this.initializeTables();
       this.logger.log('Database initialization completed');
     } catch (err) {
-      this.logger.error('Database initialization failed, service will start in degraded mode', err);
+      this.logger.error(
+        'Database initialization failed, service will start in degraded mode',
+        err,
+      );
       // Don't re-throw — the app should still start
     }
   }
