@@ -7,6 +7,9 @@ export class TableCatalogItemDto {
   @ApiProperty({ example: 'products', description: 'Table name' })
   tableName: string;
 
-  @ApiPropertyOptional({ example: 'Products Catalog', description: 'Display title' })
+  @ApiPropertyOptional({
+    example: 'Products Catalog',
+    description: 'Display title',
+  })
   title?: string;
 }
