@@ -1,3 +1,4 @@
+## [0.4.1](https://github.com/stritti/nocodb-middleware/compare/v0.4.0...v0.4.1) (2026-06-29)
 # [0.4.0](https://github.com/stritti/nocodb-middleware/compare/v0.3.0...v0.4.0) (2026-06-24)
 
 ### Bug Fixes
