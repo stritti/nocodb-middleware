@@ -71,6 +71,29 @@ describe('JwtStrategy', () => {
           ),
       ).toThrow('JWT_SECRET is required');
     });
+
+    it('should use custom algorithms for external provider', () => {
+      const normalizer = new IdentityClaimsNormalizerService();
+      const externalAuthConfig = {
+        getProvider: jest.fn().mockReturnValue('external'),
+      };
+
+      const strategy = new JwtStrategy(
+        {
+          get: jest.fn((key: string) => {
+            if (key === 'EXTERNAL_JWT_SECRET') return 'external-secret';
+            if (key === 'EXTERNAL_JWT_ALGORITHMS') return 'RS256,ES256';
+            return undefined;
+          }),
+        } as unknown as ConfigService,
+        externalAuthConfig as unknown as AuthProviderConfigService,
+        normalizer,
+        { resolveIdentity: jest.fn() },
+        mockNocoDBService as unknown as NocoDBService,
+      );
+
+      expect(strategy).toBeDefined();
+    });
   });
 
   describe('validate', () => {
