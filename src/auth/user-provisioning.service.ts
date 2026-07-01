@@ -11,19 +11,13 @@ import {
 } from './identity/identity-provider.port';
 import { ProvisionUserDto } from './dto/provision-user.dto';
 import { hashPassword } from './password-hasher.util';
-
-interface NocoTableRef {
-  id: string;
-}
-
-interface NocoUserRecord {
-  id?: number | string;
-  username?: string;
-  email?: string;
-  is_active?: boolean;
-  auth_provider?: string;
-  external_subject?: string;
-}
+import {
+  assertTableRef,
+  asUserRecord,
+  extractNumericId,
+  NocoUserRecord,
+  NocoTableRef,
+} from '../common/utils/nocodb-utils';
 
 @Injectable()
 export class UserProvisioningService {
@@ -32,13 +26,13 @@ export class UserProvisioningService {
   async upsertIdentityUser(
     claims: NormalizedIdentityClaims,
   ): Promise<ResolvedIdentity> {
-    const usersTable = this.assertTableRef(
+    const usersTable = assertTableRef(
       await this.nocoDBService.getTableByName('users'),
     );
 
     const bySubject = await this.findBySubject(usersTable.id, claims);
     const byEmail = claims.email
-      ? this.asUserRecord(
+      ? asUserRecord(
           await this.nocoDBService.findOne(
             usersTable.id,
             filterEq('email', claims.email),
@@ -49,7 +43,7 @@ export class UserProvisioningService {
     if (
       bySubject &&
       byEmail &&
-      this.extractNumericId(bySubject) !== this.extractNumericId(byEmail)
+      extractNumericId(bySubject) !== extractNumericId(byEmail)
     ) {
       throw new ConflictException(
         'Identity subject conflicts with existing email mapping',
@@ -57,7 +51,7 @@ export class UserProvisioningService {
     }
 
     if (bySubject) {
-      const existingId = this.extractNumericId(bySubject);
+      const existingId = extractNumericId(bySubject);
       const updated = await this.nocoDBService.update(
         usersTable.id,
         existingId,
@@ -66,11 +60,11 @@ export class UserProvisioningService {
           username: claims.username ?? bySubject.username,
         },
       );
-      return this.toResolvedIdentity(this.asUserRecord(updated), claims.roles);
+      return this.toResolvedIdentity(asUserRecord(updated), claims.roles);
     }
 
     if (byEmail) {
-      const existingId = this.extractNumericId(byEmail);
+      const existingId = extractNumericId(byEmail);
       const updated = await this.nocoDBService.update(
         usersTable.id,
         existingId,
@@ -80,7 +74,7 @@ export class UserProvisioningService {
           username: claims.username ?? byEmail.username,
         },
       );
-      return this.toResolvedIdentity(this.asUserRecord(updated), claims.roles);
+      return this.toResolvedIdentity(asUserRecord(updated), claims.roles);
     }
 
     const created = await this.nocoDBService.create(usersTable.id, {
@@ -92,11 +86,11 @@ export class UserProvisioningService {
       external_subject: claims.subject,
     });
 
-    return this.toResolvedIdentity(this.asUserRecord(created), claims.roles);
+    return this.toResolvedIdentity(asUserRecord(created), claims.roles);
   }
 
   async createLocalUser(dto: ProvisionUserDto): Promise<ResolvedIdentity> {
-    const usersTable = this.assertTableRef(
+    const usersTable = assertTableRef(
       await this.nocoDBService.getTableByName('users'),
     );
 
@@ -130,7 +124,7 @@ export class UserProvisioningService {
     });
 
     const resolved = this.toResolvedIdentity(
-      this.asUserRecord(created),
+      asUserRecord(created),
       dto.roles ?? [],
     );
 
@@ -145,7 +139,7 @@ export class UserProvisioningService {
     userId: number,
     isActive: boolean,
   ): Promise<ResolvedIdentity> {
-    const usersTable = this.assertTableRef(
+    const usersTable = assertTableRef(
       await this.nocoDBService.getTableByName('users'),
     );
 
@@ -153,14 +147,14 @@ export class UserProvisioningService {
       is_active: isActive,
     });
 
-    return this.toResolvedIdentity(this.asUserRecord(updated), []);
+    return this.toResolvedIdentity(asUserRecord(updated), []);
   }
 
   private async findBySubject(
     usersTableId: string,
     claims: NormalizedIdentityClaims,
   ): Promise<NocoUserRecord | null> {
-    return this.asUserRecord(
+    return asUserRecord(
       await this.nocoDBService.findOne(
         usersTableId,
         andFilters(
@@ -175,10 +169,10 @@ export class UserProvisioningService {
     userId: number,
     roleNames: string[],
   ): Promise<void> {
-    const rolesTable = this.assertTableRef(
+    const rolesTable = assertTableRef(
       await this.nocoDBService.getTableByName('roles'),
     );
-    const userRolesTable = this.assertTableRef(
+    const userRolesTable = assertTableRef(
       await this.nocoDBService.getTableByName('user_roles'),
     );
 
@@ -191,7 +185,7 @@ export class UserProvisioningService {
         continue;
       }
 
-      const roleId = this.extractNumericId(role);
+      const roleId = extractNumericId(role);
       const existing = await this.nocoDBService.findOne(
         userRolesTable.id,
         andFilters(filterEq('user.id', userId), filterEq('role.id', roleId)),
@@ -211,28 +205,6 @@ export class UserProvisioningService {
     return claims.email?.split('@')[0] ?? `user_${claims.subject}`;
   }
 
-  private assertTableRef(value: unknown): NocoTableRef {
-    if (
-      !value ||
-      typeof value !== 'object' ||
-      typeof (value as any).id !== 'string'
-    ) {
-      throw new NotFoundException(
-        'Required user provisioning tables are missing',
-      );
-    }
-
-    return { id: (value as any).id };
-  }
-
-  private asUserRecord(value: unknown): NocoUserRecord | null {
-    if (!value || typeof value !== 'object') {
-      return null;
-    }
-
-    return value as NocoUserRecord;
-  }
-
   private toResolvedIdentity(
     record: NocoUserRecord | null,
     tokenRoles: string[],
@@ -242,26 +214,11 @@ export class UserProvisioningService {
     }
 
     return {
-      userId: this.extractNumericId(record),
+      userId: extractNumericId(record),
       username: record.username ?? 'unknown',
       email: record.email,
       active: record.is_active !== false,
       roles: tokenRoles,
     };
-  }
-
-  private extractNumericId(record: { id?: number | string }): number {
-    if (typeof record.id === 'number') {
-      return record.id;
-    }
-
-    if (typeof record.id === 'string' && record.id.length > 0) {
-      const parsed = Number(record.id);
-      if (!Number.isNaN(parsed)) {
-        return parsed;
-      }
-    }
-
-    throw new NotFoundException('Invalid record ID payload');
   }
 }
