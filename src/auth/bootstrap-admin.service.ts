@@ -12,6 +12,7 @@ import { NocoDBService } from '../nocodb/nocodb.service';
 import { andFilters, filterEq } from '../nocodb/nocodb-filter.util';
 import { BootstrapAdminDto } from './dto/bootstrap-admin.dto';
 import { hashPassword } from './password-hasher.util';
+import { TABLE_NAMES } from '../common/constants/table-names';
 
 interface NocoTableRef {
   id: string;
@@ -45,13 +46,13 @@ export class BootstrapAdminService {
     this.assertBootstrapAllowed(bootstrapToken);
 
     const usersTable = this.assertTableRef(
-      await this.nocoDBService.getTableByName('users'),
+      await this.nocoDBService.getTableByName(TABLE_NAMES.USERS),
     );
     const rolesTable = this.assertTableRef(
-      await this.nocoDBService.getTableByName('roles'),
+      await this.nocoDBService.getTableByName(TABLE_NAMES.ROLES),
     );
     const userRolesTable = this.assertTableRef(
-      await this.nocoDBService.getTableByName('user_roles'),
+      await this.nocoDBService.getTableByName(TABLE_NAMES.USER_ROLES),
     );
 
     const existingByUsername = this.asUserRecord(

@@ -11,6 +11,7 @@ import { PageDto } from '../nocodb/dto/page.dto';
 import { andFilters, filterEq } from '../nocodb/nocodb-filter.util';
 import { AssignRoleDto, AssignMultipleRolesDto } from './dto/assign-role.dto';
 import { PermissionsService } from '../permissions/permissions.service';
+import { TABLE_NAMES } from '../common/constants/table-names';
 
 @Injectable()
 export class UserRolesService {
@@ -26,8 +27,9 @@ export class UserRolesService {
    */
   async assignRole(dto: AssignRoleDto): Promise<any> {
     try {
-      const userRolesTable =
-        await this.nocoDBService.getTableByName('user_roles');
+      const userRolesTable = await this.nocoDBService.getTableByName(
+        TABLE_NAMES.USER_ROLES,
+      );
       if (!userRolesTable) {
         throw new NotFoundException('User_roles table not found');
       }
@@ -101,8 +103,9 @@ export class UserRolesService {
    */
   async removeRole(userId: number, roleId: number): Promise<void> {
     try {
-      const userRolesTable =
-        await this.nocoDBService.getTableByName('user_roles');
+      const userRolesTable = await this.nocoDBService.getTableByName(
+        TABLE_NAMES.USER_ROLES,
+      );
       if (!userRolesTable) {
         throw new NotFoundException('User_roles table not found');
       }
@@ -137,8 +140,9 @@ export class UserRolesService {
     pageOptionsDto?: PageOptionsDto,
   ): Promise<PageDto<any>> {
     try {
-      const userRolesTable =
-        await this.nocoDBService.getTableByName('user_roles');
+      const userRolesTable = await this.nocoDBService.getTableByName(
+        TABLE_NAMES.USER_ROLES,
+      );
 
       if (!userRolesTable) {
         return new PageDto(
