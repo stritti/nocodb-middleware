@@ -9,8 +9,8 @@ import { Request, Response } from 'express';
 import { NocoDBException } from '../exceptions/nocodb.exception';
 
 @Catch(HttpException)
-export class NocoDBExceptionFilter implements ExceptionFilter {
-  private readonly logger = new Logger(NocoDBExceptionFilter.name);
+export class AllExceptionsFilter implements ExceptionFilter {
+  private readonly logger = new Logger(AllExceptionsFilter.name);
 
   catch(exception: HttpException, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
