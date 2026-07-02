@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { LoggerModule } from 'nestjs-pino';
 import { AppController } from './app.controller';
@@ -8,6 +8,8 @@ import { AuthModule } from './auth/auth.module';
 import { HealthModule } from './health/health.module';
 import { PermissionsModule } from './permissions/permissions.module';
 import { TelemetryModule } from './tracing/telemetry.module';
+import { SanitizeMiddleware } from './common/middleware/sanitize.middleware';
+import { RateLimitMiddleware } from './nocodb/middleware/rate-limit.middleware';
 
 @Module({
   imports: [
@@ -42,4 +44,8 @@ import { TelemetryModule } from './tracing/telemetry.module';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(SanitizeMiddleware, RateLimitMiddleware).forRoutes('*');
+  }
+}
