@@ -31,6 +31,7 @@ import {
 } from '../users/dto/assign-role.dto';
 import { PermissionsGuard } from './permissions.guard';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RateLimitGuard } from '../auth/guards/rate-limit.guard';
 import {
   RequireCreate,
   RequireRead,
@@ -40,7 +41,7 @@ import {
 @ApiTags('admin / permissions')
 @ApiBearerAuth()
 @Controller('admin/permissions')
-@UseGuards(JwtAuthGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard, RateLimitGuard)
 export class PermissionsManagementController {
   constructor(
     private permissionsManagement: PermissionsManagementService,
