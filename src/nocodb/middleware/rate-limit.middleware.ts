@@ -2,6 +2,20 @@ import { Injectable, NestMiddleware, Logger } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import rateLimit from 'express-rate-limit';
 
+// ── Rate-limit presets ──────────────────────────────────────────────────────
+
+/** Window in milliseconds for all rate limiters (15 minutes). */
+const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
+
+/** Max requests per window for unauthenticated IPs. */
+const IP_RATE_LIMIT_MAX = 100;
+
+/** Max requests per window for authenticated regular users. */
+const USER_RATE_LIMIT_MAX = 200;
+
+/** Max requests per window for admin users. */
+const ADMIN_RATE_LIMIT_MAX = 1000;
+
 // User type from JWT strategy (userId, roles)
 interface AuthenticatedUser {
   userId: number;
@@ -16,8 +30,8 @@ export class RateLimitMiddleware implements NestMiddleware {
 
   // IP-based limiter (fallback for unauthenticated requests)
   private ipLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // Limit each IP to 100 requests per windowMs
+    windowMs: RATE_LIMIT_WINDOW_MS,
+    max: IP_RATE_LIMIT_MAX,
     standardHeaders: true,
     legacyHeaders: false,
     // IPv6-safe key generator: normalize IPv6 addresses
@@ -39,14 +53,14 @@ export class RateLimitMiddleware implements NestMiddleware {
 
   // User-based limiter (for authenticated requests)
   private userLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
+    windowMs: RATE_LIMIT_WINDOW_MS,
     max: (req: Request) => {
       const user = req.user as AuthenticatedUser | undefined;
       // Admins (users with 'admin' role) get higher limits
       if (user?.roles?.includes('admin')) {
-        return 1000; // 1000 requests per 15 minutes for admins
+        return ADMIN_RATE_LIMIT_MAX;
       }
-      return 200; // 200 requests per 15 minutes for regular users
+      return USER_RATE_LIMIT_MAX;
     },
     standardHeaders: true,
     legacyHeaders: false,

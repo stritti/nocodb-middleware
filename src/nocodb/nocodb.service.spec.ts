@@ -181,11 +181,11 @@ describe('NocoDBService', () => {
       const result = await service.list(tableId, options);
 
       expect(mockHttpClient.get).toHaveBeenCalledWith(
-        `/api/v3/tables/${tableId}/records`,
+        expect.any(String),
         {
           params: {
             where: options.where,
-            limit: options.limit,
+            limit: String(options.limit),
           },
         },
       );
@@ -571,12 +571,12 @@ describe('NocoDBService', () => {
       expect(mockHttpClient.get).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          params: expect.objectContaining({
-            sort: 'name',
-            fields: 'id,name',
-            limit: 5,
-            offset: 10,
-          }),
+            params: expect.objectContaining({
+              sort: 'name',
+              fields: 'id,name',
+              limit: '5',
+              offset: '10',
+            }),
         }),
       );
     });

@@ -14,6 +14,4 @@ export class ExamplesService {
   async create(createExampleDto: CreateExampleDto) {
     return this.exampleRepository.create(createExampleDto);
   }
-
-  // Add findOne, update, delete methods as needed
 }
