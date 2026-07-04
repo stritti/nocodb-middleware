@@ -79,6 +79,10 @@ export class EnvironmentVariables {
   @IsNumber()
   @IsOptional()
   NOCODB_RETRY_MAX_DELAY?: number;
+
+  @IsString()
+  @IsOptional()
+  NODE_ENV?: string;
 }
 
 export function validate(config: Record<string, unknown>) {

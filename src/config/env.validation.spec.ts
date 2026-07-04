@@ -41,6 +41,17 @@ describe('EnvironmentVariables', () => {
       expect(result.JWT_SECRET).toBe('my-secret');
     });
 
+    it('should preserve NODE_ENV when provided', () => {
+      const result = validate({
+        NODE_ENV: 'production',
+        NOCODB_API_URL: 'https://example.com',
+        NOCODB_API_TOKEN: 'token',
+        NOCODB_BASE_ID: 'base',
+      });
+      expect(result).toBeDefined();
+      expect(result.NODE_ENV).toBe('production');
+    });
+
     it('should whitelist unknown properties', () => {
       const result = validate({
         UNKNOWN_VAR: 'should be stripped',
