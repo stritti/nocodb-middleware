@@ -112,7 +112,31 @@ paths:
         - admin / permissions
     get:
       operationId: PermissionsManagementController_getAllRoles
-      parameters: []
+      parameters:
+        - name: order
+          required: false
+          in: query
+          schema:
+            default: ASC
+            type: string
+            enum:
+              - ASC
+              - DESC
+        - name: page
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            default: 1
+            type: number
+        - name: take
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            maximum: 50
+            default: 10
+            type: number
       responses:
         '200':
           description: Paginated list of roles
@@ -198,6 +222,30 @@ paths:
           in: path
           description: Numeric role ID
           schema:
+            type: number
+        - name: order
+          required: false
+          in: query
+          schema:
+            default: ASC
+            type: string
+            enum:
+              - ASC
+              - DESC
+        - name: page
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            default: 1
+            type: number
+        - name: take
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            maximum: 50
+            default: 10
             type: number
       responses:
         '200':
@@ -333,6 +381,30 @@ paths:
           in: path
           description: Numeric user ID
           schema:
+            type: number
+        - name: order
+          required: false
+          in: query
+          schema:
+            default: ASC
+            type: string
+            enum:
+              - ASC
+              - DESC
+        - name: page
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            default: 1
+            type: number
+        - name: take
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            maximum: 50
+            default: 10
             type: number
       responses:
         '200':
