@@ -11,6 +11,7 @@ import { PageDto } from '../nocodb/dto/page.dto';
 import { andFilters, filterEq } from '../nocodb/nocodb-filter.util';
 import { AssignRoleDto, AssignMultipleRolesDto } from './dto/assign-role.dto';
 import { PermissionsService } from '../permissions/permissions.service';
+import { extractNumericId } from '../common/utils/nocodb-utils';
 
 @Injectable()
 export class UserRolesService {
@@ -118,7 +119,10 @@ export class UserRolesService {
         );
       }
 
-      await this.nocoDBService.delete(userRolesTable.id, assignment.id);
+      await this.nocoDBService.delete(
+        userRolesTable.id,
+        extractNumericId(assignment),
+      );
 
       this.logger.log(`Role ${roleId} removed from user ${userId}`);
 

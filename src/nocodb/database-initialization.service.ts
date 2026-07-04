@@ -142,8 +142,10 @@ export class DatabaseInitializationService implements OnModuleInit {
         columnsPayload,
       );
 
-      const tableId = response.id;
-      this.logger.log(`Table ${fullTableName} created (ID: ${tableId})`);
+      const tableId = response.id != null ? String(response.id) : null;
+      if (tableId) {
+        this.logger.log(`Table ${fullTableName} created (ID: ${tableId})`);
+      }
       return tableId;
     } catch (error) {
       this.logger.error(`Failed to create table ${fullTableName}`, error);

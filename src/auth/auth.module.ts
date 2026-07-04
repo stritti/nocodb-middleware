@@ -4,6 +4,9 @@ import { PassportModule } from '@nestjs/passport';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import type { StringValue } from 'ms';
 import { JwtStrategy } from './strategies/jwt.strategy';
+
+/** Default JWT expiration when the env var is not set. */
+const DEFAULT_JWT_EXPIRATION: StringValue = '1d';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { BootstrapAdminService } from './bootstrap-admin.service';
@@ -28,7 +31,7 @@ import { NocoDBModule } from '../nocodb/nocodb.module';
         secret: configService.get<string>('JWT_SECRET'),
         signOptions: {
           expiresIn: (configService.get<string>('JWT_EXPIRES_IN') ??
-            '1d') as StringValue,
+            DEFAULT_JWT_EXPIRATION) as StringValue,
         },
       }),
       inject: [ConfigService],

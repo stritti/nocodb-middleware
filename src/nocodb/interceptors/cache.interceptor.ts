@@ -9,6 +9,9 @@ import { Observable, of } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { NocoDBCacheService } from '../cache/nocodb-cache.service';
 
+/** Default cache TTL for GET responses (milliseconds). */
+const DEFAULT_CACHE_TTL_MS = 60 * 1000; // 60 seconds
+
 @Injectable()
 export class CacheInterceptor implements NestInterceptor {
   private readonly logger = new Logger(CacheInterceptor.name);
@@ -37,7 +40,7 @@ export class CacheInterceptor implements NestInterceptor {
     return next.handle().pipe(
       tap(async (response) => {
         this.logger.log(`Cache miss for ${key}, caching response`);
-        await this.cacheService.set(key, response, 60 * 1000); // Default TTL 60s
+        await this.cacheService.set(key, response, DEFAULT_CACHE_TTL_MS);
       }),
     );
   }
