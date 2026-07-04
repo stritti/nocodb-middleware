@@ -6,6 +6,7 @@ import type { StringValue } from 'ms';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
+import { RateLimitGuard } from './guards/rate-limit.guard';
 import { BootstrapAdminService } from './bootstrap-admin.service';
 import { BootstrapAdminController } from './bootstrap-admin.controller';
 import { UserProvisioningController } from './user-provisioning.controller';
@@ -39,6 +40,7 @@ import { NocoDBModule } from '../nocodb/nocodb.module';
     JwtStrategy,
     JwtAuthGuard,
     RolesGuard,
+    RateLimitGuard,
     BootstrapAdminService,
     UserProvisioningService,
     AuthProviderConfigService,
@@ -62,6 +64,12 @@ import { NocoDBModule } from '../nocodb/nocodb.module';
       ],
     },
   ],
-  exports: [JwtAuthGuard, RolesGuard, JwtModule, UserProvisioningService],
+  exports: [
+    JwtAuthGuard,
+    RolesGuard,
+    RateLimitGuard,
+    JwtModule,
+    UserProvisioningService,
+  ],
 })
 export class AuthModule {}
