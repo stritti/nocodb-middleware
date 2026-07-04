@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { NocoDBService } from './nocodb.service';
 import { andFilters, filterEq } from './nocodb-filter.util';
 import { TABLE_NAMES } from '../common/constants/table-names';
+import { extractNumericId } from '../common/utils/nocodb-utils';
 
 interface ColumnDefinition {
   name: string;
@@ -142,8 +143,10 @@ export class DatabaseInitializationService implements OnModuleInit {
         columnsPayload,
       );
 
-      const tableId = response.id;
-      this.logger.log(`Table ${fullTableName} created (ID: ${tableId})`);
+      const tableId = response.id != null ? String(response.id) : null;
+      if (tableId) {
+        this.logger.log(`Table ${fullTableName} created (ID: ${tableId})`);
+      }
       return tableId;
     } catch (error) {
       this.logger.error(`Failed to create table ${fullTableName}`, error);
@@ -278,7 +281,7 @@ export class DatabaseInitializationService implements OnModuleInit {
         });
       }
 
-      const adminRoleId = this.extractNumericId(adminRole);
+      const adminRoleId = extractNumericId(adminRole);
       await this.ensureAdminPermissions(permissionsTable.id, adminRoleId);
 
       this.logger.log('Default permissions seeded (admin role ensured)');
@@ -314,30 +317,13 @@ export class DatabaseInitializationService implements OnModuleInit {
       if (existing?.id) {
         await this.nocoDBService.update(
           permissionsTableId,
-          this.extractNumericId(existing),
+          extractNumericId(existing),
           permissionData,
         );
       } else {
         await this.nocoDBService.create(permissionsTableId, permissionData);
       }
     }
-  }
-
-  private extractNumericId(record: { id?: number | string }): number {
-    const rawId = record.id;
-
-    if (typeof rawId === 'number') {
-      return rawId;
-    }
-
-    if (typeof rawId === 'string' && rawId.length > 0) {
-      const parsed = Number(rawId);
-      if (!Number.isNaN(parsed)) {
-        return parsed;
-      }
-    }
-
-    throw new Error('Invalid NocoDB record ID payload');
   }
 
   private delay(ms: number): Promise<void> {

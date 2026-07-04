@@ -13,19 +13,12 @@ import { andFilters, filterEq } from '../nocodb/nocodb-filter.util';
 import { BootstrapAdminDto } from './dto/bootstrap-admin.dto';
 import { hashPassword } from './password-hasher.util';
 import { TABLE_NAMES } from '../common/constants/table-names';
-
-interface NocoTableRef {
-  id: string;
-}
-
-interface NocoUserRecord {
-  id?: number | string;
-  username?: string;
-}
-
-interface NocoRoleRecord {
-  id?: number | string;
-}
+import {
+  assertTableRef,
+  asUserRecord,
+  asRoleRecord,
+  extractNumericId,
+} from '../common/utils/nocodb-utils';
 
 @Injectable()
 export class BootstrapAdminService {
@@ -45,24 +38,24 @@ export class BootstrapAdminService {
   }> {
     this.assertBootstrapAllowed(bootstrapToken);
 
-    const usersTable = this.assertTableRef(
+    const usersTable = assertTableRef(
       await this.nocoDBService.getTableByName(TABLE_NAMES.USERS),
     );
-    const rolesTable = this.assertTableRef(
+    const rolesTable = assertTableRef(
       await this.nocoDBService.getTableByName(TABLE_NAMES.ROLES),
     );
-    const userRolesTable = this.assertTableRef(
+    const userRolesTable = assertTableRef(
       await this.nocoDBService.getTableByName(TABLE_NAMES.USER_ROLES),
     );
 
-    const existingByUsername = this.asUserRecord(
+    const existingByUsername = asUserRecord(
       await this.nocoDBService.findOne(
         usersTable.id,
         filterEq('username', dto.username),
       ),
     );
 
-    const existingByEmail = this.asUserRecord(
+    const existingByEmail = asUserRecord(
       await this.nocoDBService.findOne(
         usersTable.id,
         filterEq('email', dto.email),
@@ -79,7 +72,7 @@ export class BootstrapAdminService {
       );
     }
 
-    const adminRole = this.asRoleRecord(
+    const adminRole = asRoleRecord(
       await this.nocoDBService.findOne(
         rolesTable.id,
         filterEq('role_name', 'admin'),
@@ -90,10 +83,10 @@ export class BootstrapAdminService {
       throw new NotFoundException('Admin role is missing');
     }
 
-    const adminRoleId = this.extractNumericId(adminRole);
+    const adminRoleId = extractNumericId(adminRole);
 
     if (existingByUsername) {
-      const existingUserId = this.extractNumericId(existingByUsername);
+      const existingUserId = extractNumericId(existingByUsername);
       if (
         !(await this.nocoDBService.findOne(
           userRolesTable.id,
@@ -119,7 +112,7 @@ export class BootstrapAdminService {
 
     const passwordHash = hashPassword(dto.password);
 
-    const createdUser = this.asUserRecord(
+    const createdUser = asUserRecord(
       await this.nocoDBService.create(usersTable.id, {
         username: dto.username,
         email: dto.email,
@@ -132,7 +125,7 @@ export class BootstrapAdminService {
       throw new IntrinsicException('Created user payload is invalid');
     }
 
-    const userId = this.extractNumericId(createdUser);
+    const userId = extractNumericId(createdUser);
 
     await this.nocoDBService.create(userRolesTable.id, {
       user: [{ id: userId }],
@@ -172,56 +165,5 @@ export class BootstrapAdminService {
     if (!valid) {
       throw new UnauthorizedException('Invalid bootstrap token');
     }
-  }
-
-  private assertTableRef(value: unknown): NocoTableRef {
-    if (!value || typeof value !== 'object') {
-      throw new NotFoundException(
-        'Required bootstrap tables are missing. Run database initialization first.',
-      );
-    }
-
-    const record = value as { id?: unknown };
-
-    if (typeof record.id !== 'string') {
-      throw new NotFoundException(
-        'Required bootstrap tables are missing. Run database initialization first.',
-      );
-    }
-
-    return { id: record.id };
-  }
-
-  private asUserRecord(value: unknown): NocoUserRecord | null {
-    if (!value || typeof value !== 'object') {
-      return null;
-    }
-
-    return value as NocoUserRecord;
-  }
-
-  private asRoleRecord(value: unknown): NocoRoleRecord | null {
-    if (!value || typeof value !== 'object') {
-      return null;
-    }
-
-    return value as NocoRoleRecord;
-  }
-
-  private extractNumericId(record: { id?: number | string }): number {
-    const rawId = record.id;
-
-    if (typeof rawId === 'number') {
-      return rawId;
-    }
-
-    if (typeof rawId === 'string' && rawId.length > 0) {
-      const parsed = Number(rawId);
-      if (!Number.isNaN(parsed)) {
-        return parsed;
-      }
-    }
-
-    throw new NotFoundException('Invalid record ID payload');
   }
 }

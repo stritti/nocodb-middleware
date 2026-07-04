@@ -8,6 +8,7 @@ import { SetTablePermissionsDto } from './dto/set-table-permissions.dto';
 import { BatchSetPermissionsDto } from './dto/batch-permissions.dto';
 import { PermissionsService } from './permissions.service';
 import { TABLE_NAMES } from '../common/constants/table-names';
+import { extractNumericId } from '../common/utils/nocodb-utils';
 
 @Injectable()
 export class PermissionsManagementService {
@@ -21,7 +22,7 @@ export class PermissionsManagementService {
   /**
    * Set permissions for a single table
    */
-  async setTablePermissions(dto: SetTablePermissionsDto): Promise<any> {
+  async setTablePermissions(dto: SetTablePermissionsDto): Promise<unknown> {
     try {
       const permissionsTable = await this.nocoDBService.getTableByName(
         TABLE_NAMES.TABLE_PERMISSIONS,
@@ -47,12 +48,12 @@ export class PermissionsManagementService {
         can_delete: dto.canDelete,
       };
 
-      let result;
+      let result: unknown;
 
       if (existing) {
         result = await this.nocoDBService.update(
           permissionsTable.id,
-          existing.id,
+          extractNumericId(existing),
           permissionData,
         );
 
@@ -82,7 +83,9 @@ export class PermissionsManagementService {
   /**
    * Set permissions for multiple tables at once
    */
-  async batchSetPermissions(dto: BatchSetPermissionsDto): Promise<any> {
+  async batchSetPermissions(
+    dto: BatchSetPermissionsDto,
+  ): Promise<{ success: boolean; count: number; results: unknown[] }> {
     this.logger.log(
       `Batch update: ${dto.permissions.length} permissions for role ${dto.roleId}`,
     );
@@ -115,7 +118,7 @@ export class PermissionsManagementService {
   async copyPermissions(
     sourceRoleId: number,
     targetRoleId: number,
-  ): Promise<any> {
+  ): Promise<{ success: boolean; copiedCount: number }> {
     try {
       const permissionsTable = await this.nocoDBService.getTableByName(
         TABLE_NAMES.TABLE_PERMISSIONS,
@@ -135,13 +138,14 @@ export class PermissionsManagementService {
       );
 
       for (const perm of sourcePermissions) {
+        const p = perm as Record<string, unknown>;
         await this.setTablePermissions({
           roleId: targetRoleId,
-          tableName: perm.table_name,
-          canCreate: perm.can_create,
-          canRead: perm.can_read,
-          canUpdate: perm.can_update,
-          canDelete: perm.can_delete,
+          tableName: p.table_name as string,
+          canCreate: Boolean(p.can_create),
+          canRead: Boolean(p.can_read),
+          canUpdate: Boolean(p.can_update),
+          canDelete: Boolean(p.can_delete),
         });
       }
 
@@ -174,7 +178,10 @@ export class PermissionsManagementService {
       const permissions = result.list || [];
 
       for (const perm of permissions) {
-        await this.nocoDBService.delete(permissionsTable.id, perm.id);
+        await this.nocoDBService.delete(
+          permissionsTable.id,
+          extractNumericId(perm),
+        );
       }
 
       this.logger.log(
@@ -194,7 +201,7 @@ export class PermissionsManagementService {
   async getRolePermissions(
     roleId: number,
     pageOptionsDto?: PageOptionsDto,
-  ): Promise<PageDto<any>> {
+  ): Promise<PageDto<unknown>> {
     try {
       const permissionsTable = await this.nocoDBService.getTableByName(
         TABLE_NAMES.TABLE_PERMISSIONS,

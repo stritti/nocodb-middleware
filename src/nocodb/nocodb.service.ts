@@ -4,6 +4,30 @@ import { Api } from 'nocodb-sdk';
 import axios, { AxiosInstance, AxiosError } from 'axios';
 import axiosRetry from 'axios-retry';
 import { TelemetryService } from '../tracing/telemetry.service';
+import {
+  NocoTableMeta,
+  NocoRecord,
+  NocoRecordListResponse,
+  NocoRecordResponse,
+  NestedIncludes,
+} from './nocodb.types';
+
+// ─── NocoDB API path constants ──────────────────────────────────────────────
+
+const META_API_BASE = '/api/v3/meta';
+const DATA_API_BASE = '/api/v3/tables';
+
+const TABLE_META_PATH = (tableId: string) =>
+  `${META_API_BASE}/tables/${tableId}`;
+const BASE_TABLES_PATH = (baseId: string) =>
+  `${META_API_BASE}/bases/${baseId}/tables`;
+const CREATE_TABLE_PATH = (baseId: string) =>
+  `${META_API_BASE}/bases/${baseId}/tables`;
+const COLUMN_PATH = (tableId: string) =>
+  `${META_API_BASE}/tables/${tableId}/columns`;
+const RECORDS_PATH = (tableId: string) => `${DATA_API_BASE}/${tableId}/records`;
+const RECORD_PATH = (tableId: string, recordId: number) =>
+  `${DATA_API_BASE}/${tableId}/records/${recordId}`;
 
 // ─── Data API option interfaces ─────────────────────────────────────────────
 
@@ -31,6 +55,18 @@ export interface LinkDefinition {
 }
 
 /**
+ * Build a nested-includes object for NocoDB's `nested` query parameter
+ * without resorting to `as any` casts.
+ */
+function buildNestedParams(relations: string[]): NestedIncludes {
+  const acc: NestedIncludes = {};
+  for (const field of relations) {
+    acc[field] = { fields: ['*'] };
+  }
+  return acc;
+}
+
+/**
  * Unified NocoDB service.
  *
  * Consolidates the Meta API v3 (table/column schema management) and the Data
@@ -41,7 +77,7 @@ export interface LinkDefinition {
 @Injectable()
 export class NocoDBService implements OnModuleInit {
   private readonly logger = new Logger(NocoDBService.name);
-  private client: Api<any>;
+  private client: Api<unknown>;
   private httpClient: AxiosInstance;
   private readonly baseId: string;
   private readonly tablePrefix: string;
@@ -154,7 +190,7 @@ export class NocoDBService implements OnModuleInit {
   /**
    * Get the NocoDB SDK client for data operations
    */
-  getClient(): Api<any> {
+  getClient(): Api<unknown> {
     return this.client;
   }
 
@@ -181,18 +217,14 @@ export class NocoDBService implements OnModuleInit {
     return this.httpClient;
   }
 
-  async getTableMetadata(tableId: string): Promise<any> {
-    const response = await this.httpClient.get(
-      `/api/v3/meta/tables/${tableId}`,
-    );
-    return response.data;
+  async getTableMetadata(tableId: string): Promise<NocoTableMeta> {
+    const response = await this.httpClient.get(TABLE_META_PATH(tableId));
+    return response.data as NocoTableMeta;
   }
 
-  async listBaseTables(baseId = this.baseId): Promise<any[]> {
-    const response = await this.httpClient.get(
-      `/api/v3/meta/bases/${baseId}/tables`,
-    );
-    return response.data.list || [];
+  async listBaseTables(baseId = this.baseId): Promise<NocoTableMeta[]> {
+    const response = await this.httpClient.get(BASE_TABLES_PATH(baseId));
+    return (response.data.list ?? []) as NocoTableMeta[];
   }
 
   // ── Tracing helper ────────────────────────────────────────────────────────
@@ -224,7 +256,7 @@ export class NocoDBService implements OnModuleInit {
     const prefixedName = this.getPrefixedTableName(tableName);
     try {
       const tables = await this.listTables();
-      return tables.some((table: any) => table.table_name === prefixedName);
+      return tables.some((table) => table.table_name === prefixedName);
     } catch (error) {
       this.logger.error(
         `Error checking if table ${prefixedName} exists:`,
@@ -237,7 +269,7 @@ export class NocoDBService implements OnModuleInit {
   /**
    * List all tables in the base.
    */
-  async listTables(): Promise<any[]> {
+  async listTables(): Promise<NocoTableMeta[]> {
     try {
       return this.listBaseTables();
     } catch (error) {
@@ -249,14 +281,13 @@ export class NocoDBService implements OnModuleInit {
   /**
    * Get table details by name.
    */
-  async getTableByName(tableName: string): Promise<any> {
+  async getTableByName(tableName: string): Promise<NocoTableMeta | null> {
     const prefixedName = this.getPrefixedTableName(tableName);
     try {
       const tables = await this.listTables();
-      const table = tables.find((t: any) => t.table_name === prefixedName);
+      const table = tables.find((t) => t.table_name === prefixedName) ?? null;
       if (!table) {
         this.logger.warn(`Table ${prefixedName} not found`);
-        return null;
       }
       return table;
     } catch (error) {
@@ -268,12 +299,16 @@ export class NocoDBService implements OnModuleInit {
   /**
    * Create a new table in the base.
    */
-  async createTable(tableName: string, title: string, columns: any[] = []) {
+  async createTable(
+    tableName: string,
+    title: string,
+    columns: Record<string, unknown>[] = [],
+  ): Promise<NocoRecordResponse> {
     const prefixedName = this.getPrefixedTableName(tableName);
     const prefixedTitle = this.getPrefixedTableName(title);
     try {
       const response = await this.httpClient.post(
-        `/api/v3/meta/bases/${this.baseId}/tables`,
+        CREATE_TABLE_PATH(this.baseId),
         {
           table_name: prefixedName,
           title: prefixedTitle,
@@ -281,7 +316,7 @@ export class NocoDBService implements OnModuleInit {
         },
       );
       this.logger.log(`Table ${prefixedName} created successfully`);
-      return response.data;
+      return response.data as NocoRecordResponse;
     } catch (error) {
       this.logger.error(`Error creating table ${prefixedName}:`, error);
       throw error;
@@ -296,8 +331,8 @@ export class NocoDBService implements OnModuleInit {
     columnName: string,
     columnType: string,
     title?: string,
-    additionalOptions?: any,
-  ): Promise<any> {
+    additionalOptions?: Record<string, unknown>,
+  ): Promise<NocoRecordResponse> {
     try {
       const payload = {
         column_name: columnName,
@@ -306,11 +341,11 @@ export class NocoDBService implements OnModuleInit {
         ...additionalOptions,
       };
       const response = await this.httpClient.post(
-        `/api/v3/meta/tables/${tableId}/columns`,
+        COLUMN_PATH(tableId),
         payload,
       );
       this.logger.log(`Column ${columnName} created in table ${tableId}`);
-      return response.data;
+      return response.data as NocoRecordResponse;
     } catch (error) {
       this.logger.error(`Error creating column ${columnName}:`, error);
       throw error;
@@ -354,27 +389,27 @@ export class NocoDBService implements OnModuleInit {
    */
   async create(
     tableId: string,
-    data: any,
+    data: Record<string, unknown>,
     options?: CreateOptions,
-  ): Promise<any> {
+  ): Promise<NocoRecordResponse> {
     return this.trace(
       'nocodb.create',
       async () => {
         await this.enforceRateLimit();
         try {
-          const params: any = {};
+          const params: Record<string, string> = {};
           if (options?.includeFields) {
             params.fields = options.includeFields.join(',');
           }
           const response = await this.httpClient.post(
-            `/api/v3/tables/${tableId}/records`,
+            RECORDS_PATH(tableId),
             data,
             { params },
           );
           this.logger.debug(
             `Created record in ${tableId}: ${response.data.id}`,
           );
-          return response.data;
+          return response.data as NocoRecordResponse;
         } catch (error) {
           this.logger.error(`Error creating record in ${tableId}:`, error);
           throw error;
@@ -391,30 +426,27 @@ export class NocoDBService implements OnModuleInit {
     tableId: string,
     recordId: number,
     options?: ReadOptions,
-  ): Promise<any> {
+  ): Promise<NocoRecord | null> {
     return this.trace(
       'nocodb.read',
       async () => {
         await this.enforceRateLimit();
         try {
-          const params: any = {};
+          const params: Record<string, string> = {};
           if (options?.fields) {
             params.fields = options.fields.join(',');
           }
           if (options?.includeRelations) {
             params.nested = JSON.stringify(
-              options.includeRelations.reduce((acc, field) => {
-                acc[field] = { fields: ['*'] };
-                return acc;
-              }, {} as any),
+              buildNestedParams(options.includeRelations),
             );
           }
           const response = await this.httpClient.get(
-            `/api/v3/tables/${tableId}/records/${recordId}`,
+            RECORD_PATH(tableId, recordId),
             { params },
           );
           this.logger.debug(`Read record ${recordId} from ${tableId}`);
-          return response.data;
+          return response.data as NocoRecord;
         } catch (error) {
           this.logger.error(
             `Error reading record ${recordId} from ${tableId}:`,
@@ -434,18 +466,22 @@ export class NocoDBService implements OnModuleInit {
   /**
    * Update a record.
    */
-  async update(tableId: string, recordId: number, data: any): Promise<any> {
+  async update(
+    tableId: string,
+    recordId: number,
+    data: Record<string, unknown>,
+  ): Promise<NocoRecordResponse> {
     return this.trace(
       'nocodb.update',
       async () => {
         await this.enforceRateLimit();
         try {
           const response = await this.httpClient.patch(
-            `/api/v3/tables/${tableId}/records/${recordId}`,
+            RECORD_PATH(tableId, recordId),
             data,
           );
           this.logger.debug(`Updated record ${recordId} in ${tableId}`);
-          return response.data;
+          return response.data as NocoRecordResponse;
         } catch (error) {
           this.logger.error(
             `Error updating record ${recordId} in ${tableId}:`,
@@ -471,9 +507,7 @@ export class NocoDBService implements OnModuleInit {
       async () => {
         await this.enforceRateLimit();
         try {
-          await this.httpClient.delete(
-            `/api/v3/tables/${tableId}/records/${recordId}`,
-          );
+          await this.httpClient.delete(RECORD_PATH(tableId, recordId));
           this.logger.debug(`Deleted record ${recordId} from ${tableId}`);
         } catch (error) {
           this.logger.error(
@@ -494,34 +528,35 @@ export class NocoDBService implements OnModuleInit {
   /**
    * List records with filtering, sorting, and pagination.
    */
-  async list(tableId: string, options?: FilterOptions): Promise<any> {
+  async list(
+    tableId: string,
+    options?: FilterOptions,
+  ): Promise<NocoRecordListResponse> {
     return this.trace(
       'nocodb.list',
       async () => {
         await this.enforceRateLimit();
         try {
-          const params: any = {};
+          const params: Record<string, string> = {};
           if (options?.where) params.where = options.where;
           if (options?.sort) params.sort = options.sort;
           if (options?.fields) params.fields = options.fields.join(',');
-          if (options?.limit !== undefined) params.limit = options.limit;
-          if (options?.offset !== undefined) params.offset = options.offset;
+          if (options?.limit !== undefined)
+            params.limit = String(options.limit);
+          if (options?.offset !== undefined)
+            params.offset = String(options.offset);
           if (options?.includeRelations) {
             params.nested = JSON.stringify(
-              options.includeRelations.reduce((acc, field) => {
-                acc[field] = { fields: ['*'] };
-                return acc;
-              }, {} as any),
+              buildNestedParams(options.includeRelations),
             );
           }
-          const response = await this.httpClient.get(
-            `/api/v3/tables/${tableId}/records`,
-            { params },
-          );
+          const response = await this.httpClient.get(RECORDS_PATH(tableId), {
+            params,
+          });
           this.logger.debug(
-            `Listed ${response.data.list?.length || 0} records from ${tableId}`,
+            `Listed ${(response.data as NocoRecordListResponse).list?.length || 0} records from ${tableId}`,
           );
-          return response.data;
+          return response.data as NocoRecordListResponse;
         } catch (error) {
           this.logger.error(`Error listing records from ${tableId}:`, error);
           throw error;
@@ -534,7 +569,7 @@ export class NocoDBService implements OnModuleInit {
   /**
    * Find a single record by filter.
    */
-  async findOne(tableId: string, where: string): Promise<any | null> {
+  async findOne(tableId: string, where: string): Promise<NocoRecord | null> {
     const result = await this.list(tableId, { where, limit: 1 });
     return result.list && result.list.length > 0 ? result.list[0] : null;
   }
@@ -551,10 +586,10 @@ export class NocoDBService implements OnModuleInit {
    */
   async createWithLinks(
     tableId: string,
-    data: any,
+    data: Record<string, unknown>,
     links: LinkDefinition[],
-  ): Promise<any> {
-    const payload = { ...data };
+  ): Promise<NocoRecordResponse> {
+    const payload: Record<string, unknown> = { ...data };
     for (const link of links) {
       payload[link.fieldName] = link.recordIds.map((id) => ({ id }));
     }
@@ -568,8 +603,8 @@ export class NocoDBService implements OnModuleInit {
     tableId: string,
     recordId: number,
     links: LinkDefinition[],
-  ): Promise<any> {
-    const payload: any = {};
+  ): Promise<NocoRecordResponse> {
+    const payload: Record<string, unknown> = {};
     for (const link of links) {
       payload[link.fieldName] = link.recordIds.map((id) => ({ id }));
     }
@@ -583,15 +618,18 @@ export class NocoDBService implements OnModuleInit {
     tableId: string,
     recordId: number,
     includeFields: string[],
-  ): Promise<any> {
+  ): Promise<NocoRecord | null> {
     return this.read(tableId, recordId, { includeRelations: includeFields });
   }
 
   /**
    * Batch-create multiple records.
    */
-  async batchCreate(tableId: string, records: any[]): Promise<any[]> {
-    const results = [];
+  async batchCreate(
+    tableId: string,
+    records: Record<string, unknown>[],
+  ): Promise<NocoRecordResponse[]> {
+    const results: NocoRecordResponse[] = [];
     for (const record of records) {
       try {
         results.push(await this.create(tableId, record));
@@ -599,7 +637,7 @@ export class NocoDBService implements OnModuleInit {
         this.logger.error('Error in batch create for record:', error);
         results.push({
           error: error instanceof Error ? error.message : String(error),
-        });
+        } as unknown as NocoRecordResponse);
       }
     }
     return results;
@@ -610,9 +648,9 @@ export class NocoDBService implements OnModuleInit {
    */
   async batchUpdate(
     tableId: string,
-    updates: Array<{ id: number; data: any }>,
-  ): Promise<any[]> {
-    const results = [];
+    updates: Array<{ id: number; data: Record<string, unknown> }>,
+  ): Promise<NocoRecordResponse[]> {
+    const results: NocoRecordResponse[] = [];
     for (const upd of updates) {
       try {
         results.push(await this.update(tableId, upd.id, upd.data));
@@ -621,7 +659,7 @@ export class NocoDBService implements OnModuleInit {
         results.push({
           id: upd.id,
           error: error instanceof Error ? error.message : String(error),
-        });
+        } as unknown as NocoRecordResponse);
       }
     }
     return results;

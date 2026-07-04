@@ -4,12 +4,16 @@ import { andFilters, filterEq, filterIn } from '../nocodb/nocodb-filter.util';
 import { CrudAction } from './enums/crud-action.enum';
 import { UserPermissions } from './interfaces/permission.interface';
 import { TABLE_NAMES } from '../common/constants/table-names';
+import { extractNumericId } from '../common/utils/nocodb-utils';
+
+/** In-memory permission cache TTL (5 minutes). */
+const PERMISSIONS_CACHE_TTL_MS = 5 * 60 * 1000;
 
 @Injectable()
 export class PermissionsService {
   private readonly logger = new Logger(PermissionsService.name);
   private permissionsCache: Map<number, UserPermissions> = new Map();
-  private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+  private readonly CACHE_TTL = PERMISSIONS_CACHE_TTL_MS;
 
   constructor(private nocoDBService: NocoDBService) {}
 
@@ -23,7 +27,7 @@ export class PermissionsService {
       const prefix = this.nocoDBService.getTablePrefix();
 
       return tables
-        .map((table: any) => table.table_name)
+        .map((table) => table.table_name)
         .filter((name: string) => (prefix ? name.startsWith(prefix) : true));
     } catch (error) {
       this.logger.error('Error fetching workspace tables:', error);
@@ -50,13 +54,14 @@ export class PermissionsService {
       }
 
       const user = await this.nocoDBService.read(usersTable.id, userId);
+      const username = (user?.username as string | undefined) ?? 'unknown';
 
       const userRolesTable = await this.nocoDBService.getTableByName(
         TABLE_NAMES.USER_ROLES,
       );
       if (!userRolesTable) {
         this.logger.warn('User_roles table not found');
-        return this.createEmptyPermissions(userId, user.username);
+        return this.createEmptyPermissions(userId, username);
       }
 
       const userRolesResult = await this.nocoDBService.list(userRolesTable.id, {
@@ -64,13 +69,22 @@ export class PermissionsService {
         includeRelations: ['role'],
       });
 
-      const roleIds = (userRolesResult.list || [])
-        .filter((ur: any) => ur.role && ur.role.length > 0)
-        .map((ur: any) => ur.role[0].id);
+      const roleIds = (userRolesResult.list ?? [])
+        .filter((ur) => {
+          const role = (ur as Record<string, unknown>).role;
+          return Array.isArray(role) && role.length > 0;
+        })
+        .map((ur) => {
+          const role = (ur as Record<string, unknown>).role as Array<{
+            id?: number | string;
+          }>;
+          return role[0].id != null ? Number(role[0].id) : NaN;
+        })
+        .filter((id): id is number => !Number.isNaN(id));
 
       if (roleIds.length === 0) {
         this.logger.warn(`User ${userId} has no assigned roles`);
-        return this.createEmptyPermissions(userId, user.username);
+        return this.createEmptyPermissions(userId, username);
       }
 
       const rolesTable = await this.nocoDBService.getTableByName(
@@ -78,21 +92,23 @@ export class PermissionsService {
       );
       if (!rolesTable) {
         this.logger.warn('Roles table not found');
-        return this.createEmptyPermissions(userId, user.username);
+        return this.createEmptyPermissions(userId, username);
       }
 
       const rolesResult = await this.nocoDBService.list(rolesTable.id, {
         where: filterIn('id', roleIds),
       });
 
-      const roleNames = (rolesResult.list || []).map((r: any) => r.role_name);
+      const roleNames = (rolesResult.list ?? []).map(
+        (r) => (r.role_name as string | undefined) ?? '',
+      );
 
       const permissionsTable = await this.nocoDBService.getTableByName(
         TABLE_NAMES.TABLE_PERMISSIONS,
       );
       if (!permissionsTable) {
         this.logger.warn('Table_permissions table not found');
-        return this.createEmptyPermissions(userId, user.username);
+        return this.createEmptyPermissions(userId, username);
       }
 
       const permissionsResult = await this.nocoDBService.list(
@@ -102,8 +118,9 @@ export class PermissionsService {
 
       const permissionsMap = new Map<string, Set<CrudAction>>();
 
-      for (const perm of permissionsResult.list || []) {
-        const tableName = perm.table_name;
+      for (const perm of permissionsResult.list ?? []) {
+        const tableName = perm.table_name as string | undefined;
+        if (!tableName) continue;
 
         if (!permissionsMap.has(tableName)) {
           permissionsMap.set(tableName, new Set());
@@ -119,8 +136,8 @@ export class PermissionsService {
 
       const userPermissions: UserPermissions = {
         userId,
-        username: user.username,
-        roles: roleNames,
+        username,
+        roles: roleNames.filter(Boolean),
         permissions: permissionsMap,
       };
 
@@ -190,7 +207,7 @@ export class PermissionsService {
       if (existing) {
         await this.nocoDBService.update(
           permissionsTable.id,
-          existing.id,
+          extractNumericId(existing),
           permissionData,
         );
       } else {

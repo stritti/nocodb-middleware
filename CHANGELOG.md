@@ -1,3 +1,9 @@
+# [0.5.0](https://github.com/stritti/nocodb-middleware/compare/v0.4.0...v0.5.0) (2026-07-04)
+
+
+### Features
+
+* configure CacheModule with TTL and size limits ([#201](https://github.com/stritti/nocodb-middleware/issues/201)) ([50e22dc](https://github.com/stritti/nocodb-middleware/commit/50e22dce1a41b7751c35d366d5ad373a201774bf))
 # [0.4.0](https://github.com/stritti/nocodb-middleware/compare/v0.3.0...v0.4.0) (2026-06-24)
 
 ### Bug Fixes

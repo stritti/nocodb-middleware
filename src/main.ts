@@ -19,10 +19,10 @@ async function bootstrap() {
   // Use Pino as the application-wide logger
   try {
     app.useLogger(app.get(Logger));
-  } catch {
-    // Fallback if Logger is not available
+  } catch (error: unknown) {
+    // Fallback if Logger is not available (e.g. during testing)
     NestLogger.warn(
-      'Pino Logger not found in context, falling back to default logger',
+      `Pino Logger not found in context, falling back to default logger: ${error instanceof Error ? error.message : 'unknown error'}`,
     );
   }
 
@@ -73,11 +73,13 @@ async function bootstrap() {
 
   // Global input sanitization middleware (after CORS, before rate limiting)
   // Sanitizes all request data (body, query, params) to prevent XSS
-  app.use(new SanitizeMiddleware().use.bind(new SanitizeMiddleware()));
+  const sanitizeMiddleware = new SanitizeMiddleware();
+  app.use(sanitizeMiddleware.use.bind(sanitizeMiddleware));
 
   // Global rate limiting middleware (must be after CORS and sanitization)
   // This ensures req.user is available from JWT authentication
-  app.use(new RateLimitMiddleware().use.bind(new RateLimitMiddleware()));
+  const rateLimitMiddleware = new RateLimitMiddleware();
+  app.use(rateLimitMiddleware.use.bind(rateLimitMiddleware));
 
   // Global filters
   app.useGlobalFilters(new NocoDBExceptionFilter());

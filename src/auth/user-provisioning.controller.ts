@@ -5,12 +5,12 @@ import {
   ParseIntPipe,
   Patch,
   Post,
-  SetMetadata,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
 import {
   ProvisionUserDto,
   UpdateUserStatusDto,
@@ -27,13 +27,13 @@ export class UserProvisioningController {
   ) {}
 
   @Post()
-  @SetMetadata('roles', ['admin'])
+  @Roles('admin')
   async createUser(@Body() dto: ProvisionUserDto) {
     return this.userProvisioningService.createLocalUser(dto);
   }
 
   @Patch(':id/status')
-  @SetMetadata('roles', ['admin'])
+  @Roles('admin')
   async updateStatus(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateUserStatusDto,
