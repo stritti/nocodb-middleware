@@ -35,8 +35,7 @@ export class RateLimitGuard implements CanActivate {
       return user?.userId?.toString() || req.ip || 'unknown';
     },
     skip: (req) => !req.user,
-    handler: (req, res) => {
-      const user = req.user as AuthenticatedUser | undefined;
+    handler: (req, _res) => {
       throw new HttpException(
         {
           statusCode: HttpStatus.TOO_MANY_REQUESTS,
