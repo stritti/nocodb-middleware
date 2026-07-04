@@ -17,10 +17,14 @@ import {
 const META_API_BASE = '/api/v3/meta';
 const DATA_API_BASE = '/api/v3/tables';
 
-const TABLE_META_PATH = (tableId: string) => `${META_API_BASE}/tables/${tableId}`;
-const BASE_TABLES_PATH = (baseId: string) => `${META_API_BASE}/bases/${baseId}/tables`;
-const CREATE_TABLE_PATH = (baseId: string) => `${META_API_BASE}/bases/${baseId}/tables`;
-const COLUMN_PATH = (tableId: string) => `${META_API_BASE}/tables/${tableId}/columns`;
+const TABLE_META_PATH = (tableId: string) =>
+  `${META_API_BASE}/tables/${tableId}`;
+const BASE_TABLES_PATH = (baseId: string) =>
+  `${META_API_BASE}/bases/${baseId}/tables`;
+const CREATE_TABLE_PATH = (baseId: string) =>
+  `${META_API_BASE}/bases/${baseId}/tables`;
+const COLUMN_PATH = (tableId: string) =>
+  `${META_API_BASE}/tables/${tableId}/columns`;
 const RECORDS_PATH = (tableId: string) => `${DATA_API_BASE}/${tableId}/records`;
 const RECORD_PATH = (tableId: string, recordId: number) =>
   `${DATA_API_BASE}/${tableId}/records/${recordId}`;
@@ -54,9 +58,7 @@ export interface LinkDefinition {
  * Build a nested-includes object for NocoDB's `nested` query parameter
  * without resorting to `as any` casts.
  */
-function buildNestedParams(
-  relations: string[],
-): NestedIncludes {
+function buildNestedParams(relations: string[]): NestedIncludes {
   const acc: NestedIncludes = {};
   for (const field of relations) {
     acc[field] = { fields: ['*'] };
@@ -505,9 +507,7 @@ export class NocoDBService implements OnModuleInit {
       async () => {
         await this.enforceRateLimit();
         try {
-          await this.httpClient.delete(
-            RECORD_PATH(tableId, recordId),
-          );
+          await this.httpClient.delete(RECORD_PATH(tableId, recordId));
           this.logger.debug(`Deleted record ${recordId} from ${tableId}`);
         } catch (error) {
           this.logger.error(
@@ -550,10 +550,9 @@ export class NocoDBService implements OnModuleInit {
               buildNestedParams(options.includeRelations),
             );
           }
-          const response = await this.httpClient.get(
-            RECORDS_PATH(tableId),
-            { params },
-          );
+          const response = await this.httpClient.get(RECORDS_PATH(tableId), {
+            params,
+          });
           this.logger.debug(
             `Listed ${(response.data as NocoRecordListResponse).list?.length || 0} records from ${tableId}`,
           );
@@ -570,10 +569,7 @@ export class NocoDBService implements OnModuleInit {
   /**
    * Find a single record by filter.
    */
-  async findOne(
-    tableId: string,
-    where: string,
-  ): Promise<NocoRecord | null> {
+  async findOne(tableId: string, where: string): Promise<NocoRecord | null> {
     const result = await this.list(tableId, { where, limit: 1 });
     return result.list && result.list.length > 0 ? result.list[0] : null;
   }
@@ -640,8 +636,7 @@ export class NocoDBService implements OnModuleInit {
       } catch (error) {
         this.logger.error('Error in batch create for record:', error);
         results.push({
-          error:
-            error instanceof Error ? error.message : String(error),
+          error: error instanceof Error ? error.message : String(error),
         } as unknown as NocoRecordResponse);
       }
     }
@@ -663,8 +658,7 @@ export class NocoDBService implements OnModuleInit {
         this.logger.error(`Error in batch update for record ${upd.id}:`, error);
         results.push({
           id: upd.id,
-          error:
-            error instanceof Error ? error.message : String(error),
+          error: error instanceof Error ? error.message : String(error),
         } as unknown as NocoRecordResponse);
       }
     }

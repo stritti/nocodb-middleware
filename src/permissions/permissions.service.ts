@@ -1,6 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { NocoDBService } from '../nocodb/nocodb.service';
-import type { NocoRecord } from '../nocodb/nocodb.types';
 import { andFilters, filterEq, filterIn } from '../nocodb/nocodb-filter.util';
 import { CrudAction } from './enums/crud-action.enum';
 import { UserPermissions } from './interfaces/permission.interface';
@@ -52,8 +51,7 @@ export class PermissionsService {
       }
 
       const user = await this.nocoDBService.read(usersTable.id, userId);
-      const username =
-        (user?.username as string | undefined) ?? 'unknown';
+      const username = (user?.username as string | undefined) ?? 'unknown';
 
       const userRolesTable =
         await this.nocoDBService.getTableByName('user_roles');
@@ -73,7 +71,9 @@ export class PermissionsService {
           return Array.isArray(role) && role.length > 0;
         })
         .map((ur) => {
-          const role = (ur as Record<string, unknown>).role as Array<{ id?: number | string }>;
+          const role = (ur as Record<string, unknown>).role as Array<{
+            id?: number | string;
+          }>;
           return role[0].id != null ? Number(role[0].id) : NaN;
         })
         .filter((id): id is number => !Number.isNaN(id));

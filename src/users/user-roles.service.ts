@@ -119,7 +119,10 @@ export class UserRolesService {
         );
       }
 
-      await this.nocoDBService.delete(userRolesTable.id, extractNumericId(assignment));
+      await this.nocoDBService.delete(
+        userRolesTable.id,
+        extractNumericId(assignment),
+      );
 
       this.logger.log(`Role ${roleId} removed from user ${userId}`);
 

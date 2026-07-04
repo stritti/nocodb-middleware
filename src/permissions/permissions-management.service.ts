@@ -81,7 +81,9 @@ export class PermissionsManagementService {
   /**
    * Set permissions for multiple tables at once
    */
-  async batchSetPermissions(dto: BatchSetPermissionsDto): Promise<{ success: boolean; count: number; results: unknown[] }> {
+  async batchSetPermissions(
+    dto: BatchSetPermissionsDto,
+  ): Promise<{ success: boolean; count: number; results: unknown[] }> {
     this.logger.log(
       `Batch update: ${dto.permissions.length} permissions for role ${dto.roleId}`,
     );
