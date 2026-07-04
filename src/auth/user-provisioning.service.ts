@@ -16,7 +16,6 @@ import {
   asUserRecord,
   extractNumericId,
   NocoUserRecord,
-  NocoTableRef,
 } from '../common/utils/nocodb-utils';
 
 @Injectable()
