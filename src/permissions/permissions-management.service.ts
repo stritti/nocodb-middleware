@@ -7,6 +7,7 @@ import { andFilters, filterEq } from '../nocodb/nocodb-filter.util';
 import { SetTablePermissionsDto } from './dto/set-table-permissions.dto';
 import { BatchSetPermissionsDto } from './dto/batch-permissions.dto';
 import { PermissionsService } from './permissions.service';
+import { TABLE_NAMES } from '../common/constants/table-names';
 import { extractNumericId } from '../common/utils/nocodb-utils';
 
 @Injectable()
@@ -23,8 +24,9 @@ export class PermissionsManagementService {
    */
   async setTablePermissions(dto: SetTablePermissionsDto): Promise<unknown> {
     try {
-      const permissionsTable =
-        await this.nocoDBService.getTableByName('table_permissions');
+      const permissionsTable = await this.nocoDBService.getTableByName(
+        TABLE_NAMES.TABLE_PERMISSIONS,
+      );
       if (!permissionsTable) {
         throw new NotFoundException('Table_permissions table not found');
       }
@@ -118,8 +120,9 @@ export class PermissionsManagementService {
     targetRoleId: number,
   ): Promise<{ success: boolean; copiedCount: number }> {
     try {
-      const permissionsTable =
-        await this.nocoDBService.getTableByName('table_permissions');
+      const permissionsTable = await this.nocoDBService.getTableByName(
+        TABLE_NAMES.TABLE_PERMISSIONS,
+      );
       if (!permissionsTable) {
         throw new NotFoundException('Table_permissions table not found');
       }
@@ -161,8 +164,9 @@ export class PermissionsManagementService {
    */
   async deleteRolePermissions(roleId: number): Promise<void> {
     try {
-      const permissionsTable =
-        await this.nocoDBService.getTableByName('table_permissions');
+      const permissionsTable = await this.nocoDBService.getTableByName(
+        TABLE_NAMES.TABLE_PERMISSIONS,
+      );
       if (!permissionsTable) {
         throw new NotFoundException('Table_permissions table not found');
       }
@@ -199,8 +203,9 @@ export class PermissionsManagementService {
     pageOptionsDto?: PageOptionsDto,
   ): Promise<PageDto<unknown>> {
     try {
-      const permissionsTable =
-        await this.nocoDBService.getTableByName('table_permissions');
+      const permissionsTable = await this.nocoDBService.getTableByName(
+        TABLE_NAMES.TABLE_PERMISSIONS,
+      );
       if (!permissionsTable) {
         return new PageDto(
           [],

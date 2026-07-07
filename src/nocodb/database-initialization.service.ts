@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { NocoDBService } from './nocodb.service';
 import { andFilters, filterEq } from './nocodb-filter.util';
+import { TABLE_NAMES } from '../common/constants/table-names';
 import { extractNumericId } from '../common/utils/nocodb-utils';
 
 interface ColumnDefinition {
@@ -37,7 +38,7 @@ export class DatabaseInitializationService implements OnModuleInit {
   private async initializeTables() {
     // 1. Create Core Tables
     const usersTableId = await this.ensureTableExists({
-      tableName: 'users',
+      tableName: TABLE_NAMES.USERS,
       title: 'Users',
       columns: [
         { name: 'username', title: 'Username', type: 'SingleLineText' },
@@ -58,7 +59,7 @@ export class DatabaseInitializationService implements OnModuleInit {
     });
 
     const rolesTableId = await this.ensureTableExists({
-      tableName: 'roles',
+      tableName: TABLE_NAMES.ROLES,
       title: 'Roles',
       columns: [
         { name: 'role_name', title: 'Role Name', type: 'SingleLineText' },
@@ -77,7 +78,7 @@ export class DatabaseInitializationService implements OnModuleInit {
     // 2. Junction and Permission Tables
     // Note: Link columns (user, role) must be verified or created manually if meta API fails
     await this.ensureTableExists({
-      tableName: 'user_roles',
+      tableName: TABLE_NAMES.USER_ROLES,
       title: 'User Roles',
       columns: [
         { name: 'assigned_at', title: 'Assigned At', type: 'DateTime' },
@@ -85,7 +86,7 @@ export class DatabaseInitializationService implements OnModuleInit {
     });
 
     await this.ensureTableExists({
-      tableName: 'table_permissions',
+      tableName: TABLE_NAMES.TABLE_PERMISSIONS,
       title: 'Table Permissions',
       columns: [
         { name: 'table_name', title: 'Table Name', type: 'SingleLineText' },
@@ -199,15 +200,15 @@ export class DatabaseInitializationService implements OnModuleInit {
   private async verifyLinkColumnsExist() {
     const requiredLinks = [
       {
-        tableName: 'user_roles',
+        tableName: TABLE_NAMES.USER_ROLES,
         linkColumns: [
-          { name: 'user', targetTable: 'users' },
-          { name: 'role', targetTable: 'roles' },
+          { name: 'user', targetTable: TABLE_NAMES.USERS },
+          { name: 'role', targetTable: TABLE_NAMES.ROLES },
         ],
       },
       {
-        tableName: 'table_permissions',
-        linkColumns: [{ name: 'role', targetTable: 'roles' }],
+        tableName: TABLE_NAMES.TABLE_PERMISSIONS,
+        linkColumns: [{ name: 'role', targetTable: TABLE_NAMES.ROLES }],
       },
     ];
 
@@ -256,9 +257,12 @@ export class DatabaseInitializationService implements OnModuleInit {
   private async seedDefaultPermissions() {
     this.logger.log('Seeding default permissions...');
     try {
-      const rolesTable = await this.nocoDBService.getTableByName('roles');
-      const permissionsTable =
-        await this.nocoDBService.getTableByName('table_permissions');
+      const rolesTable = await this.nocoDBService.getTableByName(
+        TABLE_NAMES.ROLES,
+      );
+      const permissionsTable = await this.nocoDBService.getTableByName(
+        TABLE_NAMES.TABLE_PERMISSIONS,
+      );
 
       if (!rolesTable || !permissionsTable) return;
 
@@ -290,12 +294,7 @@ export class DatabaseInitializationService implements OnModuleInit {
     permissionsTableId: string,
     adminRoleId: number,
   ): Promise<void> {
-    const protectedTables = [
-      'users',
-      'roles',
-      'user_roles',
-      'table_permissions',
-    ];
+    const protectedTables = Object.values(TABLE_NAMES);
 
     for (const tableName of protectedTables) {
       const existing = await this.nocoDBService.findOne(
