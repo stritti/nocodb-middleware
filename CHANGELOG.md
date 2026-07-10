@@ -1,3 +1,9 @@
+## [0.6.1](https://github.com/stritti/nocodb-middleware/compare/v0.6.0...v0.6.1) (2026-07-10)
+
+
+### Bug Fixes
+
+* apply prettier formatting to CHANGELOG.md ([d6839ee](https://github.com/stritti/nocodb-middleware/commit/d6839ee42c1c9dbf28094890d51ecad76c30ac82))
 # [0.6.0](https://github.com/stritti/nocodb-middleware/compare/v0.5.2...v0.6.0) (2026-07-05)
 
 ### Features
