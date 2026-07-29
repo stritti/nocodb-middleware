@@ -4,6 +4,7 @@ import { LoggerModule } from 'nestjs-pino';
 import { AppController } from './app.controller';
 import { NocoDBModule } from './nocodb/nocodb.module';
 import { AuthModule } from './auth/auth.module';
+import { validate } from './config/env.validation';
 import { HealthModule } from './health/health.module';
 import { PermissionsModule } from './permissions/permissions.module';
 import { TelemetryModule } from './tracing/telemetry.module';
@@ -12,6 +13,7 @@ import { TelemetryModule } from './tracing/telemetry.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      validate,
     }),
     // Structured JSON logging via Pino; pretty-print in dev, JSON in production
     LoggerModule.forRoot({
