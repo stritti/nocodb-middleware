@@ -11,6 +11,7 @@ import {
 } from './identity/identity-provider.port';
 import { ProvisionUserDto } from './dto/provision-user.dto';
 import { hashPassword } from './password-hasher.util';
+import { TABLE_NAMES } from '../common/constants/table-names';
 import {
   assertTableRef,
   asUserRecord,
@@ -26,7 +27,7 @@ export class UserProvisioningService {
     claims: NormalizedIdentityClaims,
   ): Promise<ResolvedIdentity> {
     const usersTable = assertTableRef(
-      await this.nocoDBService.getTableByName('users'),
+      await this.nocoDBService.getTableByName(TABLE_NAMES.USERS),
     );
 
     const bySubject = await this.findBySubject(usersTable.id, claims);
@@ -90,7 +91,7 @@ export class UserProvisioningService {
 
   async createLocalUser(dto: ProvisionUserDto): Promise<ResolvedIdentity> {
     const usersTable = assertTableRef(
-      await this.nocoDBService.getTableByName('users'),
+      await this.nocoDBService.getTableByName(TABLE_NAMES.USERS),
     );
 
     const byUsername = await this.nocoDBService.findOne(
@@ -139,7 +140,7 @@ export class UserProvisioningService {
     isActive: boolean,
   ): Promise<ResolvedIdentity> {
     const usersTable = assertTableRef(
-      await this.nocoDBService.getTableByName('users'),
+      await this.nocoDBService.getTableByName(TABLE_NAMES.USERS),
     );
 
     const updated = await this.nocoDBService.update(usersTable.id, userId, {
@@ -169,10 +170,10 @@ export class UserProvisioningService {
     roleNames: string[],
   ): Promise<void> {
     const rolesTable = assertTableRef(
-      await this.nocoDBService.getTableByName('roles'),
+      await this.nocoDBService.getTableByName(TABLE_NAMES.ROLES),
     );
     const userRolesTable = assertTableRef(
-      await this.nocoDBService.getTableByName('user_roles'),
+      await this.nocoDBService.getTableByName(TABLE_NAMES.USER_ROLES),
     );
 
     for (const roleName of roleNames) {

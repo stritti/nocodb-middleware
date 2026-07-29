@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { NocoDBService } from './nocodb.service';
 import { TableCatalogItemDto } from './dto/table-catalog-item.dto';
+import { SYSTEM_TABLES } from '../common/constants/table-names';
 
 interface NocoTableMeta {
   id?: string | number;
@@ -10,13 +11,6 @@ interface NocoTableMeta {
 
 @Injectable()
 export class TableCatalogService {
-  private readonly internalTableNames = new Set([
-    'users',
-    'roles',
-    'user_roles',
-    'table_permissions',
-  ]);
-
   constructor(private readonly nocoDBService: NocoDBService) {}
 
   async listExternalTables(): Promise<TableCatalogItemDto[]> {
@@ -32,7 +26,7 @@ export class TableCatalogService {
             ? table.table_name.slice(prefix.length)
             : table.table_name;
 
-        return !this.internalTableNames.has(unprefixedName);
+        return !SYSTEM_TABLES.has(unprefixedName);
       })
       .map((table) => ({
         id: String(table.id),
