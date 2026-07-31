@@ -41,7 +41,7 @@
     "@opentelemetry/resources": "^2.9.0",
     "@opentelemetry/sdk-node": "^0.219.0",
     "@opentelemetry/sdk-trace-base": "^2.9.0",
-    "@opentelemetry/semantic-conventions": "^1.41.1",
+    "@opentelemetry/semantic-conventions": "^1.43.0",
     "axios": "^1.18.1",
     "axios-retry": "^4.5.0",
     "cache-manager": "^7.2.9",
