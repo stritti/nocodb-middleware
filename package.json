@@ -67,7 +67,7 @@
     "@modelcontextprotocol/sdk": "^1.30.0",
     "@nestjs/cli": "^11.0.24",
     "@nestjs/schematics": "^11.1.0",
-    "@nestjs/testing": "^11.1.29",
+    "@nestjs/testing": "^11.2.1",
     "@rollup/plugin-yaml": "^5.0.0",
     "@types/express": "^5.0.6",
     "@types/jest": "^30.0.0",
