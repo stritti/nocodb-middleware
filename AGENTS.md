@@ -994,6 +994,14 @@ export class AuthController {
 - [ ] Rollback-Strategie definiert
 - [ ] Blue-Green oder Canary Deployments
 
+### Release Please
+
+- Release Please verwaltet Versionen, Changelog, Git-Tags und GitHub Releases. Der Workflow läuft bei Pushes auf `main`; ein Release wird als Pull Request zur Prüfung vorbereitet und erst beim Merge veröffentlicht.
+- Verwende Conventional-Commit-Präfixe in Commit- und Pull-Request-Titeln (`fix:`, `feat:`, `docs:` usw.). Die Versionierungsregeln stehen in [`docs/versioning.md`](docs/versioning.md).
+- Lass Release Please `package.json`, `package-lock.json` und `CHANGELOG.md` im Release-PR aktualisieren. Versionen und Release-Tags nicht manuell vorwegnehmen.
+- Ein manueller Workflow-Start berechnet denselben Release-PR und ist auf `main` beschränkt; einen erzwungenen `bump_type` gibt es nicht.
+- `GITHUB_TOKEN` ist der Standard. `RELEASE_PLEASE_TOKEN` ist nur nötig, wenn Folge-Workflows auch für den automatisch erstellten Release-PR laufen sollen.
+
 ## Beispiel: Protected Resource Controller
 
 ```typescript
