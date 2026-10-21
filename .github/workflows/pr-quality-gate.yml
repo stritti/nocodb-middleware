@@ -148,14 +148,14 @@ jobs:
             });
 
             const marker = '<!-- pr-quality-gate -->';
-            const failures = ${{ steps.results.outputs.failures }};
-            const lint = ${{ steps.results.outputs.lint }} === 'true';
-            const format = ${{ steps.results.outputs.format }} === 'true';
-            const build = ${{ steps.results.outputs.build }} === 'true';
-            const tests = ${{ steps.results.outputs.tests }} === 'true';
-            const coverage = ${{ steps.results.outputs.coverage }} === 'true';
-            const openapi = ${{ steps.results.outputs.openapi }} === 'true';
-            const audit = ${{ steps.results.outputs.audit }} === 'true';
+            const failures = parseInt('${{ steps.results.outputs.failures }}', 10); // NaN (= failed) if results step did not run
+            const lint = '${{ steps.results.outputs.lint }}' === 'true';
+            const format = '${{ steps.results.outputs.format }}' === 'true';
+            const build = '${{ steps.results.outputs.build }}' === 'true';
+            const tests = '${{ steps.results.outputs.tests }}' === 'true';
+            const coverage = '${{ steps.results.outputs.coverage }}' === 'true';
+            const openapi = '${{ steps.results.outputs.openapi }}' === 'true';
+            const audit = '${{ steps.results.outputs.audit }}' === 'true';
 
             const emoji = (passed) => passed ? '✅' : '❌';
             const status = failures === 0 ? '✅ **ALL QUALITY GATES PASSED**' : '❌ **SOME QUALITY GATES FAILED**';
