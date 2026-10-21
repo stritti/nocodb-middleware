@@ -11,7 +11,14 @@ const PERMISSIONS_CACHE_TTL_MS = 5 * 60 * 1000;
 @Injectable()
 export class PermissionsService {
   private readonly logger = new Logger(PermissionsService.name);
-  private permissionsCache: Map<number, UserPermissions> = new Map();
+  /**
+   * Cached permissions with their expiry time. Expiry is checked on read
+   * instead of with timers, which would keep the process alive on shutdown.
+   */
+  private permissionsCache = new Map<
+    number,
+    { value: UserPermissions; expiresAt: number }
+  >();
   private readonly CACHE_TTL = PERMISSIONS_CACHE_TTL_MS;
 
   constructor(private nocoDBService: NocoDBService) {}
@@ -41,8 +48,8 @@ export class PermissionsService {
    */
   async getUserPermissions(userId: number): Promise<UserPermissions> {
     const cached = this.permissionsCache.get(userId);
-    if (cached) {
-      return cached;
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.value;
     }
 
     try {
@@ -131,8 +138,10 @@ export class PermissionsService {
         permissions: permissionsMap,
       };
 
-      this.permissionsCache.set(userId, userPermissions);
-      setTimeout(() => this.permissionsCache.delete(userId), this.CACHE_TTL);
+      this.permissionsCache.set(userId, {
+        value: userPermissions,
+        expiresAt: Date.now() + this.CACHE_TTL,
+      });
 
       return userPermissions;
     } catch (error) {

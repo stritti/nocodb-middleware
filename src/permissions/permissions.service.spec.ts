@@ -51,7 +51,7 @@ const alice = { id: 1, username: 'alice' };
 
 describe('PermissionsService', () => {
   beforeEach(() => {
-    // The permission cache schedules a 5-minute eviction timer per user.
+    // Fake timers also fake Date.now(), which drives the cache expiry.
     jest.useFakeTimers();
     jest.spyOn(Logger.prototype, 'log').mockImplementation(() => {});
     jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
@@ -205,6 +205,39 @@ describe('PermissionsService', () => {
       await service.canUserPerformAction(1, 'orders', CrudAction.READ);
 
       expect(nocodb.listAll).toHaveBeenCalledTimes(3);
+    });
+  });
+
+  describe('cache expiry', () => {
+    const tables: Tables = {
+      users: [alice],
+      user_roles: [{ id: 1, user_id: 1, role_id: 10 }],
+      roles: [{ id: 10, role_name: 'editor' }],
+      table_permissions: [
+        { id: 1, role_id: 10, table_name: 'orders', can_read: true },
+      ],
+    };
+    // one uncached load reads user_roles, roles and table_permissions
+    const LOOKUPS_PER_LOAD = 3;
+
+    it('reloads permissions once the cache entry is older than 5 minutes', async () => {
+      const nocodb = createNocoDB(tables);
+      const service = serviceFor(nocodb);
+
+      await service.getUserPermissions(1);
+      jest.advanceTimersByTime(4 * 60 * 1000);
+      await service.getUserPermissions(1);
+      expect(nocodb.listAll).toHaveBeenCalledTimes(LOOKUPS_PER_LOAD);
+
+      jest.advanceTimersByTime(2 * 60 * 1000);
+      await service.getUserPermissions(1);
+      expect(nocodb.listAll).toHaveBeenCalledTimes(2 * LOOKUPS_PER_LOAD);
+    });
+
+    it('does not keep timers running, so the process can shut down', async () => {
+      await serviceFor(createNocoDB(tables)).getUserPermissions(1);
+
+      expect(jest.getTimerCount()).toBe(0);
     });
   });
 
