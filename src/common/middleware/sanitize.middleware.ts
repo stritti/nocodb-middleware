@@ -137,7 +137,21 @@ export class SanitizeMiddleware implements NestMiddleware {
         : DEFAULT_OPTIONS.query;
 
     if (req.query && typeof req.query === 'object') {
-      req.query = this.sanitizeValue(req.query, options, 'query') as ParsedQs;
+      const sanitized = this.sanitizeValue(
+        req.query,
+        options,
+        'query',
+      ) as ParsedQs;
+
+      // Express 5 defines `req.query` as a prototype getter that re-parses
+      // the URL on every access and cannot be assigned. Shadow it with an
+      // own property so all later handlers see the sanitized values.
+      Object.defineProperty(req, 'query', {
+        value: sanitized,
+        writable: true,
+        enumerable: true,
+        configurable: true,
+      });
     }
   }
 
