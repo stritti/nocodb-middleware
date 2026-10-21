@@ -39,6 +39,7 @@ const mockNocoDBService = {
   create: jest.fn().mockResolvedValue({ id: 1 }),
   update: jest.fn().mockResolvedValue({ id: 1 }),
   list: jest.fn().mockResolvedValue({ list: [] }),
+  listAll: jest.fn().mockResolvedValue([]),
   read: jest.fn().mockResolvedValue({ id: 1 }),
   delete: jest.fn().mockResolvedValue(undefined),
   exists: jest.fn().mockResolvedValue(false),
@@ -47,8 +48,8 @@ const mockNocoDBService = {
   getTablePrefix: jest.fn().mockReturnValue(''),
   getClient: jest.fn().mockReturnValue({}),
   listTables: jest.fn().mockResolvedValue([
-    { id: 't1', table_name: 'customers', title: 'Customers' },
-    { id: 't2', table_name: 'users', title: 'Users' },
+    { id: 't1', title: 'customers' },
+    { id: 't2', title: 'users' },
   ]),
 };
 
@@ -257,7 +258,7 @@ describe('Auth Flow (e2e)', () => {
         .expect(({ body }) => {
           // internal system tables (users, roles, ...) are filtered out
           expect(body).toEqual([
-            { id: 't1', tableName: 'customers', title: 'Customers' },
+            { id: 't1', tableName: 'customers', title: 'customers' },
           ]);
         });
     });

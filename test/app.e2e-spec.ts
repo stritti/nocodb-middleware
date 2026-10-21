@@ -39,7 +39,7 @@ describe('AppController (e2e)', () => {
         getTablePrefix: jest.fn().mockReturnValue(''),
         getBaseId: jest.fn().mockReturnValue('test-base-id'),
         getTableByName: jest.fn((name: string) =>
-          Promise.resolve({ id: `id_${name}`, table_name: name }),
+          Promise.resolve({ id: `id_${name}`, title: name }),
         ),
         getTableMetadata: jest.fn().mockResolvedValue({
           columns: [
@@ -57,6 +57,7 @@ describe('AppController (e2e)', () => {
         createTable: jest.fn().mockResolvedValue({ id: 'new-table-id' }),
         createColumn: jest.fn().mockResolvedValue({ id: 'new-column-id' }),
         list: jest.fn().mockResolvedValue({ list: [{ id: 1 }] }),
+        listAll: jest.fn().mockResolvedValue([]),
         findOne: jest.fn().mockResolvedValue(null),
         // Echo the persisted payload so tests can assert what was stored
         create: jest.fn((_tableId: string, data: object) =>
