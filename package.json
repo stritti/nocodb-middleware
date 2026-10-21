@@ -63,7 +63,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.6",
     "@eslint/js": "^10.0.1",
-    "@fission-ai/openspec": "^1.8.0",
+    "@fission-ai/openspec": "^1.9.0",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "@nestjs/cli": "^11.0.24",
     "@nestjs/schematics": "^11.1.0",
