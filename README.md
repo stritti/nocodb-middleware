@@ -50,6 +50,9 @@ That distinction matters for security. A browser-only SPA should not be told to 
 
 ## Quick start
 
+Requires Node.js `>=24.9.0` and npm. Jest needs this Node version to run tests
+against NestJS 12's ESM-only packages.
+
 ### 1. Install dependencies
 
 ```bash
