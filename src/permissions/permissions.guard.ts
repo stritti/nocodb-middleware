@@ -8,6 +8,7 @@ import {
 import { Reflector } from '@nestjs/core';
 import { PermissionsService } from './permissions.service';
 import { CrudAction } from './enums/crud-action.enum';
+import { hasScopePermission } from './scope-permission.util';
 
 export const REQUIRE_PERMISSIONS_KEY = 'requirePermissions';
 
@@ -51,7 +52,7 @@ export class PermissionsGuard implements CanActivate {
     // Check all required permissions
     for (const permission of requiredPermissions) {
       const hasPermission =
-        hasScopePermission(user, permission) ||
+        hasScopePermission(user.scope, permission.table, permission.action) ||
         (await this.permissionsService.canUserPerformAction(
           Number(user.userId),
           permission.table,
@@ -71,25 +72,4 @@ export class PermissionsGuard implements CanActivate {
     // All permissions satisfied
     return true;
   }
-}
-
-function hasScopePermission(
-  user: RequestUser,
-  requiredPermission: RequiredPermission,
-): boolean {
-  const scope = Array.isArray(user.scope) ? user.scope : [];
-
-  if (scope.length === 0) {
-    return false;
-  }
-
-  const action = requiredPermission.action;
-  const table = requiredPermission.table;
-
-  return (
-    scope.includes(`${table}:${action}`) ||
-    scope.includes(`${table}:*`) ||
-    scope.includes(`*:${action}`) ||
-    scope.includes('*:*')
-  );
 }
