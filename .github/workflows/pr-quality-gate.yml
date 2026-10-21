@@ -26,7 +26,7 @@ jobs:
       - name: Use Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '26'
           cache: 'npm'
 
       - name: Install dependencies
@@ -82,7 +82,7 @@ jobs:
         run: |
           # Generate OpenAPI spec
           npm run generate:openapi
-          
+
           # Check if there are any diffs in the generated spec
           if [ -f openapi.json ]; then
             # Get the diff between current and generated spec

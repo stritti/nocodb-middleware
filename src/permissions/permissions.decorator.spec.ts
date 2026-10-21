@@ -1,4 +1,3 @@
-import { SetMetadata } from '@nestjs/common';
 import {
   RequirePermissions,
   RequireCreate,
@@ -9,10 +8,11 @@ import {
 import { CrudAction } from './enums/crud-action.enum';
 import { REQUIRE_PERMISSIONS_KEY } from './permissions.guard';
 
-jest.mock('@nestjs/common', () => ({
-  ...jest.requireActual('@nestjs/common'),
-  SetMetadata: jest.fn().mockReturnValue(() => {}),
-}));
+function applyDecorator(decorator: ClassDecorator) {
+  class DecoratedController {}
+  decorator(DecoratedController);
+  return Reflect.getMetadata(REQUIRE_PERMISSIONS_KEY, DecoratedController);
+}
 
 describe('permissions.decorator', () => {
   afterEach(() => {
@@ -25,9 +25,7 @@ describe('permissions.decorator', () => {
         { table: 'users', action: CrudAction.READ },
         { table: 'roles', action: CrudAction.CREATE },
       ];
-      RequirePermissions(...permissions);
-      expect(SetMetadata).toHaveBeenCalledWith(
-        REQUIRE_PERMISSIONS_KEY,
+      expect(applyDecorator(RequirePermissions(...permissions))).toEqual(
         permissions,
       );
     });
@@ -35,8 +33,7 @@ describe('permissions.decorator', () => {
 
   describe('RequireCreate', () => {
     it('should call SetMetadata with CREATE action', () => {
-      RequireCreate('users');
-      expect(SetMetadata).toHaveBeenCalledWith(REQUIRE_PERMISSIONS_KEY, [
+      expect(applyDecorator(RequireCreate('users'))).toEqual([
         { table: 'users', action: CrudAction.CREATE },
       ]);
     });
@@ -44,8 +41,7 @@ describe('permissions.decorator', () => {
 
   describe('RequireRead', () => {
     it('should call SetMetadata with READ action', () => {
-      RequireRead('orders');
-      expect(SetMetadata).toHaveBeenCalledWith(REQUIRE_PERMISSIONS_KEY, [
+      expect(applyDecorator(RequireRead('orders'))).toEqual([
         { table: 'orders', action: CrudAction.READ },
       ]);
     });
@@ -53,8 +49,7 @@ describe('permissions.decorator', () => {
 
   describe('RequireUpdate', () => {
     it('should call SetMetadata with UPDATE action', () => {
-      RequireUpdate('products');
-      expect(SetMetadata).toHaveBeenCalledWith(REQUIRE_PERMISSIONS_KEY, [
+      expect(applyDecorator(RequireUpdate('products'))).toEqual([
         { table: 'products', action: CrudAction.UPDATE },
       ]);
     });
@@ -62,8 +57,7 @@ describe('permissions.decorator', () => {
 
   describe('RequireDelete', () => {
     it('should call SetMetadata with DELETE action', () => {
-      RequireDelete('items');
-      expect(SetMetadata).toHaveBeenCalledWith(REQUIRE_PERMISSIONS_KEY, [
+      expect(applyDecorator(RequireDelete('items'))).toEqual([
         { table: 'items', action: CrudAction.DELETE },
       ]);
     });
