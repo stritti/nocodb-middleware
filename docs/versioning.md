@@ -1,128 +1,80 @@
 # Versioning Strategy
 
-This project follows **Semantic Versioning (SemVer)** — `MAJOR.MINOR.PATCH` — as defined at <https://semver.org>.
+This project follows **Semantic Versioning (SemVer)** — `MAJOR.MINOR.PATCH` —
+as defined at <https://semver.org>.
 
 ## Version Format
 
-```
-MAJOR.MINOR.PATCH
-```
-
-| Segment | When it changes |
-|---------|----------------|
-| **MAJOR** | Backwards-incompatible (breaking) changes |
-| **MINOR** | New, backwards-compatible features |
-| **PATCH** | Backwards-compatible bug fixes and small improvements |
+| Segment   | When it changes                                   |
+| --------- | ------------------------------------------------- |
+| **MAJOR** | Backwards-incompatible changes                    |
+| **MINOR** | New, backwards-compatible features                |
+| **PATCH** | Backwards-compatible fixes and small improvements |
 
 ## Conventional Commits
 
-Commit messages follow the [Conventional Commits](https://www.conventionalcommits.org/) specification.  
-The release pipeline reads the latest commit message and automatically determines the version bump.
+Release Please reads Conventional Commit messages since the previous release.
+Use these prefixes in commit and pull request titles:
 
-### Commit Message Format
+| Prefix                                      | Release    |
+| ------------------------------------------- | ---------- |
+| `fix:`, `perf:`, `refactor:`                | Patch      |
+| `feat:`                                     | Minor      |
+| `!:`, or a `BREAKING CHANGE:` footer        | Major      |
+| `docs:`, `chore:`, `ci:`, `test:`, `style:` | No release |
 
+Breaking changes can be marked in the type, for example `feat!: remove v1 API`,
+or in the commit body:
+
+```text
+feat: replace the request client
+
+BREAKING CHANGE: The httpClient option is removed.
 ```
-<type>[optional scope]: <description>
-
-[optional body]
-
-[optional footer(s)]
-```
-
-### Type → Bump Mapping
-
-| Commit prefix | Example | Bump |
-|---------------|---------|------|
-| `fix:` | `fix: handle null JWT token` | **patch** |
-| `perf:` | `perf: optimize cache lookup` | **patch** |
-| `refactor:` | `refactor: extract query builder` | **patch** |
-| `feat:` | `feat: add user-search endpoint` | **minor** |
-| `feat!:` or `BREAKING CHANGE:` | `feat!: drop Node 16 support` | **major** |
-| `docs:`, `chore:`, `ci:`, `test:`, `style:` | `chore: update deps` | _(no release)_ |
-
-> **Note:** Only commits with a releasable prefix (`fix`, `perf`, `refactor`, `feat`, or a breaking change marker) trigger an automated release.
-> Non-releasable commits (e.g. `docs:`, `chore:`, `ci:`) are merged to `main` without cutting a new version.
-
-### Breaking Changes
-
-A breaking change can be indicated in two ways:
-
-1. **Exclamation mark** after the type:
-   ```
-   feat!: remove deprecated v1 API
-   ```
-
-2. **`BREAKING CHANGE:` footer** in the commit body:
-   ```
-   refactor: replace Axios with fetch
-
-   BREAKING CHANGE: The `httpClient` config key is removed; use `fetchOptions` instead.
-   ```
-
-Both forms trigger a **major** version bump.
 
 ## Release Workflow
 
-The automated release is implemented in [`.github/workflows/release.yml`](../.github/workflows/release.yml).
+Releases are managed by [`.github/workflows/release-please.yml`](../.github/workflows/release-please.yml)
+and the root-level `release-please-config.json` and `.release-please-manifest.json`.
 
-### Automatic releases (push to `main`)
+### Release pull requests
 
-Every push to `main` runs the release workflow.  
-The workflow analyses the latest commit message:
+On every push to `main`, Release Please reads Conventional Commit messages since
+the last release and opens or updates a release pull request when a version bump
+is due. The pull request updates `package.json`, `package-lock.json` and
+`CHANGELOG.md`. Review the generated version and changelog like any other change.
 
-```
-push to main
-     │
-     ▼
-Detect bump type from commit message
-     │
-     ├─ No releasable prefix → exit (no release)
-     │
-     ├─ fix / perf / refactor → patch
-     ├─ feat                  → minor
-     └─ BREAKING CHANGE / !   → major
-              │
-              ▼
-        Calculate new version
-        (read package.json → increment)
-              │
-              ▼
-        Update package.json
-        Commit "[skip ci]"
-        Create annotated git tag
-        Push tag to main
-              │
-              ▼
-        Create GitHub Release
-        (with auto-generated release notes)
-```
+After the release pull request is merged, Release Please creates the Git tag and
+GitHub Release. It does not publish an npm package or a container image.
 
-### Manual releases (`workflow_dispatch`)
+The workflow can also be started manually from **Actions → Release Please → Run
+workflow**. This runs the same release-pull-request calculation; it no longer
+accepts a manual `bump_type`. Use a Conventional Commit such as `feat:` or
+`fix:` to select the release level.
 
-You can also trigger a release manually from the **Actions** tab:
+### Action token
 
-1. Go to **Actions → Release**.
-2. Click **Run workflow**.
-3. Choose a `bump_type`:
-   - `auto` — let the workflow detect from the latest commit (same as automatic)
-   - `patch` — force a patch bump
-   - `minor` — force a minor bump
-   - `major` — force a major bump
-4. Click **Run workflow**.
+The workflow uses `GITHUB_TOKEN` by default. To make workflows such as CI run on
+the generated release pull request, configure a repository secret named
+`RELEASE_PLEASE_TOKEN` with a token permitted to create pull requests and write
+repository contents. The workflow prefers that secret when present and falls
+back to `GITHUB_TOKEN` otherwise. Follow your organization's token policy and
+grant only the required repository access.
 
-Use the manual trigger when:
-- Multiple fix commits were squash-merged and a single patch release is desired.
-- A minor or major bump needs to be forced (e.g. after a large batch of `chore:` commits that still represent a meaningful release).
+## Current Version
 
-## Initial Version
+The latest published GitHub Release is `v0.6.0`. The repository also contains a
+`v0.6.1` tag and matching package version on a commit that is not part of `main`.
+The Release Please manifest starts at `0.6.1` so a future release does not try to
+reuse that existing tag. The package files on `main` are updated by the next
+generated release pull request.
 
-The project starts at **`0.0.1`**.  
-Version `0.x.y` means the public API is not yet stable.  
-Once the API is considered stable, the version will be bumped to `1.0.0` with a **major** release.
+Version `0.x.y` means the public API is not yet stable. Once the API is
+considered stable, the project can move to `1.0.0` with a major release.
 
 ## Changelog
 
-GitHub automatically generates release notes from pull-request titles and commit
-messages when a release is created.  See the
+Release Please updates `CHANGELOG.md` in the release pull request. GitHub also
+generates release notes when the GitHub Release is created. See the
 [Releases page](https://github.com/stritti/nocodb-middleware/releases) for the
 full history.
