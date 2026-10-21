@@ -44,6 +44,18 @@ const client = new NocodbMiddlewareClient({
 // Inject tokens obtained from your external IdP:
 client.auth.setTokens({ accessToken: '<your-jwt>' });
 
+// Read and write table data:
+interface Product { id: number; Name: string; Price: number }
+
+const { list, pageInfo } = await client.records.list<Product>('products', {
+  where: '(Price,gt,10)',
+  sort: '-Price',
+  limit: 20,
+});
+const created = await client.records.create<Product>('products', { Name: 'Pen', Price: 2 });
+await client.records.update<Product>('products', created.id, { Price: 3 });
+await client.records.delete('products', created.id);
+
 // List tables exposed by the middleware:
 const tables = await client.admin.listTables();
 console.log(tables);
@@ -255,6 +267,21 @@ const client = new NocodbMiddlewareClient({
 | `setTablePermissions(roleId, tableName, flags)`      | Set CRUD flags for a role on a table  |
 | `createUser(dto)`                                    | Provision a new user                  |
 | `healthCheck()`                                      | Check Middleware health status        |
+
+### `client.records` – `RecordsService`
+
+Calls the Middleware data API `/data/:table`. Access is checked per table and action on the server; without permission the call rejects with a `MiddlewareError` with `statusCode` 403.
+
+| Method                         | Description                                                  |
+| ------------------------------ | ------------------------------------------------------------ |
+| `list<T>(table, options?)`     | `{ list, pageInfo }`; options: `where`, `sort`, `limit` (≤100), `offset` |
+| `read<T>(table, id)`           | Single record; rejects with 404 if missing                   |
+| `create<T>(table, data)`       | Create a record and return it                                |
+| `update<T>(table, id, data)`   | Update fields and return the record                          |
+| `delete(table, id)`            | Delete a record                                              |
+| `findOne<T>(table, where)`     | First match or `null`                                        |
+
+> Requires a Middleware version with the data API (`/data/:table`).
 
 ---
 

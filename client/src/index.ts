@@ -9,6 +9,12 @@
 export { NocodbMiddlewareClient } from './client';
 export { AuthService } from './services/auth.service';
 export { AdminService } from './services/admin.service';
+export { RecordsService } from './services/records.service';
+export type {
+  ListOptions,
+  PageInfo,
+  RecordList,
+} from './services/records.service';
 export type {
   TableMeta,
   Role,

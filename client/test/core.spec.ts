@@ -82,12 +82,13 @@ describe('NocodbMiddlewareClient', () => {
     );
   });
 
-  it('exposes auth and admin services', () => {
+  it('exposes auth, admin and records services', () => {
     const client = new NocodbMiddlewareClient({
       baseUrl: 'http://localhost:3000',
     });
     expect(client.auth).toBeDefined();
     expect(client.admin).toBeDefined();
+    expect(client.records).toBeDefined();
   });
 
   it('accepts custom token storage', () => {
