@@ -9,6 +9,7 @@ import { ConfigService } from '@nestjs/config';
 import { Api } from 'nocodb-sdk';
 import axios, { AxiosInstance, AxiosError, isAxiosError } from 'axios';
 import axiosRetry from 'axios-retry';
+import { shouldRetryNocoDBRequest } from './nocodb-retry.util';
 import { TelemetryService } from '../tracing/telemetry.service';
 import { NocoDBException } from './exceptions/nocodb.exception';
 import {
@@ -173,22 +174,9 @@ export class NocoDBService implements OnModuleInit {
         const jitter = delay * 0.25 * (Math.random() * 2 - 1);
         return Math.round(delay + jitter);
       },
-      retryCondition: (error: AxiosError) => {
-        // Retry on network errors or idempotent methods (GET, HEAD, PUT, DELETE, OPTIONS)
-        // that returned any error status – these are safe to replay.
-        if (axiosRetry.isNetworkOrIdempotentRequestError(error)) {
-          return true;
-        }
-        // 429 (rate limited) is safe to retry for all methods; the server
-        // did not process the request.
-        if (error.response?.status === 429) {
-          return true;
-        }
-        // Do NOT retry non-idempotent methods on 5xx – the request may have
-        // been processed (e.g. a POST that created a record before the
-        // connection dropped).
-        return false;
-      },
+      // Only reads are replayed on 5xx/network errors; writes may already
+      // have been applied by NocoDB. See shouldRetryNocoDBRequest.
+      retryCondition: shouldRetryNocoDBRequest,
       onRetry: (retryCountParam: number, error: AxiosError) => {
         this.logger.warn(
           `[axios-retry] Retrying NocoDB request (attempt ${retryCountParam}) after: ${error.message}`,
