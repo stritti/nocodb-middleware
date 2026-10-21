@@ -1,193 +1,193 @@
-import { Test, TestingModule } from '@nestjs/testing';
 import { Logger } from '@nestjs/common';
-import { DatabaseInitializationService } from './database-initialization.service';
+import {
+  DatabaseInitializationService,
+  SYSTEM_TABLES,
+} from './database-initialization.service';
 import { NocoDBService } from './nocodb.service';
+import { NocoFieldDefinition, NocoRecord } from './nocodb.types';
+
+interface FakeTable {
+  id: string;
+  title: string;
+  fields: NocoFieldDefinition[];
+  records: NocoRecord[];
+}
+
+/** Minimal in-memory stand-in for the parts of NocoDBService used here. */
+function createFakeNocoDB(existing: FakeTable[] = []) {
+  const tables = new Map(existing.map((t) => [t.title, t]));
+  const byId = () => new Map([...tables.values()].map((t) => [t.id, t]));
+  let nextId = 100;
+
+  const matches = (record: NocoRecord, where: string) =>
+    [...where.matchAll(/\((\w+),eq,"?([^")]*)"?\)/g)].every(
+      ([, field, value]) => String(record[field]) === value,
+    );
+
+  const fake = {
+    getTablePrefix: jest.fn(() => ''),
+    getTableByName: jest.fn((name: string) =>
+      Promise.resolve(tables.get(name) ?? null),
+    ),
+    getTableMetadata: jest.fn((id: string) => Promise.resolve(byId().get(id)!)),
+    createTable: jest.fn(
+      (name: string, _title: string, fields: NocoFieldDefinition[]) => {
+        const table = { id: `t_${name}`, title: name, fields, records: [] };
+        tables.set(name, table);
+        return Promise.resolve(table);
+      },
+    ),
+    createColumn: jest.fn((id: string, field: NocoFieldDefinition) => {
+      byId().get(id)!.fields.push(field);
+      return Promise.resolve({});
+    }),
+    list: jest.fn((id: string, options: { where?: string }) =>
+      Promise.resolve({
+        list: byId()
+          .get(id)!
+          .records.filter((r) => matches(r, options.where ?? '')),
+      }),
+    ),
+    findOne: jest.fn((id: string, where: string) =>
+      Promise.resolve(
+        byId()
+          .get(id)!
+          .records.find((r) => matches(r, where)) ?? null,
+      ),
+    ),
+    create: jest.fn((id: string, data: Record<string, unknown>) => {
+      const record = { id: nextId++, ...data };
+      byId().get(id)!.records.push(record);
+      return Promise.resolve(record);
+    }),
+    update: jest.fn((id: string, recordId: number, data: object) => {
+      const record = byId()
+        .get(id)!
+        .records.find((r) => r.id === recordId)!;
+      Object.assign(record, data);
+      return Promise.resolve(record);
+    }),
+    tables,
+  };
+  return fake;
+}
+
+function serviceFor(fake: ReturnType<typeof createFakeNocoDB>) {
+  return new DatabaseInitializationService(fake as unknown as NocoDBService);
+}
 
 describe('DatabaseInitializationService', () => {
-  let service: DatabaseInitializationService;
-  let nocoDBService: NocoDBService;
-  let mockHttpClient: any;
-
-  beforeEach(async () => {
-    mockHttpClient = {
-      get: jest.fn(),
-      post: jest.fn(),
-      defaults: { baseURL: 'http://test-url' },
-    };
-
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        DatabaseInitializationService,
-        {
-          provide: NocoDBService,
-          useValue: {
-            getTablePrefix: jest.fn().mockReturnValue(''),
-            getTableByName: jest.fn(),
-            getTableMetadata: jest.fn(),
-            listBaseTables: jest.fn(),
-            createTable: jest.fn(),
-            createColumn: jest.fn(),
-            getHttpClient: jest.fn().mockReturnValue(mockHttpClient),
-            list: jest.fn(),
-            create: jest.fn(),
-            findOne: jest.fn(),
-            update: jest.fn(),
-            delete: jest.fn(),
-          },
-        },
-      ],
-    }).compile();
-
-    service = module.get<DatabaseInitializationService>(
-      DatabaseInitializationService,
-    );
-    nocoDBService = module.get<NocoDBService>(NocoDBService);
-
+  beforeEach(() => {
     jest.spyOn(Logger.prototype, 'log').mockImplementation(() => {});
-    jest.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
     jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+    jest.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
   });
 
   afterEach(() => {
     jest.restoreAllMocks();
   });
 
-  it('should be defined', () => {
-    expect(service).toBeDefined();
+  it('creates all system tables with their fields', async () => {
+    const fake = createFakeNocoDB();
+
+    await serviceFor(fake).onModuleInit();
+
+    for (const definition of SYSTEM_TABLES) {
+      const table = fake.tables.get(definition.tableName);
+      expect(table?.fields.map((f) => f.title)).toEqual(
+        definition.fields.map((f) => f.title),
+      );
+    }
   });
 
-  it('should initialize identity columns on users table', async () => {
-    (nocoDBService.getTableByName as jest.Mock).mockResolvedValue(null);
-    (nocoDBService.createTable as jest.Mock).mockResolvedValue({
-      id: 'created-table-id',
-    });
+  it('keys relations by numeric id fields', () => {
+    const fieldsOf = (name: string) =>
+      SYSTEM_TABLES.find((t) => t.tableName === name)!.fields;
 
-    await (service as any).initializeTables();
-
-    expect(nocoDBService.createTable).toHaveBeenCalledWith(
-      'users',
-      'Users',
+    expect(fieldsOf('user_roles')).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ column_name: 'auth_provider' }),
-        expect.objectContaining({ column_name: 'external_subject' }),
+        { title: 'user_id', type: 'Number' },
+        { title: 'role_id', type: 'Number' },
       ]),
+    );
+    expect(fieldsOf('table_permissions')).toEqual(
+      expect.arrayContaining([{ title: 'role_id', type: 'Number' }]),
     );
   });
 
-  describe('ensureTableExists', () => {
-    it('should create table if it does not exist', async () => {
-      (nocoDBService.getTableByName as jest.Mock).mockResolvedValue(null);
-      (nocoDBService.createTable as jest.Mock).mockResolvedValue({
-        id: 'new-table-id',
-      });
+  it('adds only the missing fields to an existing table', async () => {
+    const fake = createFakeNocoDB([
+      {
+        id: 't_users',
+        title: 'users',
+        fields: [{ title: 'username', type: 'SingleLineText' }],
+        records: [],
+      },
+    ]);
 
-      const result = await (service as any).ensureTableExists({
-        tableName: 'test_table',
-        title: 'Test Table',
-        columns: [{ name: 'col1', title: 'Col 1', type: 'SingleLineText' }],
-      });
+    await serviceFor(fake).onModuleInit();
 
-      expect(nocoDBService.createTable).toHaveBeenCalledWith(
-        'test_table',
-        'Test Table',
-        expect.arrayContaining([
-          expect.objectContaining({ column_name: 'col1' }),
-        ]),
-      );
-      expect(result).toBe('new-table-id');
-    });
-
-    it('should return existing table ID if found', async () => {
-      (nocoDBService.getTableByName as jest.Mock).mockResolvedValue({
-        id: 'existing-id',
-      });
-      mockHttpClient.get.mockResolvedValue({ data: { columns: [] } });
-
-      const result = await (service as any).ensureTableExists({
-        tableName: 'test_table',
-        title: 'Test Table',
-        columns: [],
-      });
-
-      expect(nocoDBService.createTable).not.toHaveBeenCalled();
-      expect(result).toBe('existing-id');
-    });
+    expect(fake.createTable).not.toHaveBeenCalledWith(
+      'users',
+      expect.anything(),
+      expect.anything(),
+    );
+    expect(fake.createColumn).not.toHaveBeenCalledWith(
+      't_users',
+      expect.objectContaining({ title: 'username' }),
+    );
+    expect(fake.createColumn).toHaveBeenCalledWith(
+      't_users',
+      expect.objectContaining({ title: 'password_hash' }),
+    );
   });
 
-  describe('verifyLinkColumnsExist', () => {
-    it('should continue if required link columns are missing (only logs error)', async () => {
-      (nocoDBService.getTableByName as jest.Mock).mockImplementation((name) => {
-        return Promise.resolve({ id: `id_${name}`, title: name });
-      });
+  it('seeds the admin role with full access to the system tables', async () => {
+    const fake = createFakeNocoDB();
 
-      mockHttpClient.get.mockImplementation((url: string) => {
-        if (url.includes('/api/v3/meta/tables/')) {
-          return Promise.resolve({ data: { columns: [] } });
-        }
-        return Promise.resolve({ data: {} });
-      });
+    await serviceFor(fake).onModuleInit();
 
-      await expect(
-        (service as any).verifyLinkColumnsExist(),
-      ).resolves.not.toThrow();
-    });
+    const admin = fake.tables
+      .get('roles')!
+      .records.find((r) => r.role_name === 'admin')!;
+    const permissions = fake.tables.get('table_permissions')!.records;
 
-    it('should pass if all link columns exist', async () => {
-      (nocoDBService.getTableByName as jest.Mock).mockImplementation((name) => {
-        return Promise.resolve({ id: `id_${name}`, title: name });
-      });
-
-      mockHttpClient.get.mockImplementation((url: string) => {
-        if (url.includes('/api/v3/meta/tables/id_user_roles')) {
-          return Promise.resolve({
-            data: {
-              columns: [
-                { column_name: 'user', uidt: 'LinkToAnotherRecord' },
-                { column_name: 'role', uidt: 'LinkToAnotherRecord' },
-              ],
-            },
-          });
-        }
-        if (url.includes('/api/v3/meta/tables/id_table_permissions')) {
-          return Promise.resolve({
-            data: {
-              columns: [{ column_name: 'role', uidt: 'LinkToAnotherRecord' }],
-            },
-          });
-        }
-        return Promise.resolve({ data: { columns: [] } });
-      });
-
-      await expect(
-        (service as any).verifyLinkColumnsExist(),
-      ).resolves.not.toThrow();
-    });
-  });
-
-  describe('seedDefaultPermissions', () => {
-    it('should grant full admin permissions for protected tables', async () => {
-      (nocoDBService.getTableByName as jest.Mock).mockImplementation((name) =>
-        Promise.resolve({ id: `id_${name}`, title: name }),
-      );
-      (nocoDBService.list as jest.Mock).mockResolvedValue({
-        list: [{ id: 1, role_name: 'admin' }],
-      });
-      (nocoDBService.findOne as jest.Mock).mockResolvedValue(null);
-      (nocoDBService.create as jest.Mock).mockResolvedValue({ id: 10 });
-
-      await (service as any).seedDefaultPermissions();
-
-      expect(nocoDBService.create).toHaveBeenCalledTimes(4);
-      expect(nocoDBService.create).toHaveBeenCalledWith(
-        'id_table_permissions',
+    expect(permissions.map((p) => p.table_name).sort()).toEqual([
+      'roles',
+      'table_permissions',
+      'user_roles',
+      'users',
+    ]);
+    expect(permissions).toEqual(
+      permissions.map(() =>
         expect.objectContaining({
-          table_name: 'roles',
+          role_id: admin.id,
           can_create: true,
           can_read: true,
           can_update: true,
           can_delete: true,
         }),
-      );
-    });
+      ),
+    );
+  });
+
+  it('does not duplicate the seed on restart', async () => {
+    const fake = createFakeNocoDB();
+
+    await serviceFor(fake).onModuleInit();
+    await serviceFor(fake).onModuleInit();
+
+    expect(fake.tables.get('roles')!.records).toHaveLength(1);
+    expect(fake.tables.get('table_permissions')!.records).toHaveLength(4);
+    expect(fake.createTable).toHaveBeenCalledTimes(SYSTEM_TABLES.length);
+  });
+
+  it('skips seeding when a table cannot be created', async () => {
+    const fake = createFakeNocoDB();
+    fake.createTable.mockRejectedValueOnce(new Error('NocoDB unavailable'));
+
+    await serviceFor(fake).onModuleInit();
+
+    expect(fake.create).not.toHaveBeenCalled();
   });
 });

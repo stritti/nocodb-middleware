@@ -1,69 +1,92 @@
-import { Injectable, OnModuleInit, Logger, Optional } from '@nestjs/common';
+import {
+  HttpStatus,
+  Injectable,
+  OnModuleInit,
+  Logger,
+  Optional,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Api } from 'nocodb-sdk';
-import axios, { AxiosInstance, AxiosError } from 'axios';
+import axios, { AxiosInstance, AxiosError, isAxiosError } from 'axios';
 import axiosRetry from 'axios-retry';
 import { TelemetryService } from '../tracing/telemetry.service';
+import { NocoDBException } from './exceptions/nocodb.exception';
 import {
+  NocoFieldDefinition,
   NocoTableMeta,
   NocoRecord,
   NocoRecordListResponse,
   NocoRecordResponse,
-  NestedIncludes,
 } from './nocodb.types';
 
-// ─── NocoDB API path constants ──────────────────────────────────────────────
+// ─── NocoDB v3 API paths ────────────────────────────────────────────────────
+// https://nocodb.com/apis/v3/meta and https://nocodb.com/apis/v3/data
 
-const META_API_BASE = '/api/v3/meta';
-const DATA_API_BASE = '/api/v3/tables';
+const META_BASE_PATH = (baseId: string) => `/api/v3/meta/bases/${baseId}`;
+const TABLES_PATH = (baseId: string) => `${META_BASE_PATH(baseId)}/tables`;
+const TABLE_PATH = (baseId: string, tableId: string) =>
+  `${TABLES_PATH(baseId)}/${tableId}`;
+const FIELDS_PATH = (baseId: string, tableId: string) =>
+  `${TABLE_PATH(baseId, tableId)}/fields`;
 
-const TABLE_META_PATH = (tableId: string) =>
-  `${META_API_BASE}/tables/${tableId}`;
-const BASE_TABLES_PATH = (baseId: string) =>
-  `${META_API_BASE}/bases/${baseId}/tables`;
-const CREATE_TABLE_PATH = (baseId: string) =>
-  `${META_API_BASE}/bases/${baseId}/tables`;
-const COLUMN_PATH = (tableId: string) =>
-  `${META_API_BASE}/tables/${tableId}/columns`;
-const RECORDS_PATH = (tableId: string) => `${DATA_API_BASE}/${tableId}/records`;
-const RECORD_PATH = (tableId: string, recordId: number) =>
-  `${DATA_API_BASE}/${tableId}/records/${recordId}`;
+const DATA_TABLE_PATH = (baseId: string, tableId: string) =>
+  `/api/v3/data/${baseId}/${tableId}`;
+const RECORDS_PATH = (baseId: string, tableId: string) =>
+  `${DATA_TABLE_PATH(baseId, tableId)}/records`;
+const RECORD_PATH = (baseId: string, tableId: string, recordId: number) =>
+  `${RECORDS_PATH(baseId, tableId)}/${recordId}`;
+const COUNT_PATH = (baseId: string, tableId: string) =>
+  `${DATA_TABLE_PATH(baseId, tableId)}/count`;
 
 // ─── Data API option interfaces ─────────────────────────────────────────────
 
-export interface CreateOptions {
-  includeFields?: string[];
-}
-
 export interface ReadOptions {
   fields?: string[];
-  includeRelations?: string[];
 }
 
 export interface FilterOptions {
+  /** NocoDB where expression, build it with nocodb-filter.util. */
   where?: string;
+  /** Comma-separated field titles, `-` prefix for descending: `-age,name`. */
   sort?: string;
   fields?: string[];
   limit?: number;
   offset?: number;
-  includeRelations?: string[];
+  /** Also fetch the total number of matching records (extra request). */
+  withCount?: boolean;
 }
 
-export interface LinkDefinition {
-  fieldName: string;
-  recordIds: number[];
+/** A record as returned by the NocoDB v3 Data API. */
+interface V3Record {
+  id: number | string;
+  fields?: Record<string, unknown>;
 }
 
-/**
- * Build a nested-includes object for NocoDB's `nested` query parameter
- * without resorting to `as any` casts.
- */
-function buildNestedParams(relations: string[]): NestedIncludes {
-  const acc: NestedIncludes = {};
-  for (const field of relations) {
-    acc[field] = { fields: ['*'] };
-  }
-  return acc;
+/** Turns `{ id, fields: {...} }` into the flat shape used in the middleware. */
+function flattenRecord(record: V3Record): NocoRecord {
+  return { ...(record.fields ?? {}), id: record.id };
+}
+
+/** Converts `-age,name` into the JSON sort format of the v3 Data API. */
+function toV3Sort(sort: string): string {
+  const entries = sort
+    .split(',')
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0)
+    .map((part) => {
+      const descending = part.startsWith('-');
+      const name = descending ? part.slice(1) : part;
+      return {
+        // NocoDB's primary key field is titled `Id`.
+        field: name === 'id' ? 'Id' : name,
+        direction: descending ? 'desc' : 'asc',
+      };
+    });
+  return JSON.stringify(entries);
+}
+
+function isNotFound(error: unknown): boolean {
+  return isAxiosError(error) && error.response?.status === HttpStatus.NOT_FOUND;
 }
 
 /**
@@ -217,16 +240,6 @@ export class NocoDBService implements OnModuleInit {
     return this.httpClient;
   }
 
-  async getTableMetadata(tableId: string): Promise<NocoTableMeta> {
-    const response = await this.httpClient.get(TABLE_META_PATH(tableId));
-    return response.data as NocoTableMeta;
-  }
-
-  async listBaseTables(baseId = this.baseId): Promise<NocoTableMeta[]> {
-    const response = await this.httpClient.get(BASE_TABLES_PATH(baseId));
-    return (response.data.list ?? []) as NocoTableMeta[];
-  }
-
   // ── Tracing helper ────────────────────────────────────────────────────────
 
   /**
@@ -243,27 +256,23 @@ export class NocoDBService implements OnModuleInit {
       : fn();
   }
 
-  // ── Meta API – table management ───────────────────────────────────────────
+  // ── Meta API – tables and fields ──────────────────────────────────────────
 
   private getPrefixedTableName(tableName: string): string {
     return `${this.tablePrefix}${tableName}`;
   }
 
-  /**
-   * Check if a table exists in the base.
-   */
-  async tableExists(tableName: string): Promise<boolean> {
-    const prefixedName = this.getPrefixedTableName(tableName);
-    try {
-      const tables = await this.listTables();
-      return tables.some((table) => table.table_name === prefixedName);
-    } catch (error) {
-      this.logger.error(
-        `Error checking if table ${prefixedName} exists:`,
-        error,
-      );
-      throw error;
-    }
+  /** Table with its fields. */
+  async getTableMetadata(tableId: string): Promise<NocoTableMeta> {
+    const response = await this.httpClient.get(
+      TABLE_PATH(this.baseId, tableId),
+    );
+    return response.data as NocoTableMeta;
+  }
+
+  async listBaseTables(baseId = this.baseId): Promise<NocoTableMeta[]> {
+    const response = await this.httpClient.get(TABLES_PATH(baseId));
+    return (response.data.list ?? []) as NocoTableMeta[];
   }
 
   /**
@@ -271,7 +280,7 @@ export class NocoDBService implements OnModuleInit {
    */
   async listTables(): Promise<NocoTableMeta[]> {
     try {
-      return this.listBaseTables();
+      return await this.listBaseTables();
     } catch (error) {
       this.logger.error(`Error listing tables for base ${this.baseId}:`, error);
       throw error;
@@ -279,13 +288,25 @@ export class NocoDBService implements OnModuleInit {
   }
 
   /**
-   * Get table details by name.
+   * Check if a table exists in the base.
+   */
+  async tableExists(tableName: string): Promise<boolean> {
+    return (await this.getTableByName(tableName)) !== null;
+  }
+
+  /**
+   * Find a table by its (unprefixed) name. Tables are matched by title, which
+   * is how NocoDB v3 identifies them; the physical `table_name` is accepted
+   * as a fallback for older NocoDB versions.
    */
   async getTableByName(tableName: string): Promise<NocoTableMeta | null> {
     const prefixedName = this.getPrefixedTableName(tableName);
     try {
       const tables = await this.listTables();
-      const table = tables.find((t) => t.table_name === prefixedName) ?? null;
+      const table =
+        tables.find((t) => t.title === prefixedName) ??
+        tables.find((t) => t.table_name === prefixedName) ??
+        null;
       if (!table) {
         this.logger.warn(`Table ${prefixedName} not found`);
       }
@@ -297,26 +318,24 @@ export class NocoDBService implements OnModuleInit {
   }
 
   /**
-   * Create a new table in the base.
+   * Create a new table in the base. The table is titled with the prefixed
+   * `tableName` so {@link getTableByName} can find it; `title` is kept for
+   * API compatibility and stored as the table description.
    */
   async createTable(
     tableName: string,
     title: string,
-    columns: Record<string, unknown>[] = [],
-  ): Promise<NocoRecordResponse> {
+    fields: NocoFieldDefinition[] = [],
+  ): Promise<NocoTableMeta> {
     const prefixedName = this.getPrefixedTableName(tableName);
-    const prefixedTitle = this.getPrefixedTableName(title);
     try {
-      const response = await this.httpClient.post(
-        CREATE_TABLE_PATH(this.baseId),
-        {
-          table_name: prefixedName,
-          title: prefixedTitle,
-          columns,
-        },
-      );
+      const response = await this.httpClient.post(TABLES_PATH(this.baseId), {
+        title: prefixedName,
+        description: title !== tableName ? title : undefined,
+        fields,
+      });
       this.logger.log(`Table ${prefixedName} created successfully`);
-      return response.data as NocoRecordResponse;
+      return response.data as NocoTableMeta;
     } catch (error) {
       this.logger.error(`Error creating table ${prefixedName}:`, error);
       throw error;
@@ -324,30 +343,21 @@ export class NocoDBService implements OnModuleInit {
   }
 
   /**
-   * Create a new column in a table.
+   * Add a field to a table. Record values are keyed by the field title.
    */
   async createColumn(
     tableId: string,
-    columnName: string,
-    columnType: string,
-    title?: string,
-    additionalOptions?: Record<string, unknown>,
+    field: NocoFieldDefinition,
   ): Promise<NocoRecordResponse> {
     try {
-      const payload = {
-        column_name: columnName,
-        title: title || columnName,
-        uidt: columnType,
-        ...additionalOptions,
-      };
       const response = await this.httpClient.post(
-        COLUMN_PATH(tableId),
-        payload,
+        FIELDS_PATH(this.baseId, tableId),
+        field,
       );
-      this.logger.log(`Column ${columnName} created in table ${tableId}`);
+      this.logger.log(`Field ${field.title} created in table ${tableId}`);
       return response.data as NocoRecordResponse;
     } catch (error) {
-      this.logger.error(`Error creating column ${columnName}:`, error);
+      this.logger.error(`Error creating field ${field.title}:`, error);
       throw error;
     }
   }
@@ -385,31 +395,26 @@ export class NocoDBService implements OnModuleInit {
   // ── Data API v3 – CRUD ────────────────────────────────────────────────────
 
   /**
-   * Create a new record.
+   * Create a new record and return it flat (`{ id, ...fields }`).
    */
   async create(
     tableId: string,
     data: Record<string, unknown>,
-    options?: CreateOptions,
   ): Promise<NocoRecordResponse> {
     return this.trace(
       'nocodb.create',
       async () => {
         await this.enforceRateLimit();
         try {
-          const params: Record<string, string> = {};
-          if (options?.includeFields) {
-            params.fields = options.includeFields.join(',');
-          }
           const response = await this.httpClient.post(
-            RECORDS_PATH(tableId),
-            data,
-            { params },
+            RECORDS_PATH(this.baseId, tableId),
+            { fields: data },
           );
-          this.logger.debug(
-            `Created record in ${tableId}: ${response.data.id}`,
+          const record = flattenRecord(
+            (response.data as { records: V3Record[] }).records[0],
           );
-          return response.data as NocoRecordResponse;
+          this.logger.debug(`Created record in ${tableId}: ${record.id}`);
+          return record;
         } catch (error) {
           this.logger.error(`Error creating record in ${tableId}:`, error);
           throw error;
@@ -420,7 +425,7 @@ export class NocoDBService implements OnModuleInit {
   }
 
   /**
-   * Read a single record.
+   * Read a single record. Returns `null` if it does not exist.
    */
   async read(
     tableId: string,
@@ -436,18 +441,16 @@ export class NocoDBService implements OnModuleInit {
           if (options?.fields) {
             params.fields = options.fields.join(',');
           }
-          if (options?.includeRelations) {
-            params.nested = JSON.stringify(
-              buildNestedParams(options.includeRelations),
-            );
-          }
           const response = await this.httpClient.get(
-            RECORD_PATH(tableId, recordId),
+            RECORD_PATH(this.baseId, tableId, recordId),
             { params },
           );
           this.logger.debug(`Read record ${recordId} from ${tableId}`);
-          return response.data as NocoRecord;
+          return flattenRecord(response.data as V3Record);
         } catch (error) {
+          if (isNotFound(error)) {
+            return null;
+          }
           this.logger.error(
             `Error reading record ${recordId} from ${tableId}:`,
             error,
@@ -464,7 +467,8 @@ export class NocoDBService implements OnModuleInit {
   }
 
   /**
-   * Update a record.
+   * Update fields of a record and return it flat. Throws a 404
+   * {@link NocoDBException} if the record does not exist.
    */
   async update(
     tableId: string,
@@ -477,12 +481,17 @@ export class NocoDBService implements OnModuleInit {
         await this.enforceRateLimit();
         try {
           const response = await this.httpClient.patch(
-            RECORD_PATH(tableId, recordId),
-            data,
+            RECORDS_PATH(this.baseId, tableId),
+            { id: recordId, fields: data },
           );
           this.logger.debug(`Updated record ${recordId} in ${tableId}`);
-          return response.data as NocoRecordResponse;
+          return flattenRecord(
+            (response.data as { records: V3Record[] }).records[0],
+          );
         } catch (error) {
+          if (isNotFound(error)) {
+            throw NocoDBException.recordNotFound(tableId, recordId);
+          }
           this.logger.error(
             `Error updating record ${recordId} in ${tableId}:`,
             error,
@@ -499,7 +508,8 @@ export class NocoDBService implements OnModuleInit {
   }
 
   /**
-   * Delete a record.
+   * Delete a record. Throws a 404 {@link NocoDBException} if it does not
+   * exist.
    */
   async delete(tableId: string, recordId: number): Promise<void> {
     return this.trace(
@@ -507,9 +517,14 @@ export class NocoDBService implements OnModuleInit {
       async () => {
         await this.enforceRateLimit();
         try {
-          await this.httpClient.delete(RECORD_PATH(tableId, recordId));
+          await this.httpClient.delete(RECORDS_PATH(this.baseId, tableId), {
+            data: { id: recordId },
+          });
           this.logger.debug(`Deleted record ${recordId} from ${tableId}`);
         } catch (error) {
+          if (isNotFound(error)) {
+            throw NocoDBException.recordNotFound(tableId, recordId);
+          }
           this.logger.error(
             `Error deleting record ${recordId} from ${tableId}:`,
             error,
@@ -526,7 +541,8 @@ export class NocoDBService implements OnModuleInit {
   }
 
   /**
-   * List records with filtering, sorting, and pagination.
+   * List records with filtering, sorting and offset pagination. With
+   * `withCount`, `pageInfo.totalRows` holds the number of all matches.
    */
   async list(
     tableId: string,
@@ -539,24 +555,33 @@ export class NocoDBService implements OnModuleInit {
         try {
           const params: Record<string, string> = {};
           if (options?.where) params.where = options.where;
-          if (options?.sort) params.sort = options.sort;
+          if (options?.sort) params.sort = toV3Sort(options.sort);
           if (options?.fields) params.fields = options.fields.join(',');
           if (options?.limit !== undefined)
             params.limit = String(options.limit);
           if (options?.offset !== undefined)
             params.offset = String(options.offset);
-          if (options?.includeRelations) {
-            params.nested = JSON.stringify(
-              buildNestedParams(options.includeRelations),
-            );
-          }
-          const response = await this.httpClient.get(RECORDS_PATH(tableId), {
-            params,
-          });
-          this.logger.debug(
-            `Listed ${(response.data as NocoRecordListResponse).list?.length || 0} records from ${tableId}`,
+
+          const response = await this.httpClient.get(
+            RECORDS_PATH(this.baseId, tableId),
+            { params },
           );
-          return response.data as NocoRecordListResponse;
+          const list = (
+            (response.data as { records?: V3Record[] }).records ?? []
+          ).map(flattenRecord);
+          this.logger.debug(`Listed ${list.length} records from ${tableId}`);
+
+          if (!options?.withCount) {
+            return { list };
+          }
+
+          return {
+            list,
+            pageInfo: {
+              totalRows: await this.count(tableId, options.where),
+              pageSize: options.limit,
+            },
+          };
         } catch (error) {
           this.logger.error(`Error listing records from ${tableId}:`, error);
           throw error;
@@ -567,11 +592,49 @@ export class NocoDBService implements OnModuleInit {
   }
 
   /**
+   * List all records matching the options, page by page. Use this instead of
+   * {@link list} whenever a lookup must not miss records: NocoDB returns
+   * only 25 records unless a limit is given.
+   */
+  async listAll(
+    tableId: string,
+    options: Omit<FilterOptions, 'limit' | 'offset' | 'withCount'> = {},
+    pageSize = 1000,
+  ): Promise<NocoRecord[]> {
+    const records: NocoRecord[] = [];
+
+    for (let offset = 0; ; offset += pageSize) {
+      const page = await this.list(tableId, {
+        ...options,
+        limit: pageSize,
+        offset,
+      });
+      records.push(...page.list);
+
+      if (page.list.length < pageSize) {
+        return records;
+      }
+    }
+  }
+
+  /**
+   * Count records matching an optional filter.
+   */
+  async count(tableId: string, where?: string): Promise<number> {
+    await this.enforceRateLimit();
+    const response = await this.httpClient.get(
+      COUNT_PATH(this.baseId, tableId),
+      { params: where ? { where } : {} },
+    );
+    return Number((response.data as { count?: number }).count ?? 0);
+  }
+
+  /**
    * Find a single record by filter.
    */
   async findOne(tableId: string, where: string): Promise<NocoRecord | null> {
     const result = await this.list(tableId, { where, limit: 1 });
-    return result.list && result.list.length > 0 ? result.list[0] : null;
+    return result.list.length > 0 ? result.list[0] : null;
   }
 
   /**
@@ -579,47 +642,6 @@ export class NocoDBService implements OnModuleInit {
    */
   async exists(tableId: string, where: string): Promise<boolean> {
     return (await this.findOne(tableId, where)) !== null;
-  }
-
-  /**
-   * Create a record with linked relationships in a single call.
-   */
-  async createWithLinks(
-    tableId: string,
-    data: Record<string, unknown>,
-    links: LinkDefinition[],
-  ): Promise<NocoRecordResponse> {
-    const payload: Record<string, unknown> = { ...data };
-    for (const link of links) {
-      payload[link.fieldName] = link.recordIds.map((id) => ({ id }));
-    }
-    return this.create(tableId, payload);
-  }
-
-  /**
-   * Update relationships for an existing record.
-   */
-  async updateLinks(
-    tableId: string,
-    recordId: number,
-    links: LinkDefinition[],
-  ): Promise<NocoRecordResponse> {
-    const payload: Record<string, unknown> = {};
-    for (const link of links) {
-      payload[link.fieldName] = link.recordIds.map((id) => ({ id }));
-    }
-    return this.update(tableId, recordId, payload);
-  }
-
-  /**
-   * Get a record with all specified linked relationships.
-   */
-  async getWithLinks(
-    tableId: string,
-    recordId: number,
-    includeFields: string[],
-  ): Promise<NocoRecord | null> {
-    return this.read(tableId, recordId, { includeRelations: includeFields });
   }
 
   /**

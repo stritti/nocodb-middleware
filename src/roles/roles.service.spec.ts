@@ -126,7 +126,7 @@ describe('RolesService', () => {
       expect(result).toEqual({ id: 1, role_name: 'admin' });
       expect(nocoDBService.findOne).toHaveBeenCalledWith(
         'roles_table_id',
-        '(role_name,eq,admin)',
+        '(role_name,eq,"admin")',
       );
     });
 

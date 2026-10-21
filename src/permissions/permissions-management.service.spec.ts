@@ -21,6 +21,7 @@ describe('PermissionsManagementService', () => {
             create: jest.fn(),
             update: jest.fn(),
             list: jest.fn(),
+            listAll: jest.fn(),
             delete: jest.fn(),
           },
         },
@@ -72,13 +73,13 @@ describe('PermissionsManagementService', () => {
 
       expect(nocoDBService.findOne).toHaveBeenCalledWith(
         'perm_table_id',
-        `(role.id,eq,${dto.roleId})~and(table_name,eq,${dto.tableName})`,
+        `(role_id,eq,${dto.roleId})~and(table_name,eq,"${dto.tableName}")`,
       );
       expect(nocoDBService.update).toHaveBeenCalledWith(
         'perm_table_id',
         123,
         expect.objectContaining({
-          role: [{ id: dto.roleId }],
+          role_id: dto.roleId,
           can_create: dto.canCreate,
         }),
       );
@@ -97,7 +98,7 @@ describe('PermissionsManagementService', () => {
       expect(nocoDBService.create).toHaveBeenCalledWith(
         'perm_table_id',
         expect.objectContaining({
-          role: [{ id: dto.roleId }],
+          role_id: dto.roleId,
           table_name: dto.tableName,
         }),
       );
@@ -109,12 +110,17 @@ describe('PermissionsManagementService', () => {
       (nocoDBService.getTableByName as jest.Mock).mockResolvedValue({
         id: 'perm_table_id',
       });
-      (nocoDBService.list as jest.Mock).mockResolvedValue({
-        list: [{ id: 1 }, { id: 2 }],
-      });
+      (nocoDBService.listAll as jest.Mock).mockResolvedValue([
+        { id: 1 },
+        { id: 2 },
+      ]);
       (nocoDBService.delete as jest.Mock).mockResolvedValue(undefined);
 
       await service.deleteRolePermissions(99);
+
+      expect(nocoDBService.listAll).toHaveBeenCalledWith('perm_table_id', {
+        where: '(role_id,eq,99)',
+      });
 
       expect(nocoDBService.delete).toHaveBeenCalledTimes(2);
       expect(nocoDBService.delete).toHaveBeenCalledWith('perm_table_id', 1);
@@ -137,7 +143,7 @@ describe('PermissionsManagementService', () => {
       expect(result.data).toHaveLength(1);
       expect(nocoDBService.list).toHaveBeenCalledWith(
         'perm_table_id',
-        expect.objectContaining({ where: '(role.id,eq,1)' }),
+        expect.objectContaining({ where: '(role_id,eq,1)', withCount: true }),
       );
     });
 
@@ -189,18 +195,16 @@ describe('PermissionsManagementService', () => {
       (nocoDBService.getTableByName as jest.Mock).mockResolvedValue({
         id: 'perm_table_id',
       });
-      (nocoDBService.list as jest.Mock).mockResolvedValue({
-        list: [
-          {
-            id: 1,
-            table_name: 'users',
-            can_create: true,
-            can_read: true,
-            can_update: false,
-            can_delete: false,
-          },
-        ],
-      });
+      (nocoDBService.listAll as jest.Mock).mockResolvedValue([
+        {
+          id: 1,
+          table_name: 'users',
+          can_create: true,
+          can_read: true,
+          can_update: false,
+          can_delete: false,
+        },
+      ]);
       (nocoDBService.findOne as jest.Mock).mockResolvedValue(null);
       (nocoDBService.create as jest.Mock).mockResolvedValue({ id: 2 });
 

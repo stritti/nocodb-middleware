@@ -90,14 +90,14 @@ export class BootstrapAdminService {
         !(await this.nocoDBService.findOne(
           userRolesTable.id,
           andFilters(
-            filterEq('user', existingUserId),
-            filterEq('role', adminRoleId),
+            filterEq('user_id', existingUserId),
+            filterEq('role_id', adminRoleId),
           ),
         ))
       ) {
         await this.nocoDBService.create(userRolesTable.id, {
-          user: [{ id: existingUserId }],
-          role: [{ id: adminRoleId }],
+          user_id: existingUserId,
+          role_id: adminRoleId,
         });
       }
 
@@ -127,8 +127,8 @@ export class BootstrapAdminService {
     const userId = extractNumericId(createdUser);
 
     await this.nocoDBService.create(userRolesTable.id, {
-      user: [{ id: userId }],
-      role: [{ id: adminRoleId }],
+      user_id: userId,
+      role_id: adminRoleId,
     });
 
     return {

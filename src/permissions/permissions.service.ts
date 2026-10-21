@@ -25,9 +25,11 @@ export class PermissionsService {
       const tables = await this.nocoDBService.listBaseTables(baseId);
       const prefix = this.nocoDBService.getTablePrefix();
 
+      // Permissions refer to tables by their logical (unprefixed) name.
       return tables
-        .map((table) => table.table_name)
-        .filter((name: string) => (prefix ? name.startsWith(prefix) : true));
+        .map((table) => table.title)
+        .filter((name) => (prefix ? name.startsWith(prefix) : true))
+        .map((name) => name.slice(prefix.length));
     } catch (error) {
       this.logger.error('Error fetching workspace tables:', error);
       throw error;
@@ -60,23 +62,18 @@ export class PermissionsService {
         return this.createEmptyPermissions(userId, username);
       }
 
-      const userRolesResult = await this.nocoDBService.list(userRolesTable.id, {
-        where: filterEq('user.id', userId),
-        includeRelations: ['role'],
+      const userRoles = await this.nocoDBService.listAll(userRolesTable.id, {
+        where: filterEq('user_id', userId),
+        fields: ['role_id'],
       });
 
-      const roleIds = (userRolesResult.list ?? [])
-        .filter((ur) => {
-          const role = (ur as Record<string, unknown>).role;
-          return Array.isArray(role) && role.length > 0;
-        })
-        .map((ur) => {
-          const role = (ur as Record<string, unknown>).role as Array<{
-            id?: number | string;
-          }>;
-          return role[0].id != null ? Number(role[0].id) : NaN;
-        })
-        .filter((id): id is number => !Number.isNaN(id));
+      const roleIds = [
+        ...new Set(
+          userRoles
+            .map((ur) => Number(ur.role_id))
+            .filter((id) => Number.isInteger(id) && id > 0),
+        ),
+      ];
 
       if (roleIds.length === 0) {
         this.logger.warn(`User ${userId} has no assigned roles`);
@@ -89,11 +86,11 @@ export class PermissionsService {
         return this.createEmptyPermissions(userId, username);
       }
 
-      const rolesResult = await this.nocoDBService.list(rolesTable.id, {
+      const roles = await this.nocoDBService.listAll(rolesTable.id, {
         where: filterIn('id', roleIds),
       });
 
-      const roleNames = (rolesResult.list ?? []).map(
+      const roleNames = roles.map(
         (r) => (r.role_name as string | undefined) ?? '',
       );
 
@@ -104,14 +101,14 @@ export class PermissionsService {
         return this.createEmptyPermissions(userId, username);
       }
 
-      const permissionsResult = await this.nocoDBService.list(
+      const permissionRecords = await this.nocoDBService.listAll(
         permissionsTable.id,
-        { where: filterIn('role.id', roleIds) },
+        { where: filterIn('role_id', roleIds) },
       );
 
       const permissionsMap = new Map<string, Set<CrudAction>>();
 
-      for (const perm of permissionsResult.list ?? []) {
+      for (const perm of permissionRecords) {
         const tableName = perm.table_name as string | undefined;
         if (!tableName) continue;
 
@@ -182,13 +179,13 @@ export class PermissionsService {
       const existing = await this.nocoDBService.findOne(
         permissionsTable.id,
         andFilters(
-          filterEq('role.id', roleId),
+          filterEq('role_id', roleId),
           filterEq('table_name', tableName),
         ),
       );
 
       const permissionData = {
-        role: [{ id: roleId }],
+        role_id: roleId,
         table_name: tableName,
         can_create: permissions[CrudAction.CREATE] ?? false,
         can_read: permissions[CrudAction.READ] ?? false,

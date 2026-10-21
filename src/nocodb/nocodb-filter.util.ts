@@ -1,13 +1,32 @@
 import { BadRequestException } from '@nestjs/common';
 
+/**
+ * Builders for NocoDB v3 `where` expressions.
+ *
+ * Values are never interpolated raw: strings are wrapped in double quotes
+ * (NocoDB treats `,`, `(`, `)` and `~` inside quotes as literal text),
+ * numbers are validated, and booleans map to the checkbox operators, because
+ * `(field,eq,true)` silently matches nothing in NocoDB v3.
+ */
+
 type FilterValue = string | number | boolean;
 
-const FILTER_FIELD_PATTERN = /^[a-zA-Z0-9_.-]+$/;
-const UNSAFE_FILTER_VALUE_PATTERN = /[(),~]/;
-const FILTER_EXPRESSION_PATTERN = /^\([a-zA-Z0-9_.-]+,(?:eq|in),[^()~]+\)$/;
+/** Plain field titles only; NocoDB v3 does not support `link.field` paths. */
+const FILTER_FIELD_PATTERN = /^[A-Za-z0-9_-]+$/;
+
+/** One comparison, quoted values may contain any character except `"`. */
+const FILTER_EXPRESSION_PATTERN =
+  /^\([A-Za-z0-9_-]+,(?:(?:eq|in),(?:"[^"]*"|-?\d+(?:\.\d+)?)(?:,(?:"[^"]*"|-?\d+(?:\.\d+)?))*|checked|notchecked)\)$/;
+
+/** NocoDB's primary key field is titled `Id`. */
+const PRIMARY_KEY_FIELD = 'Id';
 
 export function filterEq(field: string, value: FilterValue): string {
-  return `(${sanitizeFilterField(field)},eq,${sanitizeFilterValue(value)})`;
+  if (typeof value === 'boolean') {
+    return value ? filterChecked(field) : filterNotChecked(field);
+  }
+
+  return `(${sanitizeFilterField(field)},eq,${formatFilterValue(value)})`;
 }
 
 export function filterIn(field: string, values: FilterValue[]): string {
@@ -16,8 +35,18 @@ export function filterIn(field: string, values: FilterValue[]): string {
   }
 
   return `(${sanitizeFilterField(field)},in,${values
-    .map((value) => sanitizeFilterValue(value))
+    .map((value) => formatFilterValue(value))
     .join(',')})`;
+}
+
+/** Matches records whose checkbox field is ticked. */
+export function filterChecked(field: string): string {
+  return `(${sanitizeFilterField(field)},checked)`;
+}
+
+/** Matches records whose checkbox field is not ticked (or empty). */
+export function filterNotChecked(field: string): string {
+  return `(${sanitizeFilterField(field)},notchecked)`;
 }
 
 export function andFilters(...filters: string[]): string {
@@ -35,10 +64,10 @@ function sanitizeFilterField(field: string): string {
     throw new BadRequestException('Invalid filter field');
   }
 
-  return field;
+  return field === 'id' ? PRIMARY_KEY_FIELD : field;
 }
 
-function sanitizeFilterValue(value: FilterValue): string {
+function formatFilterValue(value: FilterValue): string {
   if (typeof value === 'number') {
     if (!Number.isFinite(value)) {
       throw new BadRequestException('Invalid numeric filter value');
@@ -48,20 +77,22 @@ function sanitizeFilterValue(value: FilterValue): string {
   }
 
   if (typeof value === 'boolean') {
-    return String(value);
+    throw new BadRequestException(
+      'Boolean filter values are only supported with filterEq',
+    );
   }
 
   const normalized = value.trim();
 
   if (
     !normalized ||
-    UNSAFE_FILTER_VALUE_PATTERN.test(normalized) ||
+    normalized.includes('"') ||
     hasControlCharacter(normalized)
   ) {
     throw new BadRequestException('Invalid filter value');
   }
 
-  return normalized;
+  return `"${normalized}"`;
 }
 
 function hasControlCharacter(value: string): boolean {

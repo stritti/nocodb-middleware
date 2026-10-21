@@ -94,8 +94,10 @@ export class RolesService {
       const offset = pageOptionsDto?.skip ?? 0;
 
       const response = await this.nocoDBService.list(rolesTable.id, {
+        sort: 'id',
         limit,
         offset,
+        withCount: true,
       });
 
       const data = response.list || [];

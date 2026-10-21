@@ -32,13 +32,13 @@ export class PermissionsManagementService {
       const existing = await this.nocoDBService.findOne(
         permissionsTable.id,
         andFilters(
-          filterEq('role.id', dto.roleId),
+          filterEq('role_id', dto.roleId),
           filterEq('table_name', dto.tableName),
         ),
       );
 
       const permissionData = {
-        role: [{ id: dto.roleId }],
+        role_id: dto.roleId,
         table_name: dto.tableName,
         can_create: dto.canCreate,
         can_read: dto.canRead,
@@ -124,11 +124,10 @@ export class PermissionsManagementService {
         throw new NotFoundException('Table_permissions table not found');
       }
 
-      const result = await this.nocoDBService.list(permissionsTable.id, {
-        where: filterEq('role.id', sourceRoleId),
-      });
-
-      const sourcePermissions = result.list || [];
+      const sourcePermissions = await this.nocoDBService.listAll(
+        permissionsTable.id,
+        { where: filterEq('role_id', sourceRoleId) },
+      );
 
       this.logger.log(
         `Copying ${sourcePermissions.length} permissions from role ${sourceRoleId} to ${targetRoleId}`,
@@ -167,11 +166,10 @@ export class PermissionsManagementService {
         throw new NotFoundException('Table_permissions table not found');
       }
 
-      const result = await this.nocoDBService.list(permissionsTable.id, {
-        where: filterEq('role.id', roleId),
-      });
-
-      const permissions = result.list || [];
+      const permissions = await this.nocoDBService.listAll(
+        permissionsTable.id,
+        { where: filterEq('role_id', roleId) },
+      );
 
       for (const perm of permissions) {
         await this.nocoDBService.delete(
@@ -215,12 +213,14 @@ export class PermissionsManagementService {
       const offset = pageOptionsDto?.skip ?? 0;
 
       const result = await this.nocoDBService.list(permissionsTable.id, {
-        where: filterEq('role.id', roleId),
+        where: filterEq('role_id', roleId),
+        sort: 'table_name',
         limit,
         offset,
+        withCount: true,
       });
 
-      const data = result.list || [];
+      const data = result.list;
       const totalRows = result.pageInfo?.totalRows ?? data.length;
 
       const meta = new PageMetaDto({

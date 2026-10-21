@@ -1,23 +1,71 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { NocoDBService } from './nocodb.service';
+import { NocoFieldDefinition } from './nocodb.types';
 import { andFilters, filterEq } from './nocodb-filter.util';
 import { extractNumericId } from '../common/utils/nocodb-utils';
 
-interface ColumnDefinition {
-  name: string;
-  title: string;
-  type: string;
-  options?: Record<string, any>;
-  parentId?: string;
-  pk?: boolean;
-  ai?: boolean;
-}
+/**
+ * Field of a system table. The NocoDB v3 Data API keys record values by the
+ * field title, so `title` must equal the property name used in the code.
+ */
+type FieldDefinition = NocoFieldDefinition;
 
 interface TableDefinition {
   tableName: string;
+  /** Human-readable name, stored as the table description. */
   title: string;
-  columns: ColumnDefinition[];
+  fields: FieldDefinition[];
 }
+
+/**
+ * Relations are stored as numeric id fields (`user_id`, `role_id`). NocoDB v3
+ * cannot filter link fields by the id of the linked record, which the
+ * permission lookups depend on.
+ */
+export const SYSTEM_TABLES: readonly TableDefinition[] = [
+  {
+    tableName: 'users',
+    title: 'Users',
+    fields: [
+      { title: 'username', type: 'SingleLineText' },
+      { title: 'email', type: 'Email' },
+      { title: 'password_hash', type: 'LongText' },
+      { title: 'is_active', type: 'Checkbox' },
+      { title: 'auth_provider', type: 'SingleLineText' },
+      { title: 'external_subject', type: 'SingleLineText' },
+    ],
+  },
+  {
+    tableName: 'roles',
+    title: 'Roles',
+    fields: [
+      { title: 'role_name', type: 'SingleLineText' },
+      { title: 'description', type: 'LongText' },
+      { title: 'is_system_role', type: 'Checkbox' },
+    ],
+  },
+  {
+    tableName: 'user_roles',
+    title: 'User Roles',
+    fields: [
+      { title: 'user_id', type: 'Number' },
+      { title: 'role_id', type: 'Number' },
+      { title: 'assigned_at', type: 'DateTime' },
+    ],
+  },
+  {
+    tableName: 'table_permissions',
+    title: 'Table Permissions',
+    fields: [
+      { title: 'role_id', type: 'Number' },
+      { title: 'table_name', type: 'SingleLineText' },
+      { title: 'can_create', type: 'Checkbox' },
+      { title: 'can_read', type: 'Checkbox' },
+      { title: 'can_update', type: 'Checkbox' },
+      { title: 'can_delete', type: 'Checkbox' },
+    ],
+  },
+];
 
 @Injectable()
 export class DatabaseInitializationService implements OnModuleInit {
@@ -35,71 +83,16 @@ export class DatabaseInitializationService implements OnModuleInit {
   }
 
   private async initializeTables() {
-    // 1. Create Core Tables
-    const usersTableId = await this.ensureTableExists({
-      tableName: 'users',
-      title: 'Users',
-      columns: [
-        { name: 'username', title: 'Username', type: 'SingleLineText' },
-        { name: 'email', title: 'Email', type: 'Email' },
-        { name: 'password_hash', title: 'Password Hash', type: 'LongText' },
-        { name: 'is_active', title: 'Is Active', type: 'Checkbox' },
-        {
-          name: 'auth_provider',
-          title: 'Auth Provider',
-          type: 'SingleLineText',
-        },
-        {
-          name: 'external_subject',
-          title: 'External Subject',
-          type: 'SingleLineText',
-        },
-      ],
-    });
-
-    const rolesTableId = await this.ensureTableExists({
-      tableName: 'roles',
-      title: 'Roles',
-      columns: [
-        { name: 'role_name', title: 'Role Name', type: 'SingleLineText' },
-        { name: 'description', title: 'Description', type: 'LongText' },
-        { name: 'is_system_role', title: 'Is System Role', type: 'Checkbox' },
-      ],
-    });
-
-    if (!usersTableId || !rolesTableId) {
-      this.logger.error(
-        'Failed to initialize base tables. Skipping relations and seeding.',
-      );
-      return;
+    for (const table of SYSTEM_TABLES) {
+      const tableId = await this.ensureTableExists(table);
+      if (!tableId) {
+        this.logger.error(
+          `Failed to initialize table ${table.tableName}. Skipping seeding.`,
+        );
+        return;
+      }
     }
 
-    // 2. Junction and Permission Tables
-    // Note: Link columns (user, role) must be verified or created manually if meta API fails
-    await this.ensureTableExists({
-      tableName: 'user_roles',
-      title: 'User Roles',
-      columns: [
-        { name: 'assigned_at', title: 'Assigned At', type: 'DateTime' },
-      ],
-    });
-
-    await this.ensureTableExists({
-      tableName: 'table_permissions',
-      title: 'Table Permissions',
-      columns: [
-        { name: 'table_name', title: 'Table Name', type: 'SingleLineText' },
-        { name: 'can_create', title: 'Can Create', type: 'Checkbox' },
-        { name: 'can_read', title: 'Can Read', type: 'Checkbox' },
-        { name: 'can_update', title: 'Can Update', type: 'Checkbox' },
-        { name: 'can_delete', title: 'Can Delete', type: 'Checkbox' },
-      ],
-    });
-
-    // 3. Verify relationships (Link columns)
-    await this.verifyLinkColumnsExist();
-
-    // 4. Seed Data
     await this.seedDefaultPermissions();
   }
 
@@ -118,9 +111,9 @@ export class DatabaseInitializationService implements OnModuleInit {
       this.logger.log(
         `Table ${fullTableName} already exists (ID: ${existingTable.id})`,
       );
-      await this.ensureColumnsExist(
+      await this.ensureFieldsExist(
         existingTable.id,
-        tableDef.columns,
+        tableDef.fields,
         fullTableName,
       );
       return existingTable.id;
@@ -129,17 +122,10 @@ export class DatabaseInitializationService implements OnModuleInit {
     this.logger.log(`Creating table ${fullTableName}...`);
 
     try {
-      const columnsPayload = tableDef.columns.map((col) => ({
-        column_name: col.name,
-        title: col.title,
-        uidt: col.type,
-        ...col.options,
-      }));
-
       const response = await this.nocoDBService.createTable(
         tableDef.tableName,
         tableDef.title,
-        columnsPayload,
+        [...tableDef.fields],
       );
 
       const tableId = response.id != null ? String(response.id) : null;
@@ -153,103 +139,37 @@ export class DatabaseInitializationService implements OnModuleInit {
     }
   }
 
-  private async ensureColumnsExist(
+  private async ensureFieldsExist(
     tableId: string,
-    columns: ColumnDefinition[],
+    fields: readonly FieldDefinition[],
     tableName: string,
   ) {
     try {
       const tableMetadata = await this.nocoDBService.getTableMetadata(tableId);
-      const existingColumns = tableMetadata.columns || [];
-      const existingColumnNames = new Set(
-        existingColumns.map((c: any) => c.column_name),
+      const existingFields = new Set(
+        (tableMetadata.fields ?? []).map((field) => field.title),
       );
 
-      for (const col of columns) {
-        if (!existingColumnNames.has(col.name)) {
-          this.logger.log(
-            `Creating missing column ${col.name} in ${tableName}...`,
+      for (const field of fields) {
+        if (existingFields.has(field.title)) {
+          continue;
+        }
+
+        this.logger.log(
+          `Creating missing field ${field.title} in ${tableName}...`,
+        );
+        try {
+          await this.nocoDBService.createColumn(tableId, field);
+          this.logger.log(`Field ${field.title} created`);
+        } catch (err) {
+          this.logger.error(
+            `Failed to create field ${field.title} in ${tableName}`,
+            err,
           );
-          try {
-            await this.nocoDBService.createColumn(
-              tableId,
-              col.name,
-              col.type,
-              col.title,
-              col.options,
-            );
-            this.logger.log(`Column ${col.name} created`);
-            await this.delay(500);
-          } catch (err) {
-            this.logger.error(
-              `Failed to create column ${col.name} in ${tableName}`,
-              err,
-            );
-          }
         }
       }
     } catch (error) {
-      this.logger.error(
-        `Error ensuring columns for table ${tableName}:`,
-        error,
-      );
-    }
-  }
-
-  private async verifyLinkColumnsExist() {
-    const requiredLinks = [
-      {
-        tableName: 'user_roles',
-        linkColumns: [
-          { name: 'user', targetTable: 'users' },
-          { name: 'role', targetTable: 'roles' },
-        ],
-      },
-      {
-        tableName: 'table_permissions',
-        linkColumns: [{ name: 'role', targetTable: 'roles' }],
-      },
-    ];
-
-    const missingLinks: string[] = [];
-
-    for (const tableSpec of requiredLinks) {
-      try {
-        const table = await this.nocoDBService.getTableByName(
-          tableSpec.tableName,
-        );
-        if (!table) continue;
-
-        const tableMetadata = await this.nocoDBService.getTableMetadata(
-          table.id,
-        );
-        const columns = tableMetadata.columns || [];
-        const existingColumnNames = new Set(
-          columns.map((c: any) => c.column_name),
-        );
-
-        for (const link of tableSpec.linkColumns) {
-          if (!existingColumnNames.has(link.name)) {
-            missingLinks.push(
-              `${tableSpec.tableName}.${link.name} -> ${link.targetTable}`,
-            );
-          }
-        }
-      } catch (error) {
-        this.logger.error(
-          `Error verifying links for ${tableSpec.tableName}`,
-          error,
-        );
-      }
-    }
-
-    if (missingLinks.length > 0) {
-      this.logger.error(
-        `MISSING LINK COLUMNS: ${missingLinks.join(', ')}. Please create them manually in NocoDB UI.`,
-      );
-      // We don't throw here to allow the app to start, but functional errors will occur if these are used.
-    } else {
-      this.logger.log('✓ All required link columns verified successfully');
+      this.logger.error(`Error ensuring fields for table ${tableName}:`, error);
     }
   }
 
@@ -301,13 +221,13 @@ export class DatabaseInitializationService implements OnModuleInit {
       const existing = await this.nocoDBService.findOne(
         permissionsTableId,
         andFilters(
-          filterEq('role.id', adminRoleId),
+          filterEq('role_id', adminRoleId),
           filterEq('table_name', tableName),
         ),
       );
 
       const permissionData = {
-        role: [{ id: adminRoleId }],
+        role_id: adminRoleId,
         table_name: tableName,
         can_create: true,
         can_read: true,
@@ -325,9 +245,5 @@ export class DatabaseInitializationService implements OnModuleInit {
         await this.nocoDBService.create(permissionsTableId, permissionData);
       }
     }
-  }
-
-  private delay(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }
