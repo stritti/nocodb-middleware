@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
+import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { ConfigModule } from '@nestjs/config';
 import { LoggerModule } from 'nestjs-pino';
 import { AppController } from './app.controller';
@@ -39,6 +41,9 @@ import { TelemetryModule } from './tracing/telemetry.module';
     PermissionsModule,
   ],
   controllers: [AppController],
-  providers: [],
+  providers: [
+    // Every route requires a valid JWT unless marked with @Public().
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+  ],
 })
 export class AppModule {}

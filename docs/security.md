@@ -89,7 +89,7 @@ Geeignet für öffentliche produktive Systeme.
 ## Bereits im Projekt vorhanden
 
 - `helmet` Security Header
-- JWT-Validierung
+- JWT-Validierung, global für alle Routen (siehe [Authentifizierung standardmäßig](#authentifizierung-standardmäßig))
 - RBAC
 - Input-Validierung über DTOs
 - **XSS-Input-Sanitization** über `@SanitizeHtml()` Decorator (mittels `sanitize-html`)
@@ -107,6 +107,37 @@ Aus `docs/product-readiness.md` ergeben sich vor allem diese Punkte:
 - keine Retry-Strategie gegenüber NocoDB-Ausfällen
 - kein Redis-Cache für mehrere Instanzen
 - keine dedizierten Metriken wie `/metrics`
+
+## Authentifizierung standardmäßig
+
+Der `JwtAuthGuard` ist als globaler Guard (`APP_GUARD`) registriert. **Jede Route erfordert einen gültigen JWT**, auch wenn am Controller kein `@UseGuards` steht. Ein vergessener Guard kann einen Endpoint damit nicht mehr versehentlich öffnen.
+
+Bewusst offene Routen werden mit `@Public()` markiert, am Handler oder am ganzen Controller:
+
+```typescript
+import { Public } from '../auth/decorators/public.decorator';
+
+@Public()
+@Controller('health')
+export class HealthController {}
+```
+
+Aktuell öffentlich:
+
+| Route | Grund |
+|---|---|
+| `GET /` | API-Info |
+| `GET /health` | Health Checks von Load Balancer und Container |
+| `POST /bootstrap/admin` | Kein JWT, stattdessen über den Header `x-bootstrap-token` geschützt |
+
+Autorisierung kommt zusätzlich per Controller-Guard dazu. Globale Guards laufen zuerst, `req.user` ist also gesetzt:
+
+```typescript
+@UseGuards(RolesGuard)        // oder PermissionsGuard
+@Controller('admin/...')
+```
+
+`@Public()` nur einsetzen, wenn der Endpoint wirklich ohne Anmeldung erreichbar sein muss oder anders geschützt ist.
 
 ## XSS Input Sanitization
 

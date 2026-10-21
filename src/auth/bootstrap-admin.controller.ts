@@ -8,7 +8,10 @@ import {
 } from '@nestjs/common';
 import { BootstrapAdminService } from './bootstrap-admin.service';
 import { BootstrapAdminDto } from './dto/bootstrap-admin.dto';
+import { Public } from './decorators/public.decorator';
 
+// No JWT: protected by the x-bootstrap-token header instead
+@Public()
 @Controller('bootstrap')
 export class BootstrapAdminController {
   constructor(private readonly bootstrapAdminService: BootstrapAdminService) {}

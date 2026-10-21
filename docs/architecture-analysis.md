@@ -108,7 +108,7 @@ Zentraler Datenzugriffs-Layer. Stellt bereit:
 ### 3.3 AuthModule
 
 - **JwtStrategy** (Passport): Validiert Bearer-Token gegen `JWT_SECRET`, extrahiert `{ userId, username, roles }` aus JWT-Payload.
-- **JwtAuthGuard**: Einfacher `AuthGuard('jwt')` – **ohne `@Public()`-Decorator-Support** (alle Endpoints erfordern Auth).
+- **JwtAuthGuard**: Global als `APP_GUARD` registriert, alle Endpoints erfordern Auth. Ausnahmen werden mit `@Public()` markiert.
 - **RolesGuard**: Rollenbasierte Autorisierung via `@Roles('admin')` Decorator.
 - **BootstrapAdminService**: Einmalige Admin-Erstellung via `/bootstrap/admin` Endpoint mit Token-basierter Autorisierung (constant-time Vergleich).
 
@@ -230,7 +230,7 @@ Vollständiges RBAC-System auf Table-Ebene:
 
 | # | Schwäche | Risiko | Priorität |
 |---|----------|--------|-----------|
-| 1 | **Kein `@Public()`-Decorator** – JwtAuthGuard hat keine Skip-Logik | Endpoints wie Login/Webhooks lassen sich nicht ohne Auth bereitstellen | Hoch |
+| 1 | ~~**Kein `@Public()`-Decorator**~~ – erledigt: globaler `JwtAuthGuard` mit `@Public()` | – | – |
 | 2 | **Hardcodiertes Rate-Limit** (200ms) im NocoDBService | Nicht konfigurierbar, kann bei anderen NocoDB-Installationen zu langsam oder zu aggressiv sein | Mittel |
 | 3 | **Default-Passwort `password123`** im DatabaseInitializationService | Sicherheitsrisiko, wenn das Seeding unkontrolliert in Production läuft | Hoch |
 | 4 | **Seeding läuft bei jedem Start** – `onModuleInit` erstellt/seeded immer | Kann in Production zu unerwünschten Nebenwirkungen führen (z.B. User wird nicht nochmal erstellt, aber Lookups laufen immer) | Mittel |
