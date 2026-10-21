@@ -168,6 +168,41 @@ jobs:
               });
             }
 
+  integration:
+    name: Integration (NocoDB 0.301.3)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    services:
+      nocodb:
+        # Keep in sync with the version the adapter is verified against.
+        image: nocodb/nocodb:0.301.3
+        ports:
+          - 8080:8080
+    env:
+      NOCODB_IT_URL: http://localhost:8080
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci || npm install
+
+      - name: Prepare NocoDB (admin user + API token)
+        run: |
+          line=$(node scripts/nocodb-it-setup.mjs)
+          echo "::add-mask::${line#NOCODB_IT_TOKEN=}"
+          echo "$line" >> "$GITHUB_ENV"
+
+      - name: Run integration tests
+        run: npm run test:integration
+
   badge:
     name: Update Coverage Badge
     runs-on: ubuntu-latest

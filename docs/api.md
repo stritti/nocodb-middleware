@@ -146,6 +146,12 @@ curl http://localhost:3000/api/meta/tables \
   -H "Authorization: Bearer <jwt>"
 ```
 
+Antwort: `[{ "id": "m1a2b3", "tableName": "customers", "title": "app_customers" }]`
+
+- `tableName` ist der **logische** Name ohne `NOCODB_TABLE_PREFIX`. Diesen Namen verwenden Tabellenrechte (`tableName` in `/admin/permissions/table-permissions`).
+- `title` ist der Tabellentitel in NocoDB.
+- Systemtabellen (`users`, `roles`, `user_roles`, `table_permissions`) werden nicht gelistet. Bei gesetztem Präfix erscheinen nur Tabellen mit diesem Präfix.
+
 ## Validierung und Fehlerformat
 
 Globale `ValidationPipe` ist aktiv:

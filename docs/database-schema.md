@@ -3,225 +3,114 @@
 ## Zweck
 
 Diese Middleware benötigt ein kleines Set an NocoDB-Tabellen für Benutzer, Rollen und Tabellenrechte.
-Ohne diese Tabellen funktionieren RBAC, Rollen-Zuweisungen und Teile des Bootstrap-Prozesses nicht.
+Ohne diese Tabellen funktionieren RBAC, Rollen-Zuweisungen und der Bootstrap-Prozess nicht.
 
-Die Tabellen werden beim Start durch `DatabaseInitializationService` grundsätzlich angelegt.
-Wichtig ist aber ein technisches Detail:
+Die Tabellen und ihre Felder legt `DatabaseInitializationService` beim Start vollständig über die NocoDB v3 Meta API an. Manuelle Schritte in NocoDB sind nicht nötig. Die Initialisierung ist idempotent: Bei jedem Start werden fehlende Tabellen und Felder ergänzt, vorhandene bleiben unverändert.
 
-**Link-Spalten werden nicht in jedem Fall automatisch erstellt.**
-Wenn die NocoDB Meta API die Link-Erzeugung nicht sauber abbildet, müssen diese Beziehungen in der NocoDB-Oberfläche manuell ergänzt werden.
+Geprüft gegen **NocoDB 0.301.3** (siehe `docker-compose.yml` und den CI-Job „Integration").
 
 ## Überblick
-
-Erforderlich sind diese vier Tabellen:
 
 1. `users`
 2. `roles`
 3. `user_roles`
 4. `table_permissions`
 
+## Feldnamen
+
+Die NocoDB v3 Data API schlüsselt Datensätze nach dem **Feldtitel**. Die Felder heißen deshalb genau so wie im Code (`username`, `role_name`, …). Wer Felder in der NocoDB-Oberfläche umbenennt, bricht die Middleware: Der nächste Start legt das Feld unter dem erwarteten Namen neu an, die Daten im umbenannten Feld werden nicht mehr gelesen.
+
+## Beziehungen über ID-Felder
+
+Zuordnungen werden als **Zahlenfelder** (`user_id`, `role_id`) gespeichert, nicht als NocoDB-Link-Felder. Grund: In NocoDB v3 lassen sich Link-Felder nicht nach der ID des verknüpften Datensatzes filtern (`(role.id,eq,1)` ist ungültig, `(role,eq,1)` vergleicht die *Anzahl* der Links). Die Rechteprüfung braucht genau diese Filter.
+
+```text
+users.Id      ←── user_roles.user_id
+roles.Id      ←── user_roles.role_id
+roles.Id      ←── table_permissions.role_id
+```
+
+- Ein Benutzer kann mehrere Rollen haben, eine Rolle mehreren Benutzern zugewiesen sein.
+- Eine Rolle hat pro Tabelle ein eigenes CRUD-Rechteset.
+
 ## Tabellen im Detail
 
 ### `users`
 
-Zweck:
+| Feld | Typ | Zweck |
+|---|---|---|
+| `username` | SingleLineText | Benutzername |
+| `email` | Email | E-Mail |
+| `password_hash` | LongText | Hash aus Bootstrap/Provisionierung; die Middleware bietet keinen Passwort-Login |
+| `is_active` | Checkbox | Inaktive Benutzer werden bei der JWT-Prüfung abgelehnt |
+| `auth_provider` | SingleLineText | `local` oder externer IdP |
+| `external_subject` | SingleLineText | `sub` des externen IdP |
 
-- Benutzerstammdaten für die Rechteauflösung
-- Referenzziel für Rollen-Zuweisungen
-- Bootstrap-Admin-Benutzer
-
-Erforderliche Spalten:
-
-| Spalte | Typ | Pflicht | Zweck |
-|---|---|---:|---|
-| `username` | SingleLineText | ja | Benutzername, wird bei der Rechteauflösung verwendet |
-| `email` | Email | nein | Kontaktfeld für den Benutzer |
-| `password_hash` | LongText | nein | aktuell nur als Datenfeld für Bootstrap/Altbestand, nicht für einen Login-Flow dieser Middleware |
-| `is_active` | Checkbox | nein | Kennzeichnung aktiver Benutzer |
-
-Hinweise:
-
-- Die JWT-Strategie erwartet im Token `sub` und `username`.
-- Für die eigentliche Rechteauflösung arbeitet die Middleware mit der numerischen User-ID und dem Feld `username`.
-- Diese Middleware bietet keinen eigenen Login. `password_hash` ist daher **kein** Hinweis auf einen eingebauten Passwort-Login.
+Die JWT-Strategie liest den Benutzer über die numerische `Id` aus `sub`.
 
 ### `roles`
 
-Zweck:
+| Feld | Typ | Zweck |
+|---|---|---|
+| `role_name` | SingleLineText | eindeutiger Rollenname |
+| `description` | LongText | Beschreibung |
+| `is_system_role` | Checkbox | Systemrolle |
 
-- Definition fachlicher oder technischer Rollen
-- Grundlage für Tabellenberechtigungen
-
-Erforderliche Spalten:
-
-| Spalte | Typ | Pflicht | Zweck |
-|---|---|---:|---|
-| `role_name` | SingleLineText | ja | eindeutiger Rollenname |
-| `description` | LongText | nein | lesbare Beschreibung |
-| `is_system_role` | Checkbox | nein | Kennzeichnung von Systemrollen |
-
-Hinweise:
-
-- Beim Start wird mindestens die Rolle `admin` sichergestellt.
-- Die API prüft Rollen primär über die numerische Rollen-ID, für Lesbarkeit und Verwaltung ist `role_name` entscheidend.
+Beim Start wird die Rolle `admin` sichergestellt.
 
 ### `user_roles`
 
-Zweck:
-
-- Zuordnung zwischen Benutzern und Rollen
-- Many-to-many-Verknüpfung von `users` und `roles`
-
-Erforderliche Spalten:
-
-| Spalte | Typ | Pflicht | Zweck |
-|---|---|---:|---|
-| `user` | Link to another record | ja | Verweis auf `users` |
-| `role` | Link to another record | ja | Verweis auf `roles` |
-| `assigned_at` | DateTime | nein | Zeitpunkt der Zuweisung |
-
-**Kritisch:**
-
-Die Link-Spalten `user` und `role` sind funktional zwingend. Ohne sie schlagen Rollen-Zuweisung und Rechteauflösung fehl.
-
-Erwartete Beziehungen:
-
-- `user_roles.user` → `users`
-- `user_roles.role` → `roles`
+| Feld | Typ | Zweck |
+|---|---|---|
+| `user_id` | Number | `Id` des Benutzers |
+| `role_id` | Number | `Id` der Rolle |
+| `assigned_at` | DateTime | Zeitpunkt der Zuweisung |
 
 ### `table_permissions`
 
-Zweck:
+| Feld | Typ | Zweck |
+|---|---|---|
+| `role_id` | Number | `Id` der Rolle |
+| `table_name` | SingleLineText | **logischer** Tabellenname (ohne Präfix), für den die Rechte gelten |
+| `can_create` | Checkbox | CREATE erlaubt |
+| `can_read` | Checkbox | READ erlaubt |
+| `can_update` | Checkbox | UPDATE erlaubt |
+| `can_delete` | Checkbox | DELETE erlaubt |
 
-- CRUD-Berechtigungen je Rolle und Zieltabelle
-
-Erforderliche Spalten:
-
-| Spalte | Typ | Pflicht | Zweck |
-|---|---|---:|---|
-| `role` | Link to another record | ja | Verweis auf `roles` |
-| `table_name` | SingleLineText | ja | Name der NocoDB-Tabelle, für die die Rechte gelten |
-| `can_create` | Checkbox | nein | CREATE erlaubt |
-| `can_read` | Checkbox | nein | READ erlaubt |
-| `can_update` | Checkbox | nein | UPDATE erlaubt |
-| `can_delete` | Checkbox | nein | DELETE erlaubt |
-
-Erwartete Beziehung:
-
-- `table_permissions.role` → `roles`
-
-Hinweise:
-
-- Die Rechte werden nicht gegen Tabellen-IDs, sondern gegen `table_name` aufgelöst.
-- Der Wert in `table_name` muss zu dem Tabellennamen passen, den die Middleware im Workspace sieht.
-
-## Beziehungen
-
-```text
-users (1) ───< user_roles >─── (1) roles
-roles (1) ───< table_permissions
-```
-
-Praktisch bedeutet das:
-
-- Ein Benutzer kann mehrere Rollen haben.
-- Eine Rolle kann mehreren Benutzern zugewiesen sein.
-- Eine Rolle kann für viele Tabellen ein eigenes CRUD-Rechteset haben.
+Nicht gesetzte Rechte gelten als verweigert. Hat ein Benutzer mehrere Rollen, gilt die Vereinigung ihrer Rechte.
 
 ## Verhalten beim Start
 
-Beim Start versucht `DatabaseInitializationService` Folgendes:
+1. Fehlende Systemtabellen mit allen Feldern anlegen
+2. In vorhandenen Systemtabellen fehlende Felder ergänzen
+3. Rolle `admin` sicherstellen
+4. Für `admin` volle Rechte auf die vier Systemtabellen sicherstellen
 
-1. Basistabellen `users` und `roles` anlegen
-2. Tabellen `user_roles` und `table_permissions` anlegen
-3. erforderliche Link-Spalten prüfen
-4. Rolle `admin` sicherstellen
-5. Bootstrap-Benutzer sicherstellen
-6. Bootstrap-Benutzer der Rolle `admin` zuordnen
+Schlägt das Anlegen einer Tabelle fehl, wird der Seed übersprungen und der Fehler geloggt.
 
-## Manuelle Schritte in NocoDB
-
-Prüfe nach dem ersten Start in NocoDB diese Punkte:
-
-### 1. Sind alle vier Tabellen vorhanden?
-
-- `users`
-- `roles`
-- `user_roles`
-- `table_permissions`
-
-### 2. Sind die Link-Spalten vorhanden?
-
-In `user_roles`:
-
-- `user` als Link auf `users`
-- `role` als Link auf `roles`
-
-In `table_permissions`:
-
-- `role` als Link auf `roles`
-
-### 3. Stimmen die Spaltennamen exakt?
-
-Die Middleware arbeitet mit festen Feldnamen. Besonders kritisch sind:
-
-- `username`
-- `role_name`
-- `table_name`
-- `user`
-- `role`
-- `can_create`
-- `can_read`
-- `can_update`
-- `can_delete`
-
-Abweichende Namen führen zu Laufzeitfehlern oder leeren Berechtigungsmengen.
+Den ersten Admin-Benutzer legt `POST /api/bootstrap/admin` an (siehe [API](./api.md)).
 
 ## Beispiel-Datensätze
 
-### Rolle `admin`
+`table_permissions` nach dem ersten Start (Rolle `admin` hat die `Id` 1):
 
-| role_name | description | is_system_role |
-|---|---|---:|
-| `admin` | System Administrator | true |
+| role_id | table_name | can_create | can_read | can_update | can_delete |
+|---:|---|---:|---:|---:|---:|
+| 1 | `users` | true | true | true | true |
+| 1 | `roles` | true | true | true | true |
+| 1 | `user_roles` | true | true | true | true |
+| 1 | `table_permissions` | true | true | true | true |
 
-### Benutzer-Zuweisung
+## Table Prefix
 
-`user_roles`:
-
-| user | role | assigned_at |
-|---|---|---|
-| Benutzer-ID 1 | Rollen-ID 1 | 2026-04-12T10:00:00.000Z |
-
-### Tabellenrechte
-
-`table_permissions`:
-
-| role | table_name | can_create | can_read | can_update | can_delete |
-|---|---|---:|---:|---:|---:|
-| Rollen-ID 1 | `users` | true | true | true | true |
-| Rollen-ID 1 | `roles` | true | true | true | true |
-| Rollen-ID 1 | `table_permissions` | true | true | true | true |
-| Rollen-ID 1 | `user_roles` | true | true | true | true |
-
-## Table Prefix beachten
-
-Wenn `NOCODB_TABLE_PREFIX` gesetzt ist, verwendet die Middleware intern weiterhin die logischen Namen wie `users` oder `roles`, sucht in NocoDB aber die physisch präfixierten Tabellen.
-
-Beispiel:
+Mit `NOCODB_TABLE_PREFIX` sucht und erstellt die Middleware Tabellen unter dem präfixierten **Titel**, arbeitet intern und in der API aber mit den logischen Namen.
 
 - Konfiguration: `NOCODB_TABLE_PREFIX=app_`
-- Physische Tabellen: `app_users`, `app_roles`, `app_user_roles`, `app_table_permissions`
+- Tabellen in NocoDB: `app_users`, `app_roles`, `app_user_roles`, `app_table_permissions`
+- In `table_permissions.table_name`, im Tabellenkatalog und in der Daten-API: `users`, `customers`, …
 
-Die Dokumentation in diesem Kapitel verwendet die **logischen** Namen ohne Präfix.
+Eigene Tabellen sind bei gesetztem Präfix nur erreichbar, wenn ihr Titel das Präfix trägt.
 
-## Bekannte Grenze
+## Umstieg von früheren Versionen
 
-Die Middleware prüft beim Start, ob die benötigten Link-Spalten existieren, und loggt fehlende Beziehungen. Sie beendet den Start dabei nicht zwingend mit einem Fehler.
-
-Das bedeutet:
-
-- Die Anwendung kann hochfahren.
-- Rollen- und Berechtigungsfunktionen können trotzdem später fehlschlagen.
-
-Deshalb sollte die Tabellenstruktur nach der Initialisierung immer einmal in NocoDB verifiziert werden.
+Versionen bis 0.7.x haben Tabellen mit menschenlesbaren Titeln (`Users`, `Table Permissions`) und Link-Felder (`user`, `role`) angelegt. Gegen NocoDB v3 waren diese Daten über die Middleware ohnehin nicht nutzbar. Beim ersten Start einer neueren Version entstehen die Tabellen unter den neuen Titeln neu. Alte Tabellen mit diesen Titeln können nach Prüfung in NocoDB gelöscht werden.
