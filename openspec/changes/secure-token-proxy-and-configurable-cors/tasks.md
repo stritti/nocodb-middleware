@@ -14,9 +14,9 @@
 ## 3. Konfigurierbares CORS implementieren
 
 - [ ] 3.1 CORS-Konfiguration (Origins, Methods, Headers, Credentials) in den Config-Layer aufnehmen
-- [ ] 3.2 CORS-Setup in `src/main.ts` strikt auf konfigurierte Allowlist umstellen
-- [ ] 3.3 Sichere Defaults für fehlende/ungültige CORS-Konfiguration implementieren
-- [ ] 3.4 Tests für erlaubte und blockierte Origins sowie Credentials-Header ergänzen
+- [x] 3.2 CORS-Setup in `src/main.ts` strikt auf konfigurierte Allowlist umstellen
+- [x] 3.3 Sichere Defaults für fehlende/ungültige CORS-Konfiguration implementieren
+- [ ] 3.4 Tests für erlaubte und blockierte Origins sowie Credentials-Header ergänzen _(cors.config.spec testet nur den Parser; CORS-Header-Tests kommen mit #287 (`test/app-setup.e2e-spec.ts`))_
 
 ## 4. Validierung und Betriebsreife
 
