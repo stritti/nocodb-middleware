@@ -15,6 +15,9 @@ import {
 import {
   ApiBearerAuth,
   ApiBody,
+  ApiCreatedResponse,
+  ApiNoContentResponse,
+  ApiOkResponse,
   ApiOperation,
   ApiParam,
   ApiResponse,
@@ -23,6 +26,7 @@ import {
 import { DataService } from './data.service';
 import { TablePermissionsGuard } from './table-permissions.guard';
 import { ListRecordsQueryDto } from './dto/list-records-query.dto';
+import { RECORD_SCHEMA, RecordListDto } from './dto/record-response.dto';
 
 const TABLE_PARAM = {
   name: 'table',
@@ -36,6 +40,10 @@ const TABLE_PARAM = {
  */
 @ApiTags('data')
 @ApiBearerAuth()
+@ApiResponse({
+  status: 400,
+  description: 'Invalid id, query or body (unknown or read-only fields)',
+})
 @ApiResponse({ status: 401, description: 'Missing or invalid JWT' })
 @ApiResponse({ status: 403, description: 'No permission for this table' })
 @ApiResponse({ status: 404, description: 'Table or record not found' })
@@ -47,7 +55,7 @@ export class DataController {
   @Get()
   @ApiOperation({ summary: 'List records of a table' })
   @ApiParam(TABLE_PARAM)
-  @ApiResponse({ status: 200, description: '{ list, pageInfo }' })
+  @ApiOkResponse({ type: RecordListDto, description: 'A page of records' })
   list(@Param('table') table: string, @Query() query: ListRecordsQueryDto) {
     return this.dataService.list(table, query);
   }
@@ -55,6 +63,7 @@ export class DataController {
   @Get(':id')
   @ApiOperation({ summary: 'Read a single record' })
   @ApiParam(TABLE_PARAM)
+  @ApiOkResponse({ schema: RECORD_SCHEMA, description: 'The record' })
   read(@Param('table') table: string, @Param('id', ParseIntPipe) id: number) {
     return this.dataService.read(table, id);
   }
@@ -63,7 +72,7 @@ export class DataController {
   @ApiOperation({ summary: 'Create a record' })
   @ApiParam(TABLE_PARAM)
   @ApiBody({ schema: { type: 'object', example: { Name: 'Alice' } } })
-  @ApiResponse({ status: 201, description: 'Created record' })
+  @ApiCreatedResponse({ schema: RECORD_SCHEMA, description: 'Created record' })
   create(@Param('table') table: string, @Body() data: Record<string, unknown>) {
     return this.dataService.create(table, data);
   }
@@ -71,6 +80,7 @@ export class DataController {
   @Patch(':id')
   @ApiOperation({ summary: 'Update a record' })
   @ApiParam(TABLE_PARAM)
+  @ApiOkResponse({ schema: RECORD_SCHEMA, description: 'Updated record' })
   @ApiBody({ schema: { type: 'object', example: { Name: 'Bob' } } })
   update(
     @Param('table') table: string,
@@ -84,7 +94,7 @@ export class DataController {
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete a record' })
   @ApiParam(TABLE_PARAM)
-  @ApiResponse({ status: 204, description: 'Deleted' })
+  @ApiNoContentResponse({ description: 'Deleted' })
   delete(@Param('table') table: string, @Param('id', ParseIntPipe) id: number) {
     return this.dataService.delete(table, id);
   }
