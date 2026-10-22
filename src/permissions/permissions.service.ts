@@ -7,6 +7,7 @@ import { extractNumericId } from '../common/utils/nocodb-utils';
 
 /** In-memory permission cache TTL (5 minutes). */
 const PERMISSIONS_CACHE_TTL_MS = 5 * 60 * 1000;
+export const PERMISSIONS_CACHE_MAX_ENTRIES = 1000;
 
 @Injectable()
 export class PermissionsService {
@@ -148,16 +149,34 @@ export class PermissionsService {
         permissions: permissionsMap,
       };
 
-      this.permissionsCache.set(userId, {
-        value: userPermissions,
-        expiresAt: Date.now() + this.CACHE_TTL,
-      });
+      this.cachePermissions(userId, userPermissions);
 
       return userPermissions;
     } catch (error) {
       this.logger.error(`Error loading permissions for user ${userId}:`, error);
       throw error;
     }
+  }
+
+  /**
+   * Stores permissions, first dropping expired entries and, if the cache is
+   * full, the oldest ones (a Map iterates in insertion order). Re-inserting
+   * moves a user to the end.
+   */
+  private cachePermissions(userId: number, value: UserPermissions): void {
+    const now = Date.now();
+    for (const [id, entry] of this.permissionsCache) {
+      if (entry.expiresAt <= now) this.permissionsCache.delete(id);
+    }
+    this.permissionsCache.delete(userId);
+    while (this.permissionsCache.size >= PERMISSIONS_CACHE_MAX_ENTRIES) {
+      const oldest = this.permissionsCache.keys().next().value as number;
+      this.permissionsCache.delete(oldest);
+    }
+    this.permissionsCache.set(userId, {
+      value,
+      expiresAt: now + this.CACHE_TTL,
+    });
   }
 
   /**

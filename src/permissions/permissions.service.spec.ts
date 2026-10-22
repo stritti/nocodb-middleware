@@ -1,5 +1,8 @@
 import { Logger } from '@nestjs/common';
-import { PermissionsService } from './permissions.service';
+import {
+  PermissionsService,
+  PERMISSIONS_CACHE_MAX_ENTRIES,
+} from './permissions.service';
 import { NocoDBService } from '../nocodb/nocodb.service';
 import { CrudAction } from './enums/crud-action.enum';
 import { NocoRecord } from '../nocodb/nocodb.types';
@@ -273,6 +276,41 @@ describe('PermissionsService', () => {
       jest.advanceTimersByTime(2 * 60 * 1000);
       await service.getUserPermissions(1);
       expect(nocodb.listAll).toHaveBeenCalledTimes(2 * LOOKUPS_PER_LOAD);
+    });
+
+    // the cache is private; its size is what this behaviour is about
+    const cacheSize = (service: PermissionsService) =>
+      (service as unknown as { permissionsCache: Map<number, unknown> })
+        .permissionsCache.size;
+
+    it('drops expired entries of other users, so memory does not grow with every user ever seen', async () => {
+      const service = serviceFor(createNocoDB(tables));
+      for (const userId of [1, 2, 3]) {
+        await service.getUserPermissions(userId);
+      }
+      expect(cacheSize(service)).toBe(3);
+
+      jest.advanceTimersByTime(6 * 60 * 1000);
+      await service.getUserPermissions(4);
+
+      expect(cacheSize(service)).toBe(1);
+    });
+
+    it('keeps at most PERMISSIONS_CACHE_MAX_ENTRIES users, evicting the oldest', async () => {
+      const nocodb = createNocoDB(tables);
+      const service = serviceFor(nocodb);
+      for (
+        let userId = 1;
+        userId <= PERMISSIONS_CACHE_MAX_ENTRIES + 1;
+        userId++
+      ) {
+        await service.getUserPermissions(userId);
+      }
+
+      expect(cacheSize(service)).toBe(PERMISSIONS_CACHE_MAX_ENTRIES);
+      nocodb.listAll.mockClear();
+      await service.getUserPermissions(1); // evicted
+      expect(nocodb.listAll).toHaveBeenCalled();
     });
 
     it('does not keep timers running, so the process can shut down', async () => {
