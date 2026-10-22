@@ -100,7 +100,18 @@ jobs:
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
           exit-code: '1'
-          skip-dirs: 'node_modules,.git'
+          # .opencode holds local tooling of the OpenCode coding agent; it is
+          # not part of the application or the published client package.
+          skip-dirs: 'node_modules,client/node_modules,.git,.opencode'
+
+      # Findings are uploaded to the Security tab; also show them as
+      # annotations on the run so they are visible without that access.
+      - name: Annotate Trivy findings
+        if: always() && hashFiles('trivy-results.sarif') != ''
+        run: |
+          jq -r '.runs[].results[]
+            | "::error file=\(.locations[0].physicalLocation.artifactLocation.uri)::\(.ruleId): \(.message.text | split("\n")[0])"' \
+            trivy-results.sarif | head -n 40
 
       - name: Upload Trivy results to GitHub Security
         uses: github/codeql-action/upload-sarif@v3
