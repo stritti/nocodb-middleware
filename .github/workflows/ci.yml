@@ -285,8 +285,8 @@ jobs:
       - name: Lint check
         run: npm run lint:check
 
-      - name: Test
-        run: npm test
+      - name: Test with coverage (80% threshold)
+        run: npm run test:cov
 
       - name: Build check
         run: npm run build
