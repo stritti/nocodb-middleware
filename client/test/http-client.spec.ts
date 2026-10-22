@@ -36,8 +36,11 @@ function fakeServer(acceptedToken: () => string) {
   return { adapter, seen };
 }
 
-function setup(onRefresh?: () => Promise<string>, accepted = 'fresh') {
-  const storage = new InMemoryTokenStorage();
+function setup(
+  onRefresh?: () => Promise<string>,
+  accepted = 'fresh',
+  storage = new InMemoryTokenStorage(),
+) {
   storage.set({ accessToken: 'stale' });
   const http = createHttpClient('http://middleware', storage, 1000, onRefresh);
   const server = fakeServer(() => accepted);
@@ -108,13 +111,12 @@ describe('createHttpClient', () => {
   });
 
   it('keeps working when onRefresh stores the new token pair itself', async () => {
-    let storage!: InMemoryTokenStorage;
+    const storage = new InMemoryTokenStorage();
     const onRefresh = jest.fn(async () => {
       storage.set({ accessToken: 'fresh', refreshToken: 'rotated' });
       return 'fresh';
     });
-    const ctx = setup(onRefresh);
-    storage = ctx.storage;
+    const ctx = setup(onRefresh, 'fresh', storage);
 
     const response = await ctx.http.get('/meta/tables');
 
@@ -150,13 +152,12 @@ describe('createHttpClient', () => {
 
   describe('when the session changes while a refresh is pending', () => {
     it('does not sign the user back in after clearTokens()', async () => {
-      let storage!: InMemoryTokenStorage;
+      const storage = new InMemoryTokenStorage();
       const onRefresh = jest.fn(async () => {
         storage.clear(); // user signs out meanwhile
         return 'fresh';
       });
-      const ctx = setup(onRefresh);
-      storage = ctx.storage;
+      const ctx = setup(onRefresh, 'fresh', storage);
 
       const error = await ctx.http.get('/meta/tables').catch((e: unknown) => e);
 
@@ -166,13 +167,12 @@ describe('createHttpClient', () => {
     });
 
     it('does not mix the old session token into a new account', async () => {
-      let storage!: InMemoryTokenStorage;
+      const storage = new InMemoryTokenStorage();
       const onRefresh = jest.fn(async () => {
         storage.set({ accessToken: 'bob', refreshToken: 'bob-refresh' });
         return 'fresh'; // refreshed token of the previous account
       });
-      const ctx = setup(onRefresh);
-      storage = ctx.storage;
+      const ctx = setup(onRefresh, 'fresh', storage);
 
       const error = await ctx.http.get('/meta/tables').catch((e: unknown) => e);
 
