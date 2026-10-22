@@ -1,4 +1,4 @@
-import { TokenPair, TokenStorage } from '../types';
+import { TokenPair, TokenStorage } from '../types.js';
 
 /**
  * Manages JWT tokens for the NocoDB Middleware client.

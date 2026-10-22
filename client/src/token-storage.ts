@@ -1,4 +1,4 @@
-import { TokenPair, TokenStorage } from './types';
+import { TokenPair, TokenStorage } from './types.js';
 
 /**
  * Default in-memory token storage.

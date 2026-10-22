@@ -1,5 +1,5 @@
 import { AxiosInstance } from 'axios';
-import { normaliseError } from '../http-client';
+import { normaliseError } from '../http-client.js';
 
 /** Paging information returned with a record list. */
 export interface PageInfo {

@@ -290,3 +290,6 @@ jobs:
 
       - name: Build check
         run: npm run build
+
+      - name: Package check (ESM import + CJS require)
+        run: npm run check:package

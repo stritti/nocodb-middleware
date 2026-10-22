@@ -3,7 +3,7 @@ import axios, {
   AxiosError,
   InternalAxiosRequestConfig,
 } from 'axios';
-import { MiddlewareError, TokenStorage } from './types';
+import { MiddlewareError, TokenStorage } from './types.js';
 
 /** Internal flag added to retried requests to break refresh loops. */
 const RETRY_FLAG = '__nocodb_retry';

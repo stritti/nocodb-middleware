@@ -1,9 +1,9 @@
-import { createHttpClient } from './http-client';
-import { AuthService } from './services/auth.service';
-import { AdminService } from './services/admin.service';
-import { RecordsService } from './services/records.service';
-import { InMemoryTokenStorage } from './token-storage';
-import { ClientConfig, MiddlewareError } from './types';
+import { createHttpClient } from './http-client.js';
+import { AuthService } from './services/auth.service.js';
+import { AdminService } from './services/admin.service.js';
+import { RecordsService } from './services/records.service.js';
+import { InMemoryTokenStorage } from './token-storage.js';
+import { ClientConfig, MiddlewareError } from './types.js';
 
 /**
  * Main entry-point for the NocoDB Middleware client library.

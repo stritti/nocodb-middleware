@@ -9,23 +9,29 @@
   "types": "./dist/esm/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/esm/index.js",
-      "require": "./dist/cjs/index.js",
-      "types": "./dist/esm/index.d.ts"
+      "import": {
+        "types": "./dist/esm/index.d.ts",
+        "default": "./dist/esm/index.js"
+      },
+      "require": {
+        "types": "./dist/cjs/index.d.ts",
+        "default": "./dist/cjs/index.js"
+      }
     }
   },
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "npm run build:esm && npm run build:cjs",
+    "build": "npm run clean && npm run build:esm && npm run build:cjs && node scripts/write-module-types.mjs",
     "build:esm": "tsc -p tsconfig.esm.json",
     "build:cjs": "tsc -p tsconfig.cjs.json",
     "lint": "eslint \"src/**/*.ts\" \"test/**/*.ts\" --fix",
     "lint:check": "eslint \"src/**/*.ts\" \"test/**/*.ts\"",
     "test": "jest",
     "test:cov": "jest --coverage",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "check:package": "node scripts/check-package.mjs"
   },
   "peerDependencies": {
     "axios": ">=1.0.0"
@@ -47,6 +53,9 @@
     ],
     "collectCoverageFrom": [
       "src/**/*.ts"
-    ]
+    ],
+    "moduleNameMapper": {
+      "^(\\.{1,2}/.*)\\.js$": "$1"
+    }
   }
 }

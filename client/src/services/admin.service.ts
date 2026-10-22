@@ -1,5 +1,5 @@
 import { AxiosInstance } from 'axios';
-import { normaliseError } from '../http-client';
+import { normaliseError } from '../http-client.js';
 
 /** Table metadata as returned by GET /meta/tables. */
 export interface TableMeta {
