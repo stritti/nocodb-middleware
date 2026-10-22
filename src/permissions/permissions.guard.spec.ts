@@ -92,6 +92,28 @@ describe('PermissionsGuard', () => {
     await expect(guard.canActivate(ctx)).rejects.toThrow(ForbiddenException);
   });
 
+  it('logs a denied permission as structured audit fields', async () => {
+    reflector.getAllAndOverride.mockReturnValue([
+      { table: 'roles', action: CrudAction.DELETE },
+    ]);
+    permissionsService.canUserPerformAction.mockResolvedValue(false);
+    const warn = jest.spyOn(Logger.prototype, 'warn');
+
+    await expect(guard.canActivate(makeContext({ userId: 7 }))).rejects.toThrow(
+      ForbiddenException,
+    );
+
+    expect(warn).toHaveBeenCalledWith(
+      {
+        event: 'permission_denied',
+        userId: 7,
+        action: CrudAction.DELETE,
+        table: 'roles',
+      },
+      'Permission denied',
+    );
+  });
+
   it('should check all required permissions', async () => {
     reflector.getAllAndOverride.mockReturnValue([
       { table: 'users', action: CrudAction.READ },

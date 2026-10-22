@@ -153,6 +153,48 @@ Antwort: `[{ "id": "m1a2b3", "tableName": "customers", "title": "app_customers" 
 - `title` ist der Tabellentitel in NocoDB.
 - Systemtabellen (`users`, `roles`, `user_roles`, `table_permissions`) werden nicht gelistet. Bei gesetztem Präfix erscheinen nur Tabellen mit diesem Präfix.
 
+### Daten-API (Records)
+
+Generischer CRUD-Zugriff auf eigene NocoDB-Tabellen. `:table` ist der Tabellenname ohne Präfix.
+
+| Methode | Pfad | Aktion | Antwort |
+|---|---|---|---|
+| `GET` | `/api/data/:table` | `read` | `{ list, pageInfo }` |
+| `GET` | `/api/data/:table/:id` | `read` | Datensatz |
+| `POST` | `/api/data/:table` | `create` | `201` + Datensatz |
+| `PATCH` | `/api/data/:table/:id` | `update` | Datensatz |
+| `DELETE` | `/api/data/:table/:id` | `delete` | `204` |
+
+Query-Parameter für die Liste: `where` (NocoDB-Filter, z. B. `(Name,eq,Alice)`), `sort` (z. B. `-CreatedAt`), `limit` (1–100, Default 25), `offset` (Default 0). `pageInfo.totalRows` ist die Anzahl aller Treffer des Filters, unabhängig von `limit`/`offset`.
+
+**Autorisierung pro Tabelle und Aktion**, sonst `403`. Erlaubt ist ein Request, wenn eins von beiden zutrifft:
+
+- Der JWT enthält einen passenden Scope: `customers:read`, `customers:*`, `*:read` oder `*:*`.
+- Eine Rolle des Benutzers hat das Recht in `table_permissions` (siehe RBAC oben).
+
+Die Systemtabellen `users`, `roles`, `user_roles` und `table_permissions` sind über diese API nicht erreichbar und liefern `404`, ebenso unbekannte Tabellen und ungültige Namen. Ein fehlender Datensatz liefert bei `GET`, `PATCH` und `DELETE` ebenfalls `404`.
+
+**Validierung des Bodys** (`POST`/`PATCH`), sonst `400`:
+
+- Der Body muss ein nicht-leeres JSON-Objekt sein. Schlüssel sind die Feldtitel der Tabelle.
+- Felder, die es in der Tabelle nicht gibt, werden abgelehnt (`Unknown fields: …`).
+- Von NocoDB verwaltete Felder sind schreibgeschützt (`Read-only fields: …`): `id`, ID, AutoNumber, Formula, Rollup, Lookup, Links, CreatedTime/LastModifiedTime, CreatedBy/LastModifiedBy, Barcode, QrCode, Button. Verknüpfungen werden nicht über diese API gepflegt.
+- Lehnt NocoDB einen Wert ab (z. B. ungültige E-Mail), antwortet die API mit `400`.
+
+Nicht-numerische IDs liefern ebenfalls `400`, ebenso `where`- oder `sort`-Ausdrücke, die NocoDB nicht verarbeiten kann. Für `:table` gilt dieselbe Namensregel wie im Tabellenkatalog (Leerzeichen URL-kodiert, z. B. `/api/data/Customer%20Orders`).
+
+Tabellen-ID und Felder werden pro Tabelle 60 Sekunden gecacht: Neu angelegte Tabellen sind sofort erreichbar, neue Felder einer bereits genutzten Tabelle spätestens nach 60 Sekunden.
+
+```bash
+curl "http://localhost:3000/api/data/customers?where=(Name,eq,Alice)&limit=10" \
+  -H "Authorization: Bearer <jwt>"
+
+curl -X POST http://localhost:3000/api/data/customers \
+  -H "Authorization: Bearer <jwt>" \
+  -H "Content-Type: application/json" \
+  -d '{"Name": "Bob"}'
+```
+
 ## Validierung und Fehlerformat
 
 Globale `ValidationPipe` ist aktiv:

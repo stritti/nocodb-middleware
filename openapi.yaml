@@ -416,6 +416,229 @@ paths:
       security: *ref_2
       summary: Get all roles assigned to a user (paginated)
       tags: *ref_3
+  /data/{table}:
+    get:
+      operationId: DataController_list
+      parameters:
+        - name: table
+          required: true
+          in: path
+          description: Table name in NocoDB (without prefix)
+          schema:
+            example: customers
+            type: string
+        - name: where
+          required: false
+          in: query
+          description: NocoDB filter expression
+          schema:
+            example: (Name,eq,Alice)
+            type: string
+        - name: sort
+          required: false
+          in: query
+          description: Sort fields, prefix with - for descending
+          schema:
+            example: -CreatedAt
+            type: string
+        - name: limit
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            maximum: 100
+            default: 25
+            type: number
+        - name: offset
+          required: false
+          in: query
+          schema:
+            minimum: 0
+            default: 0
+            type: number
+      responses:
+        '200':
+          description: A page of records
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecordListDto'
+        '400': &ref_4
+          description: Invalid id, query or body (unknown or read-only fields)
+        '401': &ref_5
+          description: Missing or invalid JWT
+        '403': &ref_6
+          description: No permission for this table
+        '404': &ref_7
+          description: Table or record not found
+      security: &ref_8
+        - bearer: []
+      summary: List records of a table
+      tags: &ref_9
+        - data
+    post:
+      operationId: DataController_create
+      parameters:
+        - name: table
+          required: true
+          in: path
+          description: Table name in NocoDB (without prefix)
+          schema:
+            example: customers
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              example:
+                Name: Alice
+      responses:
+        '201':
+          description: Created record
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    oneOf:
+                      - type: integer
+                      - type: string
+                    example: 1
+                required:
+                  - id
+                additionalProperties: true
+                example:
+                  id: 1
+                  Name: Alice
+                  Email: alice@example.com
+        '400': *ref_4
+        '401': *ref_5
+        '403': *ref_6
+        '404': *ref_7
+      security: *ref_8
+      summary: Create a record
+      tags: *ref_9
+  /data/{table}/{id}:
+    get:
+      operationId: DataController_read
+      parameters:
+        - name: table
+          required: true
+          in: path
+          description: Table name in NocoDB (without prefix)
+          schema:
+            example: customers
+            type: string
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: number
+      responses:
+        '200':
+          description: The record
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    oneOf:
+                      - type: integer
+                      - type: string
+                    example: 1
+                required:
+                  - id
+                additionalProperties: true
+                example:
+                  id: 1
+                  Name: Alice
+                  Email: alice@example.com
+        '400': *ref_4
+        '401': *ref_5
+        '403': *ref_6
+        '404': *ref_7
+      security: *ref_8
+      summary: Read a single record
+      tags: *ref_9
+    patch:
+      operationId: DataController_update
+      parameters:
+        - name: table
+          required: true
+          in: path
+          description: Table name in NocoDB (without prefix)
+          schema:
+            example: customers
+            type: string
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: number
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              example:
+                Name: Bob
+      responses:
+        '200':
+          description: Updated record
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    oneOf:
+                      - type: integer
+                      - type: string
+                    example: 1
+                required:
+                  - id
+                additionalProperties: true
+                example:
+                  id: 1
+                  Name: Alice
+                  Email: alice@example.com
+        '400': *ref_4
+        '401': *ref_5
+        '403': *ref_6
+        '404': *ref_7
+      security: *ref_8
+      summary: Update a record
+      tags: *ref_9
+    delete:
+      operationId: DataController_delete
+      parameters:
+        - name: table
+          required: true
+          in: path
+          description: Table name in NocoDB (without prefix)
+          schema:
+            example: customers
+            type: string
+        - name: id
+          required: true
+          in: path
+          schema:
+            type: number
+      responses:
+        '204':
+          description: Deleted
+        '400': *ref_4
+        '401': *ref_5
+        '403': *ref_6
+        '404': *ref_7
+      security: *ref_8
+      summary: Delete a record
+      tags: *ref_9
 info:
   title: NocoDB Middleware API
   description: >-
@@ -603,3 +826,41 @@ components:
       required:
         - userId
         - roleIds
+    PageInfoDto:
+      type: object
+      properties:
+        totalRows:
+          type: number
+          description: Number of all records matching the filter (independent of limit/offset)
+          example: 42
+        pageSize:
+          type: number
+          description: Requested page size
+          example: 25
+      required:
+        - totalRows
+    RecordListDto:
+      type: object
+      properties:
+        list:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                oneOf:
+                  - type: integer
+                  - type: string
+                example: 1
+            required:
+              - id
+            additionalProperties: true
+            example:
+              id: 1
+              Name: Alice
+              Email: alice@example.com
+        pageInfo:
+          $ref: '#/components/schemas/PageInfoDto'
+      required:
+        - list
+        - pageInfo

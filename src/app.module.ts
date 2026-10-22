@@ -8,6 +8,7 @@ import { NocoDBModule } from './nocodb/nocodb.module';
 import { AuthModule } from './auth/auth.module';
 import { HealthModule } from './health/health.module';
 import { PermissionsModule } from './permissions/permissions.module';
+import { DataModule } from './data/data.module';
 import { TelemetryModule } from './tracing/telemetry.module';
 
 @Module({
@@ -39,6 +40,7 @@ import { TelemetryModule } from './tracing/telemetry.module';
     AuthModule,
     HealthModule,
     PermissionsModule,
+    DataModule,
   ],
   controllers: [AppController],
   providers: [
