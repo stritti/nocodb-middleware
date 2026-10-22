@@ -8,6 +8,9 @@ export default defineConfig({
     'A robust NestJS middleware for NocoDB with authentication, RBAC, caching, error handling, and API documentation.',
   base: '/nocodb-middleware/',
 
+  // Example URLs like http://localhost:3001 are not part of the site.
+  ignoreDeadLinks: 'localhostLinks',
+
   vite: {
     plugins: [yamlPlugin()],
   },
