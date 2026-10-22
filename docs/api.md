@@ -146,6 +146,13 @@ curl http://localhost:3000/api/meta/tables \
   -H "Authorization: Bearer <jwt>"
 ```
 
+Antwort: `[{ "id": "m1a2b3", "tableName": "customers", "title": "app_customers" }]`
+
+- `tableName` ist der **logische** Name ohne `NOCODB_TABLE_PREFIX`. Diesen Namen verwenden Tabellenrechte (`tableName` in `/admin/permissions/table-permissions`).
+- Erlaubt sind Tabellennamen aus Buchstaben, Ziffern, Leerzeichen, `_` und `-` (1–255 Zeichen, ohne Leerzeichen am Anfang oder Ende), z. B. `Customer Orders`. Dieselbe Regel gilt für Tabellenrechte. Tabellen mit anderen Zeichen im Namen (etwa `"` oder `/`) erscheinen nicht im Katalog, weil sich für sie keine Rechte vergeben lassen.
+- `title` ist der Tabellentitel in NocoDB.
+- Systemtabellen (`users`, `roles`, `user_roles`, `table_permissions`) werden nicht gelistet. Bei gesetztem Präfix erscheinen nur Tabellen mit diesem Präfix.
+
 ## Validierung und Fehlerformat
 
 Globale `ValidationPipe` ist aktiv:

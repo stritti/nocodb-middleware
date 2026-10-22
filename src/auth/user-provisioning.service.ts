@@ -187,13 +187,13 @@ export class UserProvisioningService {
       const roleId = extractNumericId(role);
       const existing = await this.nocoDBService.findOne(
         userRolesTable.id,
-        andFilters(filterEq('user.id', userId), filterEq('role.id', roleId)),
+        andFilters(filterEq('user_id', userId), filterEq('role_id', roleId)),
       );
 
       if (!existing) {
         await this.nocoDBService.create(userRolesTable.id, {
-          user: [{ id: userId }],
-          role: [{ id: roleId }],
+          user_id: userId,
+          role_id: roleId,
           assigned_at: new Date().toISOString(),
         });
       }

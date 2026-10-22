@@ -1,0 +1,22 @@
+{
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": "../..",
+  "testEnvironment": "node",
+  "testRegex": "test/integration/.*\\.integration-spec\\.ts$",
+  "extensionsToTreatAsEsm": [".ts"],
+  "globalSetup": "<rootDir>/test/integration/global-setup.cjs",
+  "globalTeardown": "<rootDir>/test/integration/global-teardown.cjs",
+  "testTimeout": 60000,
+  "transform": {
+    "^.+\\.(t|j)s$": [
+      "ts-jest",
+      {
+        "useESM": true,
+        "tsconfig": {
+          "module": "ESNext",
+          "moduleResolution": "Bundler"
+        }
+      }
+    ]
+  }
+}

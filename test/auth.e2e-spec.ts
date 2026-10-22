@@ -3,6 +3,9 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { AppModule } from './../src/app.module';
 import { NocoDBService } from './../src/nocodb/nocodb.service';
 import { DatabaseInitializationService } from './../src/nocodb/database-initialization.service';
+// The examples controller is a demo endpoint and not mounted in AppModule;
+// it is registered here only to exercise guards and sanitization end-to-end.
+import { ExamplesModule } from './../src/examples/examples.module';
 import request from 'supertest';
 import * as jwt from 'jsonwebtoken';
 
@@ -36,6 +39,7 @@ const mockNocoDBService = {
   create: jest.fn().mockResolvedValue({ id: 1 }),
   update: jest.fn().mockResolvedValue({ id: 1 }),
   list: jest.fn().mockResolvedValue({ list: [] }),
+  listAll: jest.fn().mockResolvedValue([]),
   read: jest.fn().mockResolvedValue({ id: 1 }),
   delete: jest.fn().mockResolvedValue(undefined),
   exists: jest.fn().mockResolvedValue(false),
@@ -43,6 +47,10 @@ const mockNocoDBService = {
   getBaseId: jest.fn().mockReturnValue('mock-base-id'),
   getTablePrefix: jest.fn().mockReturnValue(''),
   getClient: jest.fn().mockReturnValue({}),
+  listTables: jest.fn().mockResolvedValue([
+    { id: 't1', title: 'customers' },
+    { id: 't2', title: 'users' },
+  ]),
 };
 
 const mockDbInitService = {
@@ -51,8 +59,9 @@ const mockDbInitService = {
 
 // ── Test config (all values set via env to avoid hardcoded secrets) ─────────
 
-const TEST_PASSWORD =
-  process.env.E2E_TEST_PASSWORD ?? 'test-password-for-e2e-only';
+// Must satisfy the password policy of BootstrapAdminDto, otherwise validation
+// rejects the request (400) before the bootstrap token is checked.
+const TEST_PASSWORD = process.env.E2E_TEST_PASSWORD ?? 'E2e-Test-Passw0rd!';
 
 // ── Setup required env vars ─────────────────────────────────────────────────
 
@@ -67,6 +76,7 @@ beforeAll(() => {
   process.env.CORS_ORIGINS = 'http://localhost:3000';
   process.env.LOG_LEVEL = 'silent';
   process.env.E2E_TEST_PASSWORD = TEST_PASSWORD;
+  process.env.BOOTSTRAP_ADMIN_TOKEN = 'e2e-bootstrap-token';
 });
 
 // ── Tests ────────────────────────────────────────────────────────────────────
@@ -76,7 +86,7 @@ describe('Auth Flow (e2e)', () => {
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
+      imports: [AppModule, ExamplesModule],
     })
       .overrideProvider(NocoDBService)
       .useValue(mockNocoDBService)
@@ -104,11 +114,15 @@ describe('Auth Flow (e2e)', () => {
   // ── Public endpoints ─────────────────────────────────────────────────────
 
   describe('Public endpoints', () => {
-    it('GET /api returns Hello World!', () => {
+    it('GET /api returns the API info', () => {
       return request(app.getHttpServer())
         .get('/api')
         .expect(200)
-        .expect('Hello World!');
+        .expect(({ body }) => {
+          expect(body).toEqual(
+            expect.objectContaining({ name: 'NocoDB Middleware API' }),
+          );
+        });
     });
 
     it('GET /api/health returns 200', () => {
@@ -193,22 +207,22 @@ describe('Auth Flow (e2e)', () => {
     });
 
     it('returns 401 with expired token', () => {
+      // exp one minute in the past: no waiting, and the returned Supertest
+      // chain makes Jest fail when the assertion fails
       const expiredToken = jwt.sign(
-        { sub: 1, email: 'test@test.com', roles: ['admin'] },
+        {
+          sub: 1,
+          email: 'test@test.com',
+          roles: ['admin'],
+          exp: Math.floor(Date.now() / 1000) - 60,
+        },
         TEST_JWT_SECRET,
-        { expiresIn: '0s' },
       );
-      // Small delay to ensure expiry
-      return new Promise<void>((resolve) => {
-        setTimeout(() => {
-          request(app.getHttpServer())
-            .get('/api/examples')
-            .set('Authorization', `Bearer ${expiredToken}`)
-            .expect(401)
-            .end(resolve);
-        }, 1100);
-      });
-    }, 5000);
+      return request(app.getHttpServer())
+        .get('/api/examples')
+        .set('Authorization', `Bearer ${expiredToken}`)
+        .expect(401);
+    });
   });
 
   // ── Authenticated access ─────────────────────────────────────────────────
@@ -223,7 +237,12 @@ describe('Auth Flow (e2e)', () => {
     });
 
     it('GET /api/admin/permissions/roles returns 200 with valid admin token', () => {
-      const token = createAuthToken({ roles: ['admin'] });
+      // PermissionsGuard grants access via scope or NocoDB table permissions,
+      // not via the role name alone.
+      const token = createAuthToken({
+        roles: ['admin'],
+        scope: ['roles:read'],
+      });
       return request(app.getHttpServer())
         .get('/api/admin/permissions/roles')
         .set('Authorization', `Bearer ${token}`)
@@ -235,11 +254,28 @@ describe('Auth Flow (e2e)', () => {
       return request(app.getHttpServer())
         .get('/api/meta/tables')
         .set('Authorization', `Bearer ${token}`)
-        .expect(200);
+        .expect(200)
+        .expect(({ body }) => {
+          // internal system tables (users, roles, ...) are filtered out
+          expect(body).toEqual([
+            { id: 't1', tableName: 'customers', title: 'customers' },
+          ]);
+        });
+    });
+
+    it('GET /api/admin/permissions/roles returns 403 for admin role without permission', () => {
+      const token = createAuthToken({ roles: ['admin'] });
+      return request(app.getHttpServer())
+        .get('/api/admin/permissions/roles')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(403);
     });
 
     it('POST /api/admin/permissions/roles returns 201 with valid admin token', () => {
-      const token = createAuthToken({ roles: ['admin'] });
+      const token = createAuthToken({
+        roles: ['admin'],
+        scope: ['roles:create'],
+      });
       return request(app.getHttpServer())
         .post('/api/admin/permissions/roles')
         .set('Authorization', `Bearer ${token}`)

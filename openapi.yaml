@@ -498,7 +498,9 @@ components:
         tableName:
           type: string
           example: products
-          description: Table name (alphanumeric, underscores, hyphens)
+          description: >-
+            Logical table name: letters, digits, spaces, underscores and hyphens (1-255 characters, no leading or
+            trailing space)
         canCreate:
           type: boolean
           example: true
@@ -528,7 +530,9 @@ components:
         tableName:
           type: string
           example: products
-          description: Table name (alphanumeric, underscores, hyphens)
+          description: >-
+            Logical table name: letters, digits, spaces, underscores and hyphens (1-255 characters, no leading or
+            trailing space)
         canCreate:
           type: boolean
           example: true

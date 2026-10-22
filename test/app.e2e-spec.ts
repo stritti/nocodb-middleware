@@ -4,6 +4,9 @@ import { JwtService } from '@nestjs/jwt';
 import { AppModule } from './../src/app.module';
 import request from 'supertest';
 import { NocoDBService } from '../src/nocodb/nocodb.service';
+// The examples controller is a demo endpoint and not mounted in AppModule;
+// it is registered here only to exercise validation and sanitization.
+import { ExamplesModule } from '../src/examples/examples.module';
 
 describe('AppController (e2e)', () => {
   let app: INestApplication;
@@ -22,19 +25,21 @@ describe('AppController (e2e)', () => {
     validToken = jwtService.sign({
       sub: 1,
       role: 'user',
+      // PermissionsGuard grants access via scope or NocoDB table permissions
+      scope: 'roles:create',
     });
   });
 
   beforeEach(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
+      imports: [AppModule, ExamplesModule],
     })
       .overrideProvider(NocoDBService)
       .useValue({
         getTablePrefix: jest.fn().mockReturnValue(''),
         getBaseId: jest.fn().mockReturnValue('test-base-id'),
         getTableByName: jest.fn((name: string) =>
-          Promise.resolve({ id: `id_${name}`, table_name: name }),
+          Promise.resolve({ id: `id_${name}`, title: name }),
         ),
         getTableMetadata: jest.fn().mockResolvedValue({
           columns: [
@@ -52,8 +57,12 @@ describe('AppController (e2e)', () => {
         createTable: jest.fn().mockResolvedValue({ id: 'new-table-id' }),
         createColumn: jest.fn().mockResolvedValue({ id: 'new-column-id' }),
         list: jest.fn().mockResolvedValue({ list: [{ id: 1 }] }),
+        listAll: jest.fn().mockResolvedValue([]),
         findOne: jest.fn().mockResolvedValue(null),
-        create: jest.fn().mockResolvedValue({ id: 1 }),
+        // Echo the persisted payload so tests can assert what was stored
+        create: jest.fn((_tableId: string, data: object) =>
+          Promise.resolve({ id: 1, ...data }),
+        ),
         update: jest.fn().mockResolvedValue({ id: 1 }),
         read: jest.fn().mockResolvedValue({
           id: 1,
@@ -79,7 +88,7 @@ describe('AppController (e2e)', () => {
   });
 
   describe('/ (GET)', () => {
-    it('should return Hello World!', () => {
+    it('should return the API info', () => {
       return request(app.getHttpServer())
         .get('/')
         .expect(200)
@@ -87,7 +96,7 @@ describe('AppController (e2e)', () => {
           expect(body).toEqual(
             expect.objectContaining({
               name: 'NocoDB Middleware API',
-              version: '0.0.1',
+              version: expect.any(String),
             }),
           );
         });
@@ -123,27 +132,25 @@ describe('AppController (e2e)', () => {
         .send(xssPayload)
         .expect(201)
         .expect(({ body }) => {
-          // The sanitized title should not contain script tags
-          if (body && body.title) {
-            expect(body.title).not.toContain('<script>');
-            expect(body.title).not.toContain('</script>');
-          }
+          expect(body.title).toBe('Hello');
         });
     });
 
     it('should reject empty title', () => {
       return request(app.getHttpServer())
         .post('/examples')
+        .set('Authorization', `Bearer ${validToken}`)
         .send({ title: '' })
-        .expect(401);
+        .expect(400);
     });
 
     it('should reject title that is too long', () => {
       const longTitle = 'a'.repeat(101);
       return request(app.getHttpServer())
         .post('/examples')
+        .set('Authorization', `Bearer ${validToken}`)
         .send({ title: longTitle })
-        .expect(401);
+        .expect(400);
     });
 
     it('should strip XSS from role description', () => {
@@ -158,10 +165,7 @@ describe('AppController (e2e)', () => {
         .send(xssPayload)
         .expect(201)
         .expect(({ body }) => {
-          if (body && body.description) {
-            expect(body.description).not.toContain('onerror=');
-            expect(body.description).not.toContain('<img');
-          }
+          expect(body.description).toBe('Role description');
         });
     });
   });

@@ -6,7 +6,6 @@ import nocodbConfig from '../config/nocodb.config';
 import { NocoDbContextMiddleware } from './middleware/nocodb-context.middleware';
 import { LoggingMiddleware } from './middleware/logging.middleware';
 
-import { ExampleRepository } from './repositories/example.repository';
 import { CacheModule } from '@nestjs/cache-manager';
 import { NocoDBCacheService } from './cache/nocodb-cache.service';
 import { TableCatalogService } from './table-catalog.service';
@@ -32,17 +31,11 @@ import { TableCatalogController } from './table-catalog.controller';
   providers: [
     NocoDBService,
     DatabaseInitializationService,
-    ExampleRepository,
     NocoDBCacheService,
     TableCatalogService,
   ],
   controllers: [TableCatalogController],
-  exports: [
-    NocoDBService,
-    ExampleRepository,
-    NocoDBCacheService,
-    TableCatalogService,
-  ],
+  exports: [NocoDBService, NocoDBCacheService, TableCatalogService],
 })
 export class NocoDBModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {

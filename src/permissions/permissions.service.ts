@@ -7,11 +7,19 @@ import { extractNumericId } from '../common/utils/nocodb-utils';
 
 /** In-memory permission cache TTL (5 minutes). */
 const PERMISSIONS_CACHE_TTL_MS = 5 * 60 * 1000;
+export const PERMISSIONS_CACHE_MAX_ENTRIES = 1000;
 
 @Injectable()
 export class PermissionsService {
   private readonly logger = new Logger(PermissionsService.name);
-  private permissionsCache: Map<number, UserPermissions> = new Map();
+  /**
+   * Cached permissions with their expiry time. Expiry is checked on read
+   * instead of with timers, which would keep the process alive on shutdown.
+   */
+  private permissionsCache = new Map<
+    number,
+    { value: UserPermissions; expiresAt: number }
+  >();
   private readonly CACHE_TTL = PERMISSIONS_CACHE_TTL_MS;
 
   constructor(private nocoDBService: NocoDBService) {}
@@ -25,9 +33,11 @@ export class PermissionsService {
       const tables = await this.nocoDBService.listBaseTables(baseId);
       const prefix = this.nocoDBService.getTablePrefix();
 
+      // Permissions refer to tables by their logical (unprefixed) name.
       return tables
-        .map((table) => table.table_name)
-        .filter((name: string) => (prefix ? name.startsWith(prefix) : true));
+        .map((table) => table.title)
+        .filter((name) => (prefix ? name.startsWith(prefix) : true))
+        .map((name) => name.slice(prefix.length));
     } catch (error) {
       this.logger.error('Error fetching workspace tables:', error);
       throw error;
@@ -39,8 +49,8 @@ export class PermissionsService {
    */
   async getUserPermissions(userId: number): Promise<UserPermissions> {
     const cached = this.permissionsCache.get(userId);
-    if (cached) {
-      return cached;
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.value;
     }
 
     try {
@@ -60,23 +70,18 @@ export class PermissionsService {
         return this.createEmptyPermissions(userId, username);
       }
 
-      const userRolesResult = await this.nocoDBService.list(userRolesTable.id, {
-        where: filterEq('user.id', userId),
-        includeRelations: ['role'],
+      const userRoles = await this.nocoDBService.listAll(userRolesTable.id, {
+        where: filterEq('user_id', userId),
+        fields: ['role_id'],
       });
 
-      const roleIds = (userRolesResult.list ?? [])
-        .filter((ur) => {
-          const role = (ur as Record<string, unknown>).role;
-          return Array.isArray(role) && role.length > 0;
-        })
-        .map((ur) => {
-          const role = (ur as Record<string, unknown>).role as Array<{
-            id?: number | string;
-          }>;
-          return role[0].id != null ? Number(role[0].id) : NaN;
-        })
-        .filter((id): id is number => !Number.isNaN(id));
+      const roleIds = [
+        ...new Set(
+          userRoles
+            .map((ur) => Number(ur.role_id))
+            .filter((id) => Number.isInteger(id) && id > 0),
+        ),
+      ];
 
       if (roleIds.length === 0) {
         this.logger.warn(`User ${userId} has no assigned roles`);
@@ -89,13 +94,23 @@ export class PermissionsService {
         return this.createEmptyPermissions(userId, username);
       }
 
-      const rolesResult = await this.nocoDBService.list(rolesTable.id, {
+      const roles = await this.nocoDBService.listAll(rolesTable.id, {
         where: filterIn('id', roleIds),
       });
 
-      const roleNames = (rolesResult.list ?? []).map(
+      const roleNames = roles.map(
         (r) => (r.role_name as string | undefined) ?? '',
       );
+
+      // Assignments of deleted roles remain in user_roles (and their rows in
+      // table_permissions); only roles that still exist may grant access.
+      const existingRoleIds = new Set(roles.map((r) => Number(r.id)));
+      const activeRoleIds = roleIds.filter((id) => existingRoleIds.has(id));
+
+      if (activeRoleIds.length === 0) {
+        this.logger.warn(`User ${userId} has no existing roles`);
+        return this.createEmptyPermissions(userId, username);
+      }
 
       const permissionsTable =
         await this.nocoDBService.getTableByName('table_permissions');
@@ -104,16 +119,16 @@ export class PermissionsService {
         return this.createEmptyPermissions(userId, username);
       }
 
-      const permissionsResult = await this.nocoDBService.list(
+      const permissionRecords = await this.nocoDBService.listAll(
         permissionsTable.id,
-        { where: filterIn('role.id', roleIds) },
+        { where: filterIn('role_id', activeRoleIds) },
       );
 
       const permissionsMap = new Map<string, Set<CrudAction>>();
 
-      for (const perm of permissionsResult.list ?? []) {
+      for (const perm of permissionRecords) {
         const tableName = perm.table_name as string | undefined;
-        if (!tableName) continue;
+        if (!tableName || !existingRoleIds.has(Number(perm.role_id))) continue;
 
         if (!permissionsMap.has(tableName)) {
           permissionsMap.set(tableName, new Set());
@@ -134,14 +149,34 @@ export class PermissionsService {
         permissions: permissionsMap,
       };
 
-      this.permissionsCache.set(userId, userPermissions);
-      setTimeout(() => this.permissionsCache.delete(userId), this.CACHE_TTL);
+      this.cachePermissions(userId, userPermissions);
 
       return userPermissions;
     } catch (error) {
       this.logger.error(`Error loading permissions for user ${userId}:`, error);
       throw error;
     }
+  }
+
+  /**
+   * Stores permissions, first dropping expired entries and, if the cache is
+   * full, the oldest ones (a Map iterates in insertion order). Re-inserting
+   * moves a user to the end.
+   */
+  private cachePermissions(userId: number, value: UserPermissions): void {
+    const now = Date.now();
+    for (const [id, entry] of this.permissionsCache) {
+      if (entry.expiresAt <= now) this.permissionsCache.delete(id);
+    }
+    this.permissionsCache.delete(userId);
+    while (this.permissionsCache.size >= PERMISSIONS_CACHE_MAX_ENTRIES) {
+      const oldest = this.permissionsCache.keys().next().value as number;
+      this.permissionsCache.delete(oldest);
+    }
+    this.permissionsCache.set(userId, {
+      value,
+      expiresAt: now + this.CACHE_TTL,
+    });
   }
 
   /**
@@ -182,13 +217,13 @@ export class PermissionsService {
       const existing = await this.nocoDBService.findOne(
         permissionsTable.id,
         andFilters(
-          filterEq('role.id', roleId),
+          filterEq('role_id', roleId),
           filterEq('table_name', tableName),
         ),
       );
 
       const permissionData = {
-        role: [{ id: roleId }],
+        role_id: roleId,
         table_name: tableName,
         can_create: permissions[CrudAction.CREATE] ?? false,
         can_read: permissions[CrudAction.READ] ?? false,

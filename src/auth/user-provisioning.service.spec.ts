@@ -195,8 +195,8 @@ describe('UserProvisioningService', () => {
       2,
       'user-roles-table',
       expect.objectContaining({
-        user: [{ id: 77 }],
-        role: [{ id: 1 }],
+        user_id: 77,
+        role_id: 1,
       }),
     );
     expect(result.userId).toBe(77);

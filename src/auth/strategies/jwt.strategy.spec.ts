@@ -105,7 +105,40 @@ describe('JwtStrategy', () => {
         username: 'testuser',
         email: 'test@example.com',
         roles: ['admin'],
+        scope: [],
       });
+    });
+
+    it('should pass OAuth scopes from a space-separated scope claim to the request user', async () => {
+      const result = await strategy.validate({
+        sub: 1,
+        scope: 'roles:read roles:create',
+      });
+      expect(result.scope).toEqual(['roles:read', 'roles:create']);
+    });
+
+    it('should pass scopes from an scp array claim to the request user', async () => {
+      const result = await strategy.validate({ sub: 1, scp: ['users:*'] });
+      expect(result.scope).toEqual(['users:*']);
+    });
+
+    it('should pass scopes for the external provider', async () => {
+      mockAuthProviderConfig.getProvider.mockReturnValueOnce('external');
+      const identityProvider = (strategy as any).identityProvider;
+      identityProvider.resolveIdentity.mockResolvedValueOnce({
+        userId: 7,
+        username: 'ext-user',
+        email: 'ext@example.com',
+        roles: ['user'],
+        active: true,
+      });
+
+      const result = await strategy.validate({
+        sub: 'ext-7',
+        scope: 'roles:read',
+      });
+
+      expect(result.scope).toEqual(['roles:read']);
     });
   });
 });

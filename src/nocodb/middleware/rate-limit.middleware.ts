@@ -1,6 +1,6 @@
 import { Injectable, NestMiddleware, Logger } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 
 // ── Rate-limit presets ──────────────────────────────────────────────────────
 
@@ -24,6 +24,23 @@ interface AuthenticatedUser {
   roles: string[];
 }
 
+/**
+ * Rate-limit key for the client address. IPv4-mapped IPv6 addresses count as
+ * IPv4; IPv6 addresses are grouped by /56 network, because a single client
+ * usually controls a whole prefix and could otherwise rotate addresses to
+ * evade the limit.
+ */
+export function clientIpKey(req: Request): string {
+  const ip = req.ip?.replace(/^::ffff:(?=\d+\.\d+\.\d+\.\d+$)/, '');
+  return ip ? ipKeyGenerator(ip) : 'unknown';
+}
+
+/** Rate-limit key for authenticated users, falling back to the client network. */
+export function userRateLimitKey(req: Request): string {
+  const user = req.user as AuthenticatedUser | undefined;
+  return user?.userId !== undefined ? `user:${user.userId}` : clientIpKey(req);
+}
+
 @Injectable()
 export class RateLimitMiddleware implements NestMiddleware {
   private readonly logger = new Logger(RateLimitMiddleware.name);
@@ -34,12 +51,7 @@ export class RateLimitMiddleware implements NestMiddleware {
     max: IP_RATE_LIMIT_MAX,
     standardHeaders: true,
     legacyHeaders: false,
-    // IPv6-safe key generator: normalize IPv6 addresses
-    keyGenerator: (req: Request) => {
-      const ip = req.ip || req.connection?.remoteAddress || 'unknown';
-      // Remove IPv4-mapped prefix (::ffff:192.168.1.1 -> 192.168.1.1)
-      return ip.replace(/^::ffff:/, '');
-    },
+    keyGenerator: clientIpKey,
     handler: (req: Request, res: Response) => {
       this.logger.warn(
         `IP Rate limit exceeded for ${req.ip} on ${req.originalUrl}`,
@@ -64,11 +76,7 @@ export class RateLimitMiddleware implements NestMiddleware {
     },
     standardHeaders: true,
     legacyHeaders: false,
-    keyGenerator: (req: Request) => {
-      const user = req.user as AuthenticatedUser | undefined;
-      // Use userId if available, fall back to IP
-      return user?.userId?.toString() || req.ip || 'unknown';
-    },
+    keyGenerator: userRateLimitKey,
     skip: (req: Request) => !req.user,
     handler: (req: Request, res: Response) => {
       const user = req.user as AuthenticatedUser | undefined;

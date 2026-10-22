@@ -15,6 +15,9 @@ npm run test:e2e
 # Coverage
 npm run test:cov
 
+# Integration tests against a real NocoDB (see below)
+npm run test:integration
+
 # Run only the auth E2E test
 npx jest --config ./test/jest-e2e.json test/auth.e2e-spec.ts
 ```
@@ -47,11 +50,23 @@ Der Testbestand deckt primär ab:
 laufende NocoDB-Instanz benötigt wird. Der Auth-Flow (JWT-Guard, RolesGuard,
 PermissionsGuard) wird dabei vollständig gegen die Mock-API getestet.
 
-## Bekannte Altlasten
+### Integrationstests (`test/integration/*.integration-spec.ts`)
 
-Nicht alle Unit-Tests sind derzeit grün (vorhandene Altlasten):
+Unit- und E2E-Tests mocken NocoDB. Ob die Middleware tatsächlich mit der NocoDB-API zusammenspielt, prüfen nur die Integrationstests. Sie laufen gegen eine **echte** NocoDB, jeder Lauf in einer frisch angelegten Base, die danach wieder gelöscht wird.
 
-- `src/nocodb/database-initialization.service.spec.ts` — DI-Mocking für `NocoDBV3Service` unvollständig
+- `nocodb.service.integration-spec.ts` — Adapter: Meta-/Data-API v3, CRUD, Filter, Sortierung, Paging, 404-Verhalten, Tabellen-Präfix
+- `app.integration-spec.ts` — komplette Middleware mit Produktions-Pipeline: Schema-Initialisierung (idempotent), Admin-Seed, Bootstrap, JWT-Prüfung gegen `users`, Rechteprüfung aus `table_permissions`, Tabellenkatalog
+
+Lokal:
+
+```bash
+docker run -d --name nocodb-it -p 8080:8080 nocodb/nocodb:0.301.3
+export NOCODB_IT_URL=http://localhost:8080
+export $(node scripts/nocodb-it-setup.mjs)   # legt Admin + API-Token an
+npm run test:integration
+```
+
+In CI läuft das im Job „Integration" mit NocoDB als Service-Container. Die Version dort (`0.301.3`) ist die, gegen die der Adapter verifiziert ist. Bei einem NocoDB-Update zuerst diesen Job mit der neuen Version laufen lassen.
 
 ## Teststrategie
 

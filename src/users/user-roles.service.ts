@@ -8,7 +8,8 @@ import { NocoDBService } from '../nocodb/nocodb.service';
 import { PageOptionsDto } from '../nocodb/dto/page-options.dto';
 import { PageMetaDto } from '../nocodb/dto/page-meta.dto';
 import { PageDto } from '../nocodb/dto/page.dto';
-import { andFilters, filterEq } from '../nocodb/nocodb-filter.util';
+import { andFilters, filterEq, filterIn } from '../nocodb/nocodb-filter.util';
+import { NocoRecord } from '../nocodb/nocodb.types';
 import { AssignRoleDto, AssignMultipleRolesDto } from './dto/assign-role.dto';
 import { PermissionsService } from '../permissions/permissions.service';
 import { extractNumericId } from '../common/utils/nocodb-utils';
@@ -36,8 +37,8 @@ export class UserRolesService {
       const existing = await this.nocoDBService.findOne(
         userRolesTable.id,
         andFilters(
-          filterEq('user.id', dto.userId),
-          filterEq('role.id', dto.roleId),
+          filterEq('user_id', dto.userId),
+          filterEq('role_id', dto.roleId),
         ),
       );
 
@@ -48,8 +49,8 @@ export class UserRolesService {
       }
 
       const result = await this.nocoDBService.create(userRolesTable.id, {
-        user: [{ id: dto.userId }],
-        role: [{ id: dto.roleId }],
+        user_id: dto.userId,
+        role_id: dto.roleId,
         assigned_at: new Date().toISOString(),
       });
 
@@ -110,7 +111,7 @@ export class UserRolesService {
 
       const assignment = await this.nocoDBService.findOne(
         userRolesTable.id,
-        andFilters(filterEq('user.id', userId), filterEq('role.id', roleId)),
+        andFilters(filterEq('user_id', userId), filterEq('role_id', roleId)),
       );
 
       if (!assignment) {
@@ -158,15 +159,19 @@ export class UserRolesService {
       const offset = pageOptionsDto?.skip ?? 0;
 
       const response = await this.nocoDBService.list(userRolesTable.id, {
-        where: filterEq('user.id', userId),
-        includeRelations: ['role'],
+        where: filterEq('user_id', userId),
+        fields: ['role_id'],
+        sort: 'role_id',
         limit,
         offset,
+        withCount: true,
       });
 
-      const data = (response.list || [])
-        .filter((ur: any) => ur.role && ur.role.length > 0)
-        .map((ur: any) => ur.role[0]);
+      const roleIds = response.list
+        .map((ur) => Number(ur.role_id))
+        .filter((id) => Number.isInteger(id) && id > 0);
+
+      const data = await this.loadRoles(roleIds);
 
       const totalRows = response.pageInfo?.totalRows ?? data.length;
 
@@ -180,5 +185,26 @@ export class UserRolesService {
       this.logger.error('Error fetching user roles:', error);
       throw error;
     }
+  }
+
+  /** Role records for the given ids, in the order of `roleIds`. */
+  private async loadRoles(roleIds: number[]): Promise<NocoRecord[]> {
+    if (roleIds.length === 0) {
+      return [];
+    }
+
+    const rolesTable = await this.nocoDBService.getTableByName('roles');
+    if (!rolesTable) {
+      return [];
+    }
+
+    const roles = await this.nocoDBService.listAll(rolesTable.id, {
+      where: filterIn('id', roleIds),
+    });
+    const byId = new Map(roles.map((role) => [Number(role.id), role]));
+
+    return roleIds
+      .map((id) => byId.get(id))
+      .filter((role): role is NocoRecord => role !== undefined);
   }
 }

@@ -92,8 +92,8 @@ describe('BootstrapAdminService', () => {
       2,
       'user-roles-id',
       expect.objectContaining({
-        user: [{ id: 10 }],
-        role: [{ id: 1 }],
+        user_id: 10,
+        role_id: 1,
       }),
     );
   });
@@ -139,8 +139,8 @@ describe('BootstrapAdminService', () => {
     expect(mockNocoDBService.create).toHaveBeenCalledWith(
       'user-roles-id',
       expect.objectContaining({
-        user: [{ id: 99 }],
-        role: [{ id: 1 }],
+        user_id: 99,
+        role_id: 1,
       }),
     );
   });

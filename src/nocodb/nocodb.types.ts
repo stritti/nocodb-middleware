@@ -17,22 +17,30 @@
 
 export interface NocoTableMeta {
   id: string;
-  table_name: string;
+  /**
+   * Table name. NocoDB v3 identifies tables by their title; the middleware
+   * creates its tables with `title` = (prefixed) table name.
+   */
   title: string;
-  /** Columns belonging to this table — populated by GET /meta/tables/:id. */
-  columns?: NocoColumnMeta[];
-  /** Human-readable labels for linked columns, e.g. { "user": "User" }. */
-  column_metas?: Record<string, NocoColumnMeta>;
+  /** Physical table name; only returned by older NocoDB versions. */
+  table_name?: string;
+  /** Fields of the table — populated by GET /meta/bases/:baseId/tables/:id. */
+  fields?: NocoFieldMeta[];
 }
 
-export interface NocoColumnMeta {
+export interface NocoFieldMeta {
   id: string;
-  column_name: string;
+  /** Field title; record values are keyed by it in the v3 Data API. */
   title: string;
-  uidt: string;
-  /** Link / rollup target when column is a relation. */
-  fk_model_id?: string;
-  /** Additional driver-specific options. */
+  /** NocoDB field type, e.g. `SingleLineText`, `Number`, `Checkbox`. */
+  type: string;
+  options?: Record<string, unknown>;
+}
+
+/** Field definition for creating tables or fields via the v3 Meta API. */
+export interface NocoFieldDefinition {
+  title: string;
+  type: string;
   options?: Record<string, unknown>;
 }
 
@@ -61,6 +69,7 @@ export interface NocoRecord {
 
 export interface NocoRecordListResponse {
   list: NocoRecord[];
+  /** Only present when the list was requested with `withCount`. */
   pageInfo?: NocoPageInfo;
 }
 

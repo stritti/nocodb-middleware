@@ -92,6 +92,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         username: user.username ?? claims.username ?? 'unknown',
         email: user.email ?? claims.email,
         roles: claims.roles,
+        scope: claims.scope,
       };
     }
 
@@ -106,6 +107,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       username: identity.username,
       email: identity.email,
       roles: identity.roles,
+      scope: claims.scope,
     };
   }
 }

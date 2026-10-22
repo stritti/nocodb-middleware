@@ -21,6 +21,7 @@ export abstract class BaseRepository<T> {
       const options: FilterOptions = {
         limit: pageOptionsDto.take,
         offset: pageOptionsDto.skip,
+        withCount: true,
       };
 
       const result = await this.nocoDBService.list(this.tableId, options);

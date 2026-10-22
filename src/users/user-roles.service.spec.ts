@@ -20,6 +20,7 @@ describe('UserRolesService', () => {
             findOne: jest.fn(),
             create: jest.fn(),
             list: jest.fn(),
+            listAll: jest.fn(),
             delete: jest.fn(),
           },
         },
@@ -60,13 +61,13 @@ describe('UserRolesService', () => {
 
       expect(nocoDBService.findOne).toHaveBeenCalledWith(
         'ur_table_id',
-        '(user.id,eq,1)~and(role.id,eq,2)',
+        '(user_id,eq,1)~and(role_id,eq,2)',
       );
       expect(nocoDBService.create).toHaveBeenCalledWith(
         'ur_table_id',
         expect.objectContaining({
-          user: [{ id: 1 }],
-          role: [{ id: 2 }],
+          user_id: 1,
+          role_id: 2,
         }),
       );
       expect(permissionsService.clearCache).toHaveBeenCalledWith(1);
@@ -121,29 +122,64 @@ describe('UserRolesService', () => {
   });
 
   describe('getUserRoles', () => {
-    it('should return roles for a user with nested data', async () => {
-      (nocoDBService.getTableByName as jest.Mock).mockResolvedValue({
-        id: 'ur_table_id',
-      });
+    it('returns the role records of the user, paged by assignment', async () => {
+      (nocoDBService.getTableByName as jest.Mock).mockImplementation(
+        (name: string) => Promise.resolve({ id: `${name}_id` }),
+      );
       (nocoDBService.list as jest.Mock).mockResolvedValue({
         list: [
-          { id: 1, role: [{ id: 5, role_name: 'admin' }] },
-          { id: 2, role: [] },
+          { id: 1, role_id: 7 },
+          { id: 2, role_id: 5 },
         ],
-        pageInfo: { totalRows: 1 },
+        pageInfo: { totalRows: 12 },
       });
+      (nocoDBService.listAll as jest.Mock).mockResolvedValue([
+        { id: 5, role_name: 'admin' },
+        { id: 7, role_name: 'editor' },
+      ]);
+
+      const result = await service.getUserRoles(1, {
+        take: 2,
+        skip: 4,
+      } as never);
+
+      expect(nocoDBService.list).toHaveBeenCalledWith('user_roles_id', {
+        where: '(user_id,eq,1)',
+        fields: ['role_id'],
+        sort: 'role_id',
+        limit: 2,
+        offset: 4,
+        withCount: true,
+      });
+      expect(nocoDBService.listAll).toHaveBeenCalledWith('roles_id', {
+        where: '(Id,in,7,5)',
+      });
+      expect(result.data).toEqual([
+        { id: 7, role_name: 'editor' },
+        { id: 5, role_name: 'admin' },
+      ]);
+      expect(result.meta.itemCount).toBe(12);
+    });
+
+    it('skips assignments whose role no longer exists', async () => {
+      (nocoDBService.getTableByName as jest.Mock).mockImplementation(
+        (name: string) => Promise.resolve({ id: `${name}_id` }),
+      );
+      (nocoDBService.list as jest.Mock).mockResolvedValue({
+        list: [
+          { id: 1, role_id: 7 },
+          { id: 2, role_id: null },
+        ],
+        pageInfo: { totalRows: 2 },
+      });
+      (nocoDBService.listAll as jest.Mock).mockResolvedValue([]);
 
       const result = await service.getUserRoles(1);
 
-      expect(nocoDBService.list).toHaveBeenCalledWith(
-        'ur_table_id',
-        expect.objectContaining({
-          where: '(user.id,eq,1)',
-        }),
-      );
-      expect(result.data).toHaveLength(1);
-      expect(result.data[0]).toEqual({ id: 5, role_name: 'admin' });
-      expect(result.meta.itemCount).toBe(1);
+      expect(nocoDBService.listAll).toHaveBeenCalledWith('roles_id', {
+        where: '(Id,in,7)',
+      });
+      expect(result.data).toEqual([]);
     });
 
     it('should return empty page result if no user_roles table', async () => {

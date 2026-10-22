@@ -2,6 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { NocoDBService } from './nocodb.service';
 import { Logger } from '@nestjs/common';
+import { AxiosError } from 'axios';
+import { NocoDBException } from './exceptions/nocodb.exception';
 
 describe('NocoDBService', () => {
   let service: NocoDBService;
@@ -74,147 +76,303 @@ describe('NocoDBService', () => {
     expect(service.getTablePrefix()).toBe('nc_');
   });
 
-  // ── Data API v3 ─────────────────────────────────────────────────────────
+  const DATA = '/api/v3/data/test-base-id/t1';
+  const META = '/api/v3/meta/bases/test-base-id';
+
+  function axiosError(status: number) {
+    return new AxiosError(
+      `Request failed with status code ${status}`,
+      'ERR_BAD_REQUEST',
+      undefined,
+      undefined,
+      { status, data: {} } as never,
+    );
+  }
 
   describe('create', () => {
-    it('should create a record', async () => {
-      const tableId = 'mUsers';
-      const data = { name: 'Test User' };
-      const responseData = { id: 1, ...data };
-      mockHttpClient.post.mockResolvedValue({ data: responseData });
+    it('wraps the data in fields and returns the record flat', async () => {
+      mockHttpClient.post.mockResolvedValue({
+        data: { records: [{ id: 5, fields: { name: 'Alice' } }] },
+      });
 
-      const result = await service.create(tableId, data);
-
-      expect(mockHttpClient.post).toHaveBeenCalledWith(
-        `/api/v3/tables/${tableId}/records`,
-        data,
-        { params: {} },
-      );
-      expect(result).toEqual(responseData);
-    });
-
-    it('should include specific fields if requested', async () => {
-      const tableId = 'mUsers';
-      const data = { name: 'Test User' };
-      const options = { includeFields: ['id', 'name'] };
-      mockHttpClient.post.mockResolvedValue({ data: { id: 1 } });
-
-      await service.create(tableId, data, options);
-
-      expect(mockHttpClient.post).toHaveBeenCalledWith(
-        expect.any(String),
-        data,
-        { params: { fields: 'id,name' } },
-      );
-    });
-  });
-
-  describe('read', () => {
-    it('should read a record', async () => {
-      const tableId = 'mUsers';
-      const recordId = 1;
-      const responseData = { id: 1, name: 'Test User' };
-      mockHttpClient.get.mockResolvedValue({ data: responseData });
-
-      const result = await service.read(tableId, recordId);
-
-      expect(mockHttpClient.get).toHaveBeenCalledWith(
-        `/api/v3/tables/${tableId}/records/${recordId}`,
-        { params: {} },
-      );
-      expect(result).toEqual(responseData);
-    });
-
-    it('should include relations if requested', async () => {
-      const tableId = 'mUsers';
-      const recordId = 1;
-      const options = { includeRelations: ['posts'] };
-      mockHttpClient.get.mockResolvedValue({ data: {} });
-
-      await service.read(tableId, recordId, options);
-
-      expect(mockHttpClient.get).toHaveBeenCalledWith(expect.any(String), {
-        params: {
-          nested: JSON.stringify({ posts: { fields: ['*'] } }),
-        },
+      await expect(service.create('t1', { name: 'Alice' })).resolves.toEqual({
+        id: 5,
+        name: 'Alice',
+      });
+      expect(mockHttpClient.post).toHaveBeenCalledWith(`${DATA}/records`, {
+        fields: { name: 'Alice' },
       });
     });
   });
 
+  describe('read', () => {
+    it('reads a record and returns it flat', async () => {
+      mockHttpClient.get.mockResolvedValue({
+        data: { id: 1, fields: { name: 'Alice' } },
+      });
+
+      await expect(service.read('t1', 1)).resolves.toEqual({
+        id: 1,
+        name: 'Alice',
+      });
+      expect(mockHttpClient.get).toHaveBeenCalledWith(`${DATA}/records/1`, {
+        params: {},
+      });
+    });
+
+    it('passes requested fields', async () => {
+      mockHttpClient.get.mockResolvedValue({ data: { id: 1, fields: {} } });
+
+      await service.read('t1', 1, { fields: ['name', 'age'] });
+
+      expect(mockHttpClient.get).toHaveBeenCalledWith(`${DATA}/records/1`, {
+        params: { fields: 'name,age' },
+      });
+    });
+
+    it('returns null for a missing record', async () => {
+      mockHttpClient.get.mockRejectedValue(axiosError(404));
+
+      await expect(service.read('t1', 99)).resolves.toBeNull();
+    });
+
+    it('rethrows other errors', async () => {
+      mockHttpClient.get.mockRejectedValue(axiosError(500));
+
+      await expect(service.read('t1', 1)).rejects.toBeInstanceOf(AxiosError);
+    });
+  });
+
   describe('update', () => {
-    it('should update a record', async () => {
-      const tableId = 'mUsers';
-      const recordId = 1;
-      const data = { name: 'Updated' };
-      mockHttpClient.patch.mockResolvedValue({ data: { id: 1, ...data } });
+    it('patches the collection with id and fields', async () => {
+      mockHttpClient.patch.mockResolvedValue({
+        data: { records: [{ id: 1, fields: { name: 'Bob' } }] },
+      });
 
-      await service.update(tableId, recordId, data);
+      await expect(service.update('t1', 1, { name: 'Bob' })).resolves.toEqual({
+        id: 1,
+        name: 'Bob',
+      });
+      expect(mockHttpClient.patch).toHaveBeenCalledWith(`${DATA}/records`, {
+        id: 1,
+        fields: { name: 'Bob' },
+      });
+    });
 
-      expect(mockHttpClient.patch).toHaveBeenCalledWith(
-        `/api/v3/tables/${tableId}/records/${recordId}`,
-        data,
-      );
+    it('throws a 404 NocoDBException for a missing record', async () => {
+      mockHttpClient.patch.mockRejectedValue(axiosError(404));
+
+      const error = await service
+        .update('t1', 99, { name: 'x' })
+        .catch((e: unknown) => e);
+      expect(error).toBeInstanceOf(NocoDBException);
+      expect((error as NocoDBException).getStatus()).toBe(404);
     });
   });
 
   describe('delete', () => {
-    it('should delete a record', async () => {
-      const tableId = 'mUsers';
-      const recordId = 1;
-      mockHttpClient.delete.mockResolvedValue({});
+    it('deletes by id in the request body', async () => {
+      mockHttpClient.delete.mockResolvedValue({ data: {} });
 
-      await service.delete(tableId, recordId);
+      await service.delete('t1', 1);
 
-      expect(mockHttpClient.delete).toHaveBeenCalledWith(
-        `/api/v3/tables/${tableId}/records/${recordId}`,
+      expect(mockHttpClient.delete).toHaveBeenCalledWith(`${DATA}/records`, {
+        data: { id: 1 },
+      });
+    });
+
+    it('throws a 404 NocoDBException for a missing record', async () => {
+      mockHttpClient.delete.mockRejectedValue(axiosError(404));
+
+      await expect(service.delete('t1', 99)).rejects.toBeInstanceOf(
+        NocoDBException,
       );
     });
   });
 
   describe('list', () => {
-    it('should list records with options', async () => {
-      const tableId = 'mUsers';
-      const options = { where: '(name,eq,Test)', limit: 10 };
-      const responseData = { list: [], pageInfo: {} };
-      mockHttpClient.get.mockResolvedValue({ data: responseData });
+    it('passes where, JSON sort, fields and offset paging', async () => {
+      mockHttpClient.get.mockResolvedValue({
+        data: { records: [{ id: 1, fields: { name: 'Alice' } }] },
+      });
 
-      const result = await service.list(tableId, options);
+      const result = await service.list('t1', {
+        where: '(name,eq,"Alice")',
+        sort: '-age,id',
+        fields: ['name'],
+        limit: 10,
+        offset: 20,
+      });
 
-      expect(mockHttpClient.get).toHaveBeenCalledWith(expect.any(String), {
+      expect(result).toEqual({ list: [{ id: 1, name: 'Alice' }] });
+      expect(mockHttpClient.get).toHaveBeenCalledWith(`${DATA}/records`, {
         params: {
-          where: options.where,
-          limit: String(options.limit),
+          where: '(name,eq,"Alice")',
+          sort: JSON.stringify([
+            { field: 'age', direction: 'desc' },
+            { field: 'Id', direction: 'asc' },
+          ]),
+          fields: 'name',
+          limit: '10',
+          offset: '20',
         },
       });
-      expect(result).toEqual(responseData);
+    });
+
+    it('adds the total count with withCount', async () => {
+      mockHttpClient.get
+        .mockResolvedValueOnce({ data: { records: [] } })
+        .mockResolvedValueOnce({ data: { count: 42 } });
+
+      const result = await service.list('t1', {
+        where: '(a,eq,1)',
+        limit: 5,
+        withCount: true,
+      });
+
+      expect(result.pageInfo).toEqual({ totalRows: 42, pageSize: 5 });
+      expect(mockHttpClient.get).toHaveBeenLastCalledWith(`${DATA}/count`, {
+        params: { where: '(a,eq,1)' },
+      });
     });
   });
 
-  describe('getTableMetadata', () => {
-    it('should fetch table metadata', async () => {
-      const metadata = { id: 'tbl_1', title: 'Users' };
-      mockHttpClient.get.mockResolvedValue({ data: metadata });
+  describe('listAll', () => {
+    it('loads pages until a page is not full', async () => {
+      mockHttpClient.get
+        .mockResolvedValueOnce({
+          data: { records: [{ id: 1 }, { id: 2 }] },
+        })
+        .mockResolvedValueOnce({ data: { records: [{ id: 3 }] } });
 
-      const result = await service.getTableMetadata('tbl_1');
+      const all = await service.listAll('t1', { where: '(a,eq,1)' }, 2);
 
-      expect(mockHttpClient.get).toHaveBeenCalledWith(
-        '/api/v3/meta/tables/tbl_1',
-      );
-      expect(result).toEqual(metadata);
+      expect(all.map((r) => r.id)).toEqual([1, 2, 3]);
+      expect(mockHttpClient.get).toHaveBeenNthCalledWith(2, `${DATA}/records`, {
+        params: { where: '(a,eq,1)', limit: '2', offset: '2' },
+      });
     });
   });
 
-  describe('listBaseTables', () => {
-    it('should list tables for the configured base', async () => {
-      const tables = [{ id: 'tbl_1' }];
-      mockHttpClient.get.mockResolvedValue({ data: { list: tables } });
+  describe('findOne / exists', () => {
+    it('returns the first record or null', async () => {
+      mockHttpClient.get
+        .mockResolvedValueOnce({ data: { records: [{ id: 7, fields: {} }] } })
+        .mockResolvedValueOnce({ data: { records: [] } });
 
-      const result = await service.listBaseTables();
+      await expect(service.findOne('t1', '(a,eq,1)')).resolves.toEqual({
+        id: 7,
+      });
+      await expect(service.exists('t1', '(a,eq,2)')).resolves.toBe(false);
+    });
+  });
 
-      expect(mockHttpClient.get).toHaveBeenCalledWith(
-        '/api/v3/meta/bases/test-base-id/tables',
+  describe('meta API', () => {
+    it('reads table metadata from the base', async () => {
+      mockHttpClient.get.mockResolvedValue({
+        data: { id: 't1', title: 'users', fields: [] },
+      });
+
+      await service.getTableMetadata('t1');
+
+      expect(mockHttpClient.get).toHaveBeenCalledWith(`${META}/tables/t1`);
+    });
+
+    it('lists the tables of the base', async () => {
+      mockHttpClient.get.mockResolvedValue({
+        data: { list: [{ id: 't1', title: 'users' }] },
+      });
+
+      await expect(service.listBaseTables()).resolves.toEqual([
+        { id: 't1', title: 'users' },
+      ]);
+      expect(mockHttpClient.get).toHaveBeenCalledWith(`${META}/tables`);
+    });
+
+    it('finds tables by prefixed title', async () => {
+      mockHttpClient.get.mockResolvedValue({
+        data: {
+          list: [
+            { id: 't1', title: 'nc_users' },
+            { id: 't2', title: 'users' },
+          ],
+        },
+      });
+
+      await expect(service.getTableByName('users')).resolves.toEqual({
+        id: 't1',
+        title: 'nc_users',
+      });
+      await expect(service.tableExists('missing')).resolves.toBe(false);
+    });
+
+    it('falls back to the physical table name of older NocoDB versions', async () => {
+      mockHttpClient.get.mockResolvedValue({
+        data: { list: [{ id: 't3', title: 'Users', table_name: 'nc_users' }] },
+      });
+
+      await expect(service.getTableByName('users')).resolves.toEqual(
+        expect.objectContaining({ id: 't3' }),
       );
-      expect(result).toEqual(tables);
+    });
+
+    it('creates tables titled with the prefixed name', async () => {
+      mockHttpClient.post.mockResolvedValue({ data: { id: 'new' } });
+
+      await service.createTable('users', 'Users', [
+        { title: 'username', type: 'SingleLineText' },
+      ]);
+
+      expect(mockHttpClient.post).toHaveBeenCalledWith(`${META}/tables`, {
+        title: 'nc_users',
+        description: 'Users',
+        fields: [{ title: 'username', type: 'SingleLineText' }],
+      });
+    });
+
+    it('creates fields', async () => {
+      mockHttpClient.post.mockResolvedValue({ data: { id: 'f1' } });
+
+      await service.createColumn('t1', { title: 'email', type: 'Email' });
+
+      expect(mockHttpClient.post).toHaveBeenCalledWith(
+        `${META}/tables/t1/fields`,
+        {
+          title: 'email',
+          type: 'Email',
+        },
+      );
+    });
+
+    it('propagates meta API errors', async () => {
+      mockHttpClient.get.mockRejectedValue(new Error('boom'));
+
+      await expect(service.getTableByName('users')).rejects.toThrow('boom');
+    });
+  });
+
+  describe('batch operations', () => {
+    it('collects errors per record', async () => {
+      mockHttpClient.post
+        .mockResolvedValueOnce({ data: { records: [{ id: 1, fields: {} }] } })
+        .mockRejectedValueOnce(new Error('fail'));
+
+      const results = await service.batchCreate('t1', [{ a: 1 }, { a: 2 }]);
+
+      expect(results).toEqual([{ id: 1 }, { error: 'fail' }]);
+    });
+
+    it('collects update errors per record', async () => {
+      mockHttpClient.patch
+        .mockResolvedValueOnce({ data: { records: [{ id: 1, fields: {} }] } })
+        .mockRejectedValueOnce(new Error('fail'));
+
+      const results = await service.batchUpdate('t1', [
+        { id: 1, data: {} },
+        { id: 2, data: {} },
+      ]);
+
+      expect(results).toEqual([{ id: 1 }, { id: 2, error: 'fail' }]);
     });
   });
 
@@ -226,7 +384,9 @@ describe('NocoDBService', () => {
     it('should allow first request to proceed immediately and space subsequent requests by minRequestInterval', async () => {
       jest.useFakeTimers();
 
-      mockHttpClient.post.mockResolvedValue({ data: {} });
+      mockHttpClient.post.mockResolvedValue({
+        data: { records: [{ id: 1, fields: {} }] },
+      });
 
       const p1 = service.create('t1', {});
       const p2 = service.create('t1', {});
@@ -247,20 +407,21 @@ describe('NocoDBService', () => {
 
   describe('without TelemetryService', () => {
     it('should execute CRUD operations successfully when TelemetryService is not injected', async () => {
-      const responseData = { id: 1, name: 'Test' };
-      mockHttpClient.post.mockResolvedValue({ data: responseData });
-      mockHttpClient.get.mockResolvedValue({ data: responseData });
-      mockHttpClient.patch.mockResolvedValue({ data: responseData });
+      const v3Record = { id: 1, fields: { name: 'Test' } };
+      const flat = { id: 1, name: 'Test' };
+      mockHttpClient.post.mockResolvedValue({ data: { records: [v3Record] } });
+      mockHttpClient.get.mockResolvedValue({ data: v3Record });
+      mockHttpClient.patch.mockResolvedValue({ data: { records: [v3Record] } });
       mockHttpClient.delete.mockResolvedValue({});
 
       // All CRUD methods delegate to this.trace() which falls back to direct fn() call
       await expect(service.create('t1', { name: 'Test' })).resolves.toEqual(
-        responseData,
+        flat,
       );
-      await expect(service.read('t1', 1)).resolves.toEqual(responseData);
-      await expect(
-        service.update('t1', 1, { name: 'Updated' }),
-      ).resolves.toEqual(responseData);
+      await expect(service.read('t1', 1)).resolves.toEqual(flat);
+      await expect(service.update('t1', 1, { name: 'Test' })).resolves.toEqual(
+        flat,
+      );
       await expect(service.delete('t1', 1)).resolves.toBeUndefined();
     });
   });
@@ -314,289 +475,7 @@ describe('NocoDBService', () => {
     });
   });
 
-  describe('tableExists', () => {
-    it('should return true when table exists', async () => {
-      mockHttpClient.get.mockResolvedValue({
-        data: { list: [{ table_name: 'nc_users' }] },
-      });
-
-      const result = await service.tableExists('users');
-      expect(result).toBe(true);
-    });
-
-    it('should return false when table does not exist', async () => {
-      mockHttpClient.get.mockResolvedValue({
-        data: { list: [{ table_name: 'nc_orders' }] },
-      });
-
-      const result = await service.tableExists('users');
-      expect(result).toBe(false);
-    });
-
-    it('should throw when HTTP call fails', async () => {
-      mockHttpClient.get.mockRejectedValue(new Error('Network error'));
-      await expect(service.tableExists('users')).rejects.toThrow(
-        'Network error',
-      );
-    });
-  });
-
-  describe('getTableByName', () => {
-    it('should return table when found', async () => {
-      const table = { id: 'tbl_1', table_name: 'nc_users' };
-      mockHttpClient.get.mockResolvedValue({
-        data: { list: [table] },
-      });
-
-      const result = await service.getTableByName('users');
-      expect(result).toEqual(table);
-    });
-
-    it('should return null when table not found', async () => {
-      mockHttpClient.get.mockResolvedValue({
-        data: { list: [] },
-      });
-      jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
-
-      const result = await service.getTableByName('nonexistent');
-      expect(result).toBeNull();
-    });
-
-    it('should throw when HTTP call fails', async () => {
-      mockHttpClient.get.mockRejectedValue(new Error('Network error'));
-      await expect(service.getTableByName('users')).rejects.toThrow(
-        'Network error',
-      );
-    });
-  });
-
-  describe('createTable', () => {
-    it('should create a table', async () => {
-      const tableData = { id: 'tbl_new', table_name: 'nc_items' };
-      mockHttpClient.post.mockResolvedValue({ data: tableData });
-
-      const result = await service.createTable('items', 'Items', []);
-      expect(mockHttpClient.post).toHaveBeenCalledWith(
-        `/api/v3/meta/bases/test-base-id/tables`,
-        expect.objectContaining({ table_name: 'nc_items' }),
-      );
-      expect(result).toEqual(tableData);
-    });
-
-    it('should throw when createTable fails', async () => {
-      mockHttpClient.post.mockRejectedValue(new Error('Create error'));
-      await expect(service.createTable('items', 'Items')).rejects.toThrow(
-        'Create error',
-      );
-    });
-  });
-
-  describe('createColumn', () => {
-    it('should create a column', async () => {
-      const colData = { id: 'col_1', column_name: 'email' };
-      mockHttpClient.post.mockResolvedValue({ data: colData });
-
-      const result = await service.createColumn(
-        'tbl_1',
-        'email',
-        'SingleLineText',
-        'Email',
-      );
-      expect(mockHttpClient.post).toHaveBeenCalledWith(
-        `/api/v3/meta/tables/tbl_1/columns`,
-        expect.objectContaining({
-          column_name: 'email',
-          title: 'Email',
-          uidt: 'SingleLineText',
-        }),
-      );
-      expect(result).toEqual(colData);
-    });
-
-    it('should use column name as title when title not provided', async () => {
-      mockHttpClient.post.mockResolvedValue({ data: {} });
-      await service.createColumn('tbl_1', 'email', 'SingleLineText');
-      expect(mockHttpClient.post).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({ title: 'email' }),
-      );
-    });
-
-    it('should throw when createColumn fails', async () => {
-      mockHttpClient.post.mockRejectedValue(new Error('Column error'));
-      await expect(
-        service.createColumn('tbl_1', 'email', 'SingleLineText'),
-      ).rejects.toThrow('Column error');
-    });
-  });
-
-  describe('findOne', () => {
-    it('should return first record from list', async () => {
-      const records = [{ id: 1, name: 'Test' }];
-      mockHttpClient.get.mockResolvedValue({ data: { list: records } });
-
-      const result = await service.findOne('tbl_1', '(name,eq,Test)');
-      expect(result).toEqual(records[0]);
-    });
-
-    it('should return null when no records found', async () => {
-      mockHttpClient.get.mockResolvedValue({ data: { list: [] } });
-      const result = await service.findOne('tbl_1', '(name,eq,NotExist)');
-      expect(result).toBeNull();
-    });
-  });
-
-  describe('exists', () => {
-    it('should return true when record exists', async () => {
-      mockHttpClient.get.mockResolvedValue({ data: { list: [{ id: 1 }] } });
-      const result = await service.exists('tbl_1', '(id,eq,1)');
-      expect(result).toBe(true);
-    });
-
-    it('should return false when record does not exist', async () => {
-      mockHttpClient.get.mockResolvedValue({ data: { list: [] } });
-      const result = await service.exists('tbl_1', '(id,eq,999)');
-      expect(result).toBe(false);
-    });
-  });
-
-  describe('createWithLinks', () => {
-    it('should create a record with linked relationships', async () => {
-      const responseData = { id: 1 };
-      mockHttpClient.post.mockResolvedValue({ data: responseData });
-
-      const result = await service.createWithLinks('tbl_1', { name: 'Test' }, [
-        { fieldName: 'tags', recordIds: [10, 20] },
-      ]);
-
-      expect(mockHttpClient.post).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({ tags: [{ id: 10 }, { id: 20 }] }),
-        expect.anything(),
-      );
-      expect(result).toEqual(responseData);
-    });
-  });
-
-  describe('updateLinks', () => {
-    it('should update relationships for a record', async () => {
-      mockHttpClient.patch.mockResolvedValue({ data: { id: 1 } });
-
-      await service.updateLinks('tbl_1', 1, [
-        { fieldName: 'tags', recordIds: [5] },
-      ]);
-
-      expect(mockHttpClient.patch).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({ tags: [{ id: 5 }] }),
-      );
-    });
-  });
-
-  describe('getWithLinks', () => {
-    it('should read a record with included relations', async () => {
-      const responseData = { id: 1, tags: [] };
-      mockHttpClient.get.mockResolvedValue({ data: responseData });
-
-      const result = await service.getWithLinks('tbl_1', 1, [
-        'tags',
-        'category',
-      ]);
-      expect(result).toEqual(responseData);
-    });
-  });
-
-  describe('batchCreate', () => {
-    it('should create multiple records', async () => {
-      mockHttpClient.post.mockResolvedValue({ data: { id: 1 } });
-
-      const results = await service.batchCreate('tbl_1', [
-        { name: 'A' },
-        { name: 'B' },
-      ]);
-
-      expect(results).toHaveLength(2);
-      expect(mockHttpClient.post).toHaveBeenCalledTimes(2);
-    });
-
-    it('should include error entries when individual creates fail', async () => {
-      const error = new Error('Create failed');
-      mockHttpClient.post.mockRejectedValue(error);
-
-      const results = await service.batchCreate('tbl_1', [{ name: 'A' }]);
-      expect(results[0]).toHaveProperty('error', 'Create failed');
-    });
-  });
-
-  describe('batchUpdate', () => {
-    it('should update multiple records', async () => {
-      mockHttpClient.patch.mockResolvedValue({ data: { id: 1 } });
-
-      const results = await service.batchUpdate('tbl_1', [
-        { id: 1, data: { name: 'Updated A' } },
-        { id: 2, data: { name: 'Updated B' } },
-      ]);
-
-      expect(results).toHaveLength(2);
-    });
-
-    it('should include error entries when individual updates fail', async () => {
-      const error = new Error('Update failed');
-      mockHttpClient.patch.mockRejectedValue(error);
-
-      const results = await service.batchUpdate('tbl_1', [
-        { id: 1, data: { name: 'Test' } },
-      ]);
-      expect(results[0]).toHaveProperty('error', 'Update failed');
-      expect(results[0]).toHaveProperty('id', 1);
-    });
-  });
-
-  describe('list with all options', () => {
-    it('should include sort and fields in params', async () => {
-      mockHttpClient.get.mockResolvedValue({ data: { list: [] } });
-
-      await service.list('tbl_1', {
-        where: '(name,eq,Test)',
-        sort: 'name',
-        fields: ['id', 'name'],
-        limit: 5,
-        offset: 10,
-        includeRelations: ['tags'],
-      });
-
-      expect(mockHttpClient.get).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          params: expect.objectContaining({
-            sort: 'name',
-            fields: 'id,name',
-            limit: '5',
-            offset: '10',
-          }),
-        }),
-      );
-    });
-  });
-
-  describe('read with fields option', () => {
-    it('should include fields param when specified', async () => {
-      mockHttpClient.get.mockResolvedValue({ data: { id: 1 } });
-
-      await service.read('tbl_1', 1, { fields: ['id', 'name'] });
-
-      expect(mockHttpClient.get).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          params: { fields: 'id,name' },
-        }),
-      );
-    });
-  });
-
-  describe('getHttpClient', () => {
-    it('should return the http client', () => {
-      expect(service.getHttpClient()).toBeDefined();
-    });
+  it('exposes the http client', () => {
+    expect(service.getHttpClient()).toBe(mockHttpClient);
   });
 });

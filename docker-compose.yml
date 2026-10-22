@@ -41,7 +41,9 @@ services:
     restart: unless-stopped
 
   nocodb:
-    image: nocodb/nocodb:latest
+    # Pinned: the middleware is verified against this version
+    # (CI job "Integration"). Test before upgrading.
+    image: nocodb/nocodb:0.301.3
     ports:
       - '8080:8080'
     environment:
