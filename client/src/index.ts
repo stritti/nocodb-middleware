@@ -21,6 +21,9 @@ export type {
   TablePermissions,
   ProvisionedUser,
   HealthStatus,
+  Page,
+  PageMeta,
+  PageOptions,
 } from './services/admin.service.js';
 export { InMemoryTokenStorage } from './token-storage.js';
 export type {

@@ -28,24 +28,75 @@ describe('AdminService', () => {
     });
   });
 
+  // Response bodies below are the shapes the Middleware actually returns:
+  // paginated { data, meta } and NocoDB records with snake_case fields.
+  const SERVER_META = {
+    page: 1,
+    take: 10,
+    itemCount: 12,
+    pageCount: 2,
+    hasPreviousPage: false,
+    hasNextPage: true,
+  };
+
   describe('listRoles', () => {
-    it('returns array of roles', async () => {
-      const roles = [{ id: 1, roleName: 'editor', isSystemRole: false }];
-      http.get.mockResolvedValueOnce({ data: roles });
+    it('returns a page of roles mapped to the client shape', async () => {
+      http.get.mockResolvedValueOnce({
+        data: {
+          data: [
+            {
+              id: 1,
+              role_name: 'editor',
+              description: 'Edits content',
+              is_system_role: false,
+            },
+          ],
+          meta: SERVER_META,
+        },
+      });
 
       const result = await service.listRoles();
-      expect(result).toEqual(roles);
-      expect(http.get).toHaveBeenCalledWith('/admin/permissions/roles');
+
+      expect(result).toEqual({
+        data: [
+          {
+            id: 1,
+            roleName: 'editor',
+            description: 'Edits content',
+            isSystemRole: false,
+          },
+        ],
+        meta: SERVER_META,
+      });
+      expect(http.get).toHaveBeenCalledWith('/admin/permissions/roles', {
+        params: {},
+      });
+    });
+
+    it('passes page, take and order as query parameters', async () => {
+      http.get.mockResolvedValueOnce({ data: { data: [], meta: SERVER_META } });
+
+      await service.listRoles({ page: 2, take: 50, order: 'DESC' });
+
+      expect(http.get).toHaveBeenCalledWith('/admin/permissions/roles', {
+        params: { page: 2, take: 50, order: 'DESC' },
+      });
     });
   });
 
   describe('createRole', () => {
-    it('posts role data and returns created role', async () => {
-      const created = { id: 2, roleName: 'viewer', isSystemRole: false };
-      http.post.mockResolvedValueOnce({ data: created });
+    it('posts role data and returns the created role in client shape', async () => {
+      http.post.mockResolvedValueOnce({
+        data: { id: 2, role_name: 'viewer', is_system_role: false },
+      });
 
       const result = await service.createRole('viewer', 'Read-only access');
-      expect(result).toEqual(created);
+      expect(result).toEqual({
+        id: 2,
+        roleName: 'viewer',
+        description: undefined,
+        isSystemRole: false,
+      });
       expect(http.post).toHaveBeenCalledWith('/admin/permissions/roles', {
         roleName: 'viewer',
         description: 'Read-only access',
@@ -65,27 +116,31 @@ describe('AdminService', () => {
         canDelete: false,
       });
 
-      expect(http.post).toHaveBeenCalledWith('/admin/permissions/table-permissions', {
-        roleId: 1,
-        tableName: 'products',
-        canCreate: true,
-        canRead: true,
-        canUpdate: false,
-        canDelete: false,
-      });
+      expect(http.post).toHaveBeenCalledWith(
+        '/admin/permissions/table-permissions',
+        {
+          roleId: 1,
+          tableName: 'products',
+          canCreate: true,
+          canRead: true,
+          canUpdate: false,
+          canDelete: false,
+        },
+      );
     });
   });
 
   describe('createUser', () => {
-    it('provisions a user and returns it', async () => {
-      const user = {
-        id: 1,
-        username: 'alice',
-        email: 'alice@example.com',
-        isActive: true,
-        roles: ['editor'],
-      };
-      http.post.mockResolvedValueOnce({ data: user });
+    it('provisions a user and returns it in client shape', async () => {
+      http.post.mockResolvedValueOnce({
+        data: {
+          userId: 1,
+          username: 'alice',
+          email: 'alice@example.com',
+          roles: ['editor'],
+          active: true,
+        },
+      });
 
       const result = await service.createUser({
         username: 'alice',
@@ -93,7 +148,13 @@ describe('AdminService', () => {
         password: 'P@ss1',
         roles: ['editor'],
       });
-      expect(result).toEqual(user);
+      expect(result).toEqual({
+        id: 1,
+        username: 'alice',
+        email: 'alice@example.com',
+        isActive: true,
+        roles: ['editor'],
+      });
     });
   });
 

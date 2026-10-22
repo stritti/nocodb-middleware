@@ -34,6 +34,67 @@ export interface ProvisionedUser {
   roles: string[];
 }
 
+/** Pagination metadata of the Middleware's paginated admin endpoints. */
+export interface PageMeta {
+  page: number;
+  take: number;
+  itemCount: number;
+  pageCount: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
+}
+
+/** A page of items as returned by paginated admin endpoints. */
+export interface Page<T> {
+  data: T[];
+  meta: PageMeta;
+}
+
+/** Query options of paginated admin endpoints. */
+export interface PageOptions {
+  /** 1-based page number (default 1). */
+  page?: number;
+  /** Page size, 1–50 (default 10). */
+  take?: number;
+  order?: 'ASC' | 'DESC';
+}
+
+/** Role record as stored in NocoDB (wire format of the Middleware). */
+interface RoleRecord {
+  id: number;
+  role_name: string;
+  description?: string;
+  is_system_role?: boolean;
+}
+
+/** Identity returned by POST /users (wire format of the Middleware). */
+interface IdentityRecord {
+  userId: number;
+  username: string;
+  email: string;
+  roles: string[];
+  active: boolean;
+}
+
+function toRole(record: RoleRecord): Role {
+  return {
+    id: record.id,
+    roleName: record.role_name,
+    description: record.description,
+    isSystemRole: Boolean(record.is_system_role),
+  };
+}
+
+function toProvisionedUser(identity: IdentityRecord): ProvisionedUser {
+  return {
+    id: identity.userId,
+    username: identity.username,
+    email: identity.email,
+    isActive: identity.active,
+    roles: identity.roles,
+  };
+}
+
 /** Health-check response. */
 export interface HealthStatus {
   status: string;
@@ -57,11 +118,17 @@ export class AdminService {
     }
   }
 
-  /** List all roles defined in the system. */
-  async listRoles(): Promise<Role[]> {
+  /** List roles, one page at a time. */
+  async listRoles(options: PageOptions = {}): Promise<Page<Role>> {
     try {
-      const response = await this.http.get<Role[]>('/admin/permissions/roles');
-      return response.data;
+      const response = await this.http.get<Page<RoleRecord>>(
+        '/admin/permissions/roles',
+        { params: options },
+      );
+      return {
+        data: response.data.data.map(toRole),
+        meta: response.data.meta,
+      };
     } catch (error) {
       throw normaliseError(error);
     }
@@ -74,12 +141,11 @@ export class AdminService {
     isSystemRole?: boolean,
   ): Promise<Role> {
     try {
-      const response = await this.http.post<Role>('/admin/permissions/roles', {
-        roleName,
-        description,
-        isSystemRole,
-      });
-      return response.data;
+      const response = await this.http.post<RoleRecord>(
+        '/admin/permissions/roles',
+        { roleName, description, isSystemRole },
+      );
+      return toRole(response.data);
     } catch (error) {
       throw normaliseError(error);
     }
@@ -111,8 +177,8 @@ export class AdminService {
     isActive?: boolean;
   }): Promise<ProvisionedUser> {
     try {
-      const response = await this.http.post<ProvisionedUser>('/users', dto);
-      return response.data;
+      const response = await this.http.post<IdentityRecord>('/users', dto);
+      return toProvisionedUser(response.data);
     } catch (error) {
       throw normaliseError(error);
     }
