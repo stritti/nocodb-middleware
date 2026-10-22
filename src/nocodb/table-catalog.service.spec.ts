@@ -35,6 +35,23 @@ describe('TableCatalogService', () => {
     ]);
   });
 
+  it('lists names with spaces and hyphens, which permissions also accept', async () => {
+    const service = serviceWith('', ['Customer Orders', 'sales-orders']);
+
+    await expect(service.listExternalTables()).resolves.toEqual([
+      { id: 't0', tableName: 'Customer Orders', title: 'Customer Orders' },
+      { id: 't1', tableName: 'sales-orders', title: 'sales-orders' },
+    ]);
+  });
+
+  it('omits tables whose name cannot be used for permissions', async () => {
+    const service = serviceWith('', ['customers', 'Report "Q1"', 'a/b']);
+
+    await expect(service.listExternalTables()).resolves.toEqual([
+      { id: 't0', tableName: 'customers', title: 'customers' },
+    ]);
+  });
+
   it('omits tables outside the configured prefix', async () => {
     const service = serviceWith('app_', ['app_customers', 'legacy']);
 

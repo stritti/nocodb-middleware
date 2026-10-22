@@ -9,17 +9,20 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
+import {
+  TABLE_NAME_PATTERN,
+  TABLE_NAME_RULE,
+} from '../../common/validation/table-name';
 
 export class TablePermissionItem {
   @ApiProperty({
     example: 'products',
-    description: 'Table name (alphanumeric, underscores, hyphens)',
+    description: `Logical table name: ${TABLE_NAME_RULE}`,
   })
   @IsString()
   @IsNotEmpty()
-  @Matches(/^[a-zA-Z0-9_-]+$/, {
-    message:
-      'Table name may only contain alphanumeric characters, underscores, and hyphens',
+  @Matches(TABLE_NAME_PATTERN, {
+    message: `Table name may only contain ${TABLE_NAME_RULE}`,
   })
   tableName: string;
 
