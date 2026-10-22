@@ -8,7 +8,7 @@
 
 - [x] 2.1 Endpunkte/DTOs für Setzen, Aktualisieren und Lesen tabellenbezogener CRUD-Rechte implementieren oder erweitern
 - [ ] 2.2 Eingabevalidierung für Tabellenreferenz, Zielsubjekt (Rolle/Benutzer) und CRUD-Felder durchsetzen
-- [x] 2.3 Admin-/Developer-only Zugriffsschutz für Rechte-Mutationen via Guard/Decorator absichern
+- [ ] 2.3 Admin-/Developer-only Zugriffsschutz für Rechte-Mutationen via Guard/Decorator absichern _(Mutationen sind über Tabellenrechte (`table_permissions:create` …) bzw. Scopes geschützt, nicht auf Admin-/Developer-Rollen beschränkt)_
 - [ ] 2.4 Tests für erlaubte und verbotene Rechte-Mutationspfade ergänzen
 
 ## 3. Laufzeit-Enforcement auf persistierten Rechten umstellen

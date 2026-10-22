@@ -7,7 +7,7 @@
 
 ## 2. Core Infrastructure
 
-- [x] 2.1 Implement `src/types.ts` – `ClientConfig`, `TokenPair`, `TokenStorage`, `PageInfo`, `MiddlewareError`
+- [ ] 2.1 Implement `src/types.ts` – `ClientConfig`, `TokenPair`, `TokenStorage`, `PageInfo`, `MiddlewareError` _(`PageInfo` fehlt; kommt mit dem `RecordsService` in #290)_
 - [x] 2.2 Implement `src/token-storage.ts` – default in-memory `InMemoryTokenStorage` implementing `TokenStorage`
 - [x] 2.3 Implement `src/http-client.ts` – create Axios instance, attach Authorization header interceptor, attach 401-refresh interceptor with `_isRetry` guard
 - [ ] 2.4 Write unit tests for `MiddlewareError` mapping and the refresh interceptor logic _(Refresh-Interceptor ungetestet; Tests + Fix in #290)_
@@ -25,7 +25,7 @@
 ## 5. AdminService
 
 - [ ] 5.1 Implement `src/services/admin.service.ts` with `listTables`, `listRoles`, `createRole`, `setTablePermissions`, `createUser`, `healthCheck` _(`listRoles`/`createUser` passen nicht zur Server-Antwort; behoben in #290)_
-- [x] 5.2 Write unit tests for `AdminService` covering all scenarios in `specs/client-admin/spec.md`
+- [ ] 5.2 Write unit tests for `AdminService` covering all scenarios in `specs/client-admin/spec.md` _(`createUser`-Test prüft Endpunkt und Payload nicht; ergänzt in #290)_
 
 ## 6. Façade & Barrel Exports
 
