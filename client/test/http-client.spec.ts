@@ -1,7 +1,7 @@
 import { AxiosAdapter, AxiosError, AxiosResponse } from 'axios';
 import { createHttpClient } from '../src/http-client';
 import { InMemoryTokenStorage } from '../src/token-storage';
-import { MiddlewareError } from '../src/types';
+import { MiddlewareError, TokenPair, TokenStorage } from '../src/types';
 
 /**
  * Fake server: answers 200 for the accepted token, 401 for anything else, and
@@ -105,6 +105,84 @@ describe('createHttpClient', () => {
 
     expect((error as MiddlewareError).statusCode).toBe(401);
     expect(seen).toHaveLength(1);
+  });
+
+  it('keeps working when onRefresh stores the new token pair itself', async () => {
+    let storage!: InMemoryTokenStorage;
+    const onRefresh = jest.fn(async () => {
+      storage.set({ accessToken: 'fresh', refreshToken: 'rotated' });
+      return 'fresh';
+    });
+    const ctx = setup(onRefresh);
+    storage = ctx.storage;
+
+    const response = await ctx.http.get('/meta/tables');
+
+    expect(response.status).toBe(200);
+    expect(storage.get()).toEqual({
+      accessToken: 'fresh',
+      refreshToken: 'rotated',
+    });
+  });
+
+  it('refreshes with a storage that returns a new object on every get()', async () => {
+    // like a storage backed by localStorage + JSON.parse
+    let raw: string | null = JSON.stringify({ accessToken: 'stale' });
+    const storage: TokenStorage = {
+      get: () => (raw ? (JSON.parse(raw) as TokenPair) : null),
+      set: (tokens) => {
+        raw = JSON.stringify(tokens);
+      },
+      clear: () => {
+        raw = null;
+      },
+    };
+    const http = createHttpClient('http://middleware', storage, 1000, () =>
+      Promise.resolve('fresh'),
+    );
+    http.defaults.adapter = fakeServer(() => 'fresh').adapter;
+
+    const response = await http.get('/meta/tables');
+
+    expect(response.status).toBe(200);
+    expect(storage.get()?.accessToken).toBe('fresh');
+  });
+
+  describe('when the session changes while a refresh is pending', () => {
+    it('does not sign the user back in after clearTokens()', async () => {
+      let storage!: InMemoryTokenStorage;
+      const onRefresh = jest.fn(async () => {
+        storage.clear(); // user signs out meanwhile
+        return 'fresh';
+      });
+      const ctx = setup(onRefresh);
+      storage = ctx.storage;
+
+      const error = await ctx.http.get('/meta/tables').catch((e: unknown) => e);
+
+      expect((error as MiddlewareError).statusCode).toBe(401);
+      expect(storage.get()).toBeNull();
+      expect(ctx.seen).toHaveLength(1); // no retry
+    });
+
+    it('does not mix the old session token into a new account', async () => {
+      let storage!: InMemoryTokenStorage;
+      const onRefresh = jest.fn(async () => {
+        storage.set({ accessToken: 'bob', refreshToken: 'bob-refresh' });
+        return 'fresh'; // refreshed token of the previous account
+      });
+      const ctx = setup(onRefresh);
+      storage = ctx.storage;
+
+      const error = await ctx.http.get('/meta/tables').catch((e: unknown) => e);
+
+      expect((error as MiddlewareError).statusCode).toBe(401);
+      expect(storage.get()).toEqual({
+        accessToken: 'bob',
+        refreshToken: 'bob-refresh',
+      });
+      expect(ctx.seen).toHaveLength(1);
+    });
   });
 
   it('allows a new refresh after a failed one', async () => {
