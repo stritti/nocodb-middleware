@@ -9,6 +9,7 @@ import {
 import { PermissionsService } from '../permissions/permissions.service';
 import { CrudAction } from '../permissions/enums/crud-action.enum';
 import { hasScopePermission } from '../permissions/scope-permission.util';
+import { logPermissionDenied } from '../permissions/permission-audit';
 
 /** Internal tables of the middleware; never reachable via the data API. */
 export const SYSTEM_TABLES: ReadonlySet<string> = new Set([
@@ -71,9 +72,7 @@ export class TablePermissionsGuard implements CanActivate {
       ));
 
     if (!allowed) {
-      this.logger.warn(
-        `User ${user.userId} lacks permission ${action} on ${table}`,
-      );
+      logPermissionDenied(this.logger, user.userId, action, table);
       throw new ForbiddenException(`Missing permission: ${action} on ${table}`);
     }
 

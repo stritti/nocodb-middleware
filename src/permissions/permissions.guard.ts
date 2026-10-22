@@ -9,6 +9,7 @@ import { Reflector } from '@nestjs/core';
 import { PermissionsService } from './permissions.service';
 import { CrudAction } from './enums/crud-action.enum';
 import { hasScopePermission } from './scope-permission.util';
+import { logPermissionDenied } from './permission-audit';
 
 export const REQUIRE_PERMISSIONS_KEY = 'requirePermissions';
 
@@ -60,8 +61,11 @@ export class PermissionsGuard implements CanActivate {
         ));
 
       if (!hasPermission) {
-        this.logger.warn(
-          `User ${user.userId} lacks permission ${permission.action} on ${permission.table}`,
+        logPermissionDenied(
+          this.logger,
+          user.userId,
+          permission.action,
+          permission.table,
         );
         throw new ForbiddenException(
           `Missing permission: ${permission.action} on ${permission.table}`,

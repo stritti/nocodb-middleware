@@ -1,6 +1,7 @@
 import {
   ExecutionContext,
   ForbiddenException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { TablePermissionsGuard } from './table-permissions.guard';
@@ -30,6 +31,10 @@ describe('TablePermissionsGuard', () => {
     } as unknown as PermissionsService);
   });
 
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   const request = (
     method: string,
     table: string,
@@ -57,6 +62,26 @@ describe('TablePermissionsGuard', () => {
     await expect(
       guard.canActivate(contextFor(request('GET', 'customers'))),
     ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('logs a denied request as structured audit fields', async () => {
+    const warn = jest
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => {});
+
+    await expect(
+      guard.canActivate(contextFor(request('DELETE', 'customers'))),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(warn).toHaveBeenCalledWith(
+      {
+        event: 'permission_denied',
+        userId: 7,
+        action: CrudAction.DELETE,
+        table: 'customers',
+      },
+      'Permission denied',
+    );
   });
 
   it('allows access via a matching OAuth scope without a database lookup', async () => {
