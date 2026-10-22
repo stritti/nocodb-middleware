@@ -110,7 +110,7 @@ The [`.github/workflows/pr-quality-gate.yml`](/.github/workflows/pr-quality-gate
 4. **Fails the workflow** if any gate is not met
 
 ### Local Verification Script
-Use the [`scripts/verify-pr.sh`](/scripts/verify-pr.sh) script to verify a PR locally:
+Use the [`scripts/verify-pr.sh`](https://github.com/stritti/nocodb-middleware/blob/main/scripts/verify-pr.sh) script to verify a PR locally:
 
 ```bash
 # Make executable (once)
@@ -268,6 +268,6 @@ npm run generate:openapi
 
 ## 🔗 References
 - [GitHub Actions Workflow](/.github/workflows/pr-quality-gate.yml)
-- [Verification Script](/scripts/verify-pr.sh)
+- [Verification Script](https://github.com/stritti/nocodb-middleware/blob/main/scripts/verify-pr.sh)
 - [ESLint Config](/eslint.config.js)
-- [Prettier Config](/.prettierrc)
+- [Prettier Config](https://github.com/stritti/nocodb-middleware/blob/main/.prettierrc)

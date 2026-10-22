@@ -8,6 +8,15 @@ on:
       - 'docs/**'
       - 'package.json'
       - '.github/workflows/docs.yml'
+  # Build (without deploying) on pull requests, so a broken docs build is
+  # noticed before merge.
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'docs/**'
+      - 'package.json'
+      - '.github/workflows/docs.yml'
   workflow_dispatch:
 
 permissions:
@@ -16,8 +25,9 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
-  cancel-in-progress: false
+  # deployments share one queue; pull request builds get their own
+  group: ${{ github.event_name == 'pull_request' && format('docs-pr-{0}', github.ref) || 'pages' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build:
@@ -35,6 +45,7 @@ jobs:
           cache: npm
 
       - name: Setup GitHub Pages
+        if: github.event_name != 'pull_request'
         uses: actions/configure-pages@v5
 
       - name: Install dependencies
@@ -43,8 +54,9 @@ jobs:
       - name: Validate package semver
         run: node -e "const semver=require('semver'); const pkg=require('./package.json'); if(!semver.valid(pkg.version)){throw new Error('package.json version must be valid semver')}"
 
+      # run steps do not have node_modules/.bin on the PATH
       - name: Lint Documentation
-        run: markdownlint "docs/**/*.md"
+        run: npx --no-install markdownlint "docs/**/*.md"
 
       - name: Build documentation
         run: npm run docs:build
