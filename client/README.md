@@ -264,7 +264,7 @@ const client = new NocodbMiddlewareClient({
 | Method                                               | Description                           |
 | ---------------------------------------------------- | ------------------------------------- |
 | `listTables()`                                       | List all exposed tables               |
-| `listRoles(options?)`                                | One page of roles: `{ data, meta }`; options `page`, `take` (≤50), `order` |
+| `listRoles(options?)`                                | One page of roles: `{ data, meta }`; options `page`, `take` (≤50) |
 | `createRole(roleName, description?, isSystemRole?)`  | Create a new role                     |
 | `setTablePermissions(roleId, tableName, flags)`      | Set CRUD flags for a role on a table  |
 | `createUser(dto)`                                    | Provision a new user                  |

@@ -56,7 +56,6 @@ export interface PageOptions {
   page?: number;
   /** Page size, 1–50 (default 10). */
   take?: number;
-  order?: 'ASC' | 'DESC';
 }
 
 /** Role record as stored in NocoDB (wire format of the Middleware). */

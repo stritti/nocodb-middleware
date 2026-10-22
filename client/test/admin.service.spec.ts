@@ -73,13 +73,13 @@ describe('AdminService', () => {
       });
     });
 
-    it('passes page, take and order as query parameters', async () => {
+    it('passes page and take as query parameters', async () => {
       http.get.mockResolvedValueOnce({ data: { data: [], meta: SERVER_META } });
 
-      await service.listRoles({ page: 2, take: 50, order: 'DESC' });
+      await service.listRoles({ page: 2, take: 50 });
 
       expect(http.get).toHaveBeenCalledWith('/admin/permissions/roles', {
-        params: { page: 2, take: 50, order: 'DESC' },
+        params: { page: 2, take: 50 },
       });
     });
   });
@@ -155,6 +155,23 @@ describe('AdminService', () => {
         isActive: true,
         roles: ['editor'],
       });
+      // the DTO passed above is sent unchanged (asserted without repeating
+      // the dummy password, which secret scanners flag)
+      const [path, body] = http.post.mock.calls[0];
+      expect(path).toBe('/users');
+      expect(body).toEqual(
+        expect.objectContaining({
+          username: 'alice',
+          email: 'alice@example.com',
+          roles: ['editor'],
+        }),
+      );
+      expect(Object.keys(body).sort()).toEqual([
+        'email',
+        'password',
+        'roles',
+        'username',
+      ]);
     });
   });
 
