@@ -148,7 +148,7 @@ describe('DatabaseInitializationService', () => {
       ['user_roles', 'role', 'LinkToAnotherRecord'],
       ['table_permissions', 'role', 'Links'],
     ])(
-      'refuses to start when %s still has the link field %s (%s)',
+      'refuses to start when %s has the link field %s (%s)',
       async (table, field, type) => {
         const fake = createFakeNocoDB([
           {
@@ -160,7 +160,9 @@ describe('DatabaseInitializationService', () => {
         ]);
 
         await expect(serviceFor(fake).onModuleInit()).rejects.toThrow(
-          /legacy schema.*docs\/database-schema\.md/s,
+          `Table ${table} uses the legacy schema of versions up to 0.7.x, ` +
+            'which is not supported. Delete or rename the old system ' +
+            'tables in NocoDB and restart; they are recreated empty.',
         );
         // the legacy table is not modified
         expect(fake.createColumn).not.toHaveBeenCalledWith(
@@ -171,14 +173,13 @@ describe('DatabaseInitializationService', () => {
       },
     );
 
-    it('accepts a migrated table that keeps the link fields next to the numeric ids', async () => {
+    it('also refuses a legacy table that numeric fields were added to', async () => {
       const fake = createFakeNocoDB([
         {
           id: 't_user_roles',
           title: 'user_roles',
           fields: [
             { title: 'user', type: 'Links' },
-            { title: 'role', type: 'Links' },
             { title: 'user_id', type: 'Number' },
             { title: 'role_id', type: 'Number' },
           ],
@@ -186,7 +187,9 @@ describe('DatabaseInitializationService', () => {
         },
       ]);
 
-      await expect(serviceFor(fake).onModuleInit()).resolves.toBeUndefined();
+      await expect(serviceFor(fake).onModuleInit()).rejects.toThrow(
+        /legacy schema/,
+      );
     });
   });
 

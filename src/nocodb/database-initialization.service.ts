@@ -68,13 +68,12 @@ export const SYSTEM_TABLES: readonly TableDefinition[] = [
 ];
 
 /**
- * Link fields of the schema up to 0.7.x and the numeric fields that replace
- * them. A table that still has such a link field but not its numeric
- * replacement holds relations the current code cannot read.
+ * Link fields of the schema up to 0.7.x. That schema is not supported: a
+ * system table carrying one of them stops the startup.
  */
-const LEGACY_LINK_FIELDS: Readonly<Record<string, Record<string, string>>> = {
-  user_roles: { user: 'user_id', role: 'role_id' },
-  table_permissions: { role: 'role_id' },
+const LEGACY_LINK_FIELDS: Readonly<Record<string, readonly string[]>> = {
+  user_roles: ['user', 'role'],
+  table_permissions: ['role'],
 };
 const LINK_FIELD_TYPES = new Set(['Links', 'LinkToAnotherRecord']);
 
@@ -156,34 +155,29 @@ export class DatabaseInitializationService implements OnModuleInit {
   }
 
   /**
-   * Stops the startup instead of extending a legacy table: its role
-   * assignments live in link fields, so after adding empty numeric fields
-   * every user (including admins) would silently lose all permissions.
+   * Stops the startup on a legacy table instead of extending it: its role
+   * relations live in link fields, so after adding empty numeric fields every
+   * user (including admins) would silently lose all permissions.
    */
   private async assertNoLegacyLinkFields(
     tableId: string,
     tableName: string,
     fullTableName: string,
   ) {
-    const legacy = LEGACY_LINK_FIELDS[tableName];
-    if (!legacy) return;
+    const legacyFields = LEGACY_LINK_FIELDS[tableName];
+    if (!legacyFields) return;
 
     const { fields = [] } = await this.nocoDBService.getTableMetadata(tableId);
-    const titles = new Set(fields.map((field) => field.title));
-    const unmigrated = fields
-      .filter((field) => LINK_FIELD_TYPES.has(field.type))
-      .map((field) => field.title)
-      .filter((title) => legacy[title] && !titles.has(legacy[title]));
+    const isLegacy = fields.some(
+      (field) =>
+        LINK_FIELD_TYPES.has(field.type) && legacyFields.includes(field.title),
+    );
 
-    if (unmigrated.length > 0) {
-      const mapping = unmigrated
-        .map((title) => `${title} -> ${legacy[title]}`)
-        .join(', ');
+    if (isLegacy) {
       throw new Error(
-        `Table ${fullTableName} uses the legacy schema with link fields ` +
-          `(${unmigrated.join(', ')}). Copy the linked record ids into ` +
-          `numeric fields (${mapping}) or recreate the table, then restart. ` +
-          `See docs/database-schema.md, section "Umstieg von früheren Versionen".`,
+        `Table ${fullTableName} uses the legacy schema of versions up to ` +
+          '0.7.x, which is not supported. Delete or rename the old system ' +
+          'tables in NocoDB and restart; they are recreated empty.',
       );
     }
   }
