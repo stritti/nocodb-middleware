@@ -67,6 +67,17 @@ export const SYSTEM_TABLES: readonly TableDefinition[] = [
   },
 ];
 
+/**
+ * Link fields of the schema up to 0.7.x and the numeric fields that replace
+ * them. A table that still has such a link field but not its numeric
+ * replacement holds relations the current code cannot read.
+ */
+const LEGACY_LINK_FIELDS: Readonly<Record<string, Record<string, string>>> = {
+  user_roles: { user: 'user_id', role: 'role_id' },
+  table_permissions: { role: 'role_id' },
+};
+const LINK_FIELD_TYPES = new Set(['Links', 'LinkToAnotherRecord']);
+
 @Injectable()
 export class DatabaseInitializationService implements OnModuleInit {
   private readonly logger = new Logger(DatabaseInitializationService.name);
@@ -111,6 +122,11 @@ export class DatabaseInitializationService implements OnModuleInit {
       this.logger.log(
         `Table ${fullTableName} already exists (ID: ${existingTable.id})`,
       );
+      await this.assertNoLegacyLinkFields(
+        existingTable.id,
+        tableDef.tableName,
+        fullTableName,
+      );
       await this.ensureFieldsExist(
         existingTable.id,
         tableDef.fields,
@@ -136,6 +152,39 @@ export class DatabaseInitializationService implements OnModuleInit {
     } catch (error) {
       this.logger.error(`Failed to create table ${fullTableName}`, error);
       return null;
+    }
+  }
+
+  /**
+   * Stops the startup instead of extending a legacy table: its role
+   * assignments live in link fields, so after adding empty numeric fields
+   * every user (including admins) would silently lose all permissions.
+   */
+  private async assertNoLegacyLinkFields(
+    tableId: string,
+    tableName: string,
+    fullTableName: string,
+  ) {
+    const legacy = LEGACY_LINK_FIELDS[tableName];
+    if (!legacy) return;
+
+    const { fields = [] } = await this.nocoDBService.getTableMetadata(tableId);
+    const titles = new Set(fields.map((field) => field.title));
+    const unmigrated = fields
+      .filter((field) => LINK_FIELD_TYPES.has(field.type))
+      .map((field) => field.title)
+      .filter((title) => legacy[title] && !titles.has(legacy[title]));
+
+    if (unmigrated.length > 0) {
+      const mapping = unmigrated
+        .map((title) => `${title} -> ${legacy[title]}`)
+        .join(', ');
+      throw new Error(
+        `Table ${fullTableName} uses the legacy schema with link fields ` +
+          `(${unmigrated.join(', ')}). Copy the linked record ids into ` +
+          `numeric fields (${mapping}) or recreate the table, then restart. ` +
+          `See docs/database-schema.md, section "Umstieg von früheren Versionen".`,
+      );
     }
   }
 

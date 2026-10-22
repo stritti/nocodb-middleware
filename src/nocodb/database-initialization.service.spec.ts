@@ -142,6 +142,54 @@ describe('DatabaseInitializationService', () => {
     );
   });
 
+  describe('legacy schema with link fields (versions up to 0.7.x)', () => {
+    it.each([
+      ['user_roles', 'user', 'Links'],
+      ['user_roles', 'role', 'LinkToAnotherRecord'],
+      ['table_permissions', 'role', 'Links'],
+    ])(
+      'refuses to start when %s still has the link field %s (%s)',
+      async (table, field, type) => {
+        const fake = createFakeNocoDB([
+          {
+            id: `t_${table}`,
+            title: table,
+            fields: [{ title: field, type }],
+            records: [],
+          },
+        ]);
+
+        await expect(serviceFor(fake).onModuleInit()).rejects.toThrow(
+          /legacy schema.*docs\/database-schema\.md/s,
+        );
+        // the legacy table is not modified
+        expect(fake.createColumn).not.toHaveBeenCalledWith(
+          `t_${table}`,
+          expect.anything(),
+        );
+        expect(fake.create).not.toHaveBeenCalled();
+      },
+    );
+
+    it('accepts a migrated table that keeps the link fields next to the numeric ids', async () => {
+      const fake = createFakeNocoDB([
+        {
+          id: 't_user_roles',
+          title: 'user_roles',
+          fields: [
+            { title: 'user', type: 'Links' },
+            { title: 'role', type: 'Links' },
+            { title: 'user_id', type: 'Number' },
+            { title: 'role_id', type: 'Number' },
+          ],
+          records: [],
+        },
+      ]);
+
+      await expect(serviceFor(fake).onModuleInit()).resolves.toBeUndefined();
+    });
+  });
+
   it('seeds the admin role with full access to the system tables', async () => {
     const fake = createFakeNocoDB();
 

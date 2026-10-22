@@ -114,3 +114,8 @@ Eigene Tabellen sind bei gesetztem Präfix nur erreichbar, wenn ihr Titel das Pr
 ## Umstieg von früheren Versionen
 
 Versionen bis 0.7.x haben Tabellen mit menschenlesbaren Titeln (`Users`, `Table Permissions`) und Link-Felder (`user`, `role`) angelegt. Gegen NocoDB v3 waren diese Daten über die Middleware ohnehin nicht nutzbar. Beim ersten Start einer neueren Version entstehen die Tabellen unter den neuen Titeln neu. Alte Tabellen mit diesen Titeln können nach Prüfung in NocoDB gelöscht werden.
+
+Wird eine alte Tabelle trotzdem als Systemtabelle erkannt (z. B. weil ihr physischer Name `user_roles` bzw. `table_permissions` lautet und die NocoDB-Version `table_name` liefert), **bricht der Start mit einer Fehlermeldung ab**. Die Middleware ergänzt die Tabelle in diesem Fall bewusst nicht um leere Zahlenfelder, denn dann hätten alle Benutzer, auch Administratoren, still ihre Rechte verloren. Abhilfe, je nach Datenlage:
+
+- **Zuordnungen übernehmen:** In NocoDB die Zahlenfelder anlegen (`user_roles`: `user_id`, `role_id`; `table_permissions`: `role_id`, jeweils Typ *Number*) und pro Zeile mit der `Id` des verknüpften Benutzers bzw. der verknüpften Rolle füllen. Danach neu starten. Die Link-Felder dürfen bestehen bleiben, gelesen werden nur die Zahlenfelder.
+- **Neu beginnen:** Die alten Tabellen umbenennen oder löschen. Beim Start entstehen sie neu, der erste Admin wird per `POST /api/bootstrap/admin` angelegt.
