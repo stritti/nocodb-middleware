@@ -177,7 +177,25 @@ describe('Auth Flow (e2e)', () => {
           email: 'admin@test.com',
           password: TEST_PASSWORD,
         })
-        .expect(401);
+        .expect(401)
+        .expect(({ body }) => {
+          // rejected by the bootstrap token check, not by the JWT guard
+          expect(body.message).toBe('Missing bootstrap token');
+        });
+    });
+
+    it('POST /api/bootstrap/admin is reachable with a bootstrap token and no JWT', () => {
+      return request(app.getHttpServer())
+        .post('/api/bootstrap/admin')
+        .set('x-bootstrap-token', 'e2e-bootstrap-token')
+        .send({
+          username: 'admin',
+          email: 'admin@test.com',
+          password: TEST_PASSWORD,
+        })
+        .expect(({ status }) => {
+          expect(status).not.toBe(401);
+        });
     });
   });
 

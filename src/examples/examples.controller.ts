@@ -4,7 +4,6 @@ import {
   Post,
   Body,
   Query,
-  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import {
@@ -16,7 +15,6 @@ import {
 import { ExamplesService } from './examples.service';
 import { CreateExampleDto } from './dto/create-example.dto';
 import { PageOptionsDto } from '../nocodb/dto/page-options.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CacheInterceptor } from '../nocodb/interceptors/cache.interceptor';
 
 @ApiTags('examples')
@@ -25,7 +23,6 @@ export class ExamplesController {
   constructor(private readonly examplesService: ExamplesService) {}
 
   @Get()
-  @UseGuards(JwtAuthGuard)
   @UseInterceptors(CacheInterceptor)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get all examples with pagination' })
@@ -36,7 +33,6 @@ export class ExamplesController {
   }
 
   @Post()
-  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a new example' })
   @ApiResponse({ status: 201, description: 'Example created successfully' })

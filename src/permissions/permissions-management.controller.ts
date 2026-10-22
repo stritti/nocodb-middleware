@@ -30,7 +30,6 @@ import {
   AssignMultipleRolesDto,
 } from '../users/dto/assign-role.dto';
 import { PermissionsGuard } from './permissions.guard';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import {
   RequireCreate,
   RequireRead,
@@ -40,7 +39,7 @@ import {
 @ApiTags('admin / permissions')
 @ApiBearerAuth()
 @Controller('admin/permissions')
-@UseGuards(JwtAuthGuard, PermissionsGuard)
+@UseGuards(PermissionsGuard)
 export class PermissionsManagementController {
   constructor(
     private permissionsManagement: PermissionsManagementService,
