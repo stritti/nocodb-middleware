@@ -4,6 +4,23 @@
 
 - configure JWT algorithms for external provider RSA/EC support ([#203](https://github.com/stritti/nocodb-middleware/issues/203)) ([3e5d0ba](https://github.com/stritti/nocodb-middleware/commit/3e5d0badd7141f530ddfad4492c1706856fdd0db))
 
+## [0.8.0](https://github.com/stritti/nocodb-middleware/compare/nocodb-middleware-v0.7.0...nocodb-middleware-v0.8.0) (2026-10-22)
+
+
+### Features
+
+* **auth:** require JWT on all routes by default with @Public() opt-out ([#288](https://github.com/stritti/nocodb-middleware/issues/288)) ([3e56387](https://github.com/stritti/nocodb-middleware/commit/3e563876623094b09f38d7f4942f6b6bfffe6816))
+* **client:** add RecordsService for the data API ([#290](https://github.com/stritti/nocodb-middleware/issues/290)) ([4478be6](https://github.com/stritti/nocodb-middleware/commit/4478be6bb61c5105eb44dffcea0a3d16c618bc83))
+* **data:** add generic record API with per-table authorization ([#289](https://github.com/stritti/nocodb-middleware/issues/289)) ([c4d955c](https://github.com/stritti/nocodb-middleware/commit/c4d955c0548cf54e97025736eb0f43f0e0cdde59))
+
+
+### Bug Fixes
+
+* **deps:** resolve npm audit findings in production dependencies ([#283](https://github.com/stritti/nocodb-middleware/issues/283)) ([5b13507](https://github.com/stritti/nocodb-middleware/commit/5b1350734a80bb56f6cc212b435ed35637ff3958))
+* **docs:** repair the docs workflow, which has not deployed for weeks ([#304](https://github.com/stritti/nocodb-middleware/issues/304)) ([113b520](https://github.com/stritti/nocodb-middleware/commit/113b52020be89aa50946914df324984206d10981))
+* make the middleware work against NocoDB v3 + repair e2e suite and run it in CI ([#287](https://github.com/stritti/nocodb-middleware/issues/287)) ([1d652be](https://github.com/stritti/nocodb-middleware/commit/1d652bef498931dad673f03a86b45b8bd3808703))
+* **nocodb:** only retry read requests on 5xx and network errors ([#286](https://github.com/stritti/nocodb-middleware/issues/286)) ([c100c63](https://github.com/stritti/nocodb-middleware/commit/c100c63f7ad779598cad40d34723f14b628ec11e))
+
 ## [0.7.0](https://github.com/stritti/nocodb-middleware/compare/nocodb-middleware-v0.6.1...nocodb-middleware-v0.7.0) (2026-10-21)
 
 
