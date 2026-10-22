@@ -207,22 +207,22 @@ describe('Auth Flow (e2e)', () => {
     });
 
     it('returns 401 with expired token', () => {
+      // exp one minute in the past: no waiting, and the returned Supertest
+      // chain makes Jest fail when the assertion fails
       const expiredToken = jwt.sign(
-        { sub: 1, email: 'test@test.com', roles: ['admin'] },
+        {
+          sub: 1,
+          email: 'test@test.com',
+          roles: ['admin'],
+          exp: Math.floor(Date.now() / 1000) - 60,
+        },
         TEST_JWT_SECRET,
-        { expiresIn: '0s' },
       );
-      // Small delay to ensure expiry
-      return new Promise<void>((resolve) => {
-        setTimeout(() => {
-          request(app.getHttpServer())
-            .get('/api/examples')
-            .set('Authorization', `Bearer ${expiredToken}`)
-            .expect(401)
-            .end(resolve);
-        }, 1100);
-      });
-    }, 5000);
+      return request(app.getHttpServer())
+        .get('/api/examples')
+        .set('Authorization', `Bearer ${expiredToken}`)
+        .expect(401);
+    });
   });
 
   // ── Authenticated access ─────────────────────────────────────────────────
