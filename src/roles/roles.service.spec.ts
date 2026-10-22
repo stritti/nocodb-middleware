@@ -7,12 +7,15 @@ import {
 } from '@nestjs/common';
 import { RolesService } from './roles.service';
 import { NocoDBService } from '../nocodb/nocodb.service';
+import { PermissionsService } from '../permissions/permissions.service';
 
 describe('RolesService', () => {
   let service: RolesService;
+  let permissionsService: { clearCache: jest.Mock };
   let nocoDBService: jest.Mocked<Partial<NocoDBService>>;
 
   beforeEach(async () => {
+    permissionsService = { clearCache: jest.fn() };
     nocoDBService = {
       getTableByName: jest.fn(),
       findOne: jest.fn(),
@@ -25,6 +28,7 @@ describe('RolesService', () => {
       providers: [
         RolesService,
         { provide: NocoDBService, useValue: nocoDBService },
+        { provide: PermissionsService, useValue: permissionsService },
       ],
     }).compile();
 
@@ -232,6 +236,17 @@ describe('RolesService', () => {
 
       await service.deleteRole(1);
       expect(nocoDBService.delete).toHaveBeenCalledWith('roles_table_id', 1);
+    });
+
+    it('clears the permission cache, so the role stops granting access immediately', async () => {
+      (nocoDBService.getTableByName as jest.Mock).mockResolvedValue({
+        id: 'roles_table_id',
+      });
+      (nocoDBService.delete as jest.Mock).mockResolvedValue(undefined);
+
+      await service.deleteRole(1);
+
+      expect(permissionsService.clearCache).toHaveBeenCalledWith();
     });
 
     it('should throw NotFoundException when roles table not found', async () => {

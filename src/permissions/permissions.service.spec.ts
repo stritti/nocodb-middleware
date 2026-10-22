@@ -121,6 +121,47 @@ describe('PermissionsService', () => {
       });
     });
 
+    it('ignores assignments and permissions of deleted roles', async () => {
+      // role 20 was deleted; its assignment and permission rows remain
+      const nocodb = createNocoDB({
+        users: [alice],
+        user_roles: [
+          { id: 1, user_id: 1, role_id: 10 },
+          { id: 2, user_id: 1, role_id: 20 },
+        ],
+        roles: [{ id: 10, role_name: 'viewer' }],
+        table_permissions: [
+          { role_id: 10, table_name: 'customers', can_read: true },
+          { role_id: 20, table_name: 'customers', can_delete: true },
+        ],
+      });
+
+      const result = await serviceFor(nocodb).getUserPermissions(1);
+
+      expect(nocodb.listAll).toHaveBeenCalledWith('tbl_permissions', {
+        where: '(role_id,in,10)',
+      });
+      expect(result.roles).toEqual(['viewer']);
+      expect([...result.permissions.get('customers')!]).toEqual([
+        CrudAction.READ,
+      ]);
+    });
+
+    it('returns no permissions when all assigned roles were deleted', async () => {
+      const nocodb = createNocoDB({
+        users: [alice],
+        user_roles: [{ id: 1, user_id: 1, role_id: 20 }],
+        roles: [],
+        table_permissions: [
+          { role_id: 20, table_name: 'customers', can_delete: true },
+        ],
+      });
+
+      const result = await serviceFor(nocodb).getUserPermissions(1);
+
+      expect(result.permissions.size).toBe(0);
+    });
+
     it('returns no permissions for a user without roles', async () => {
       const nocodb = createNocoDB({
         users: [alice],

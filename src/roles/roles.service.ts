@@ -11,12 +11,16 @@ import { PageMetaDto } from '../nocodb/dto/page-meta.dto';
 import { PageDto } from '../nocodb/dto/page.dto';
 import { filterEq } from '../nocodb/nocodb-filter.util';
 import { CreateRoleDto } from './dto/create-role.dto';
+import { PermissionsService } from '../permissions/permissions.service';
 
 @Injectable()
 export class RolesService {
   private readonly logger = new Logger(RolesService.name);
 
-  constructor(private nocoDBService: NocoDBService) {}
+  constructor(
+    private nocoDBService: NocoDBService,
+    private permissionsService: PermissionsService,
+  ) {}
 
   /**
    * Create a new role
@@ -126,6 +130,8 @@ export class RolesService {
       }
 
       await this.nocoDBService.delete(rolesTable.id, roleId);
+      // cached permissions may still include the deleted role
+      this.permissionsService.clearCache();
 
       this.logger.log(`Role ${roleId} deleted`);
     } catch (error) {

@@ -101,6 +101,16 @@ export class PermissionsService {
         (r) => (r.role_name as string | undefined) ?? '',
       );
 
+      // Assignments of deleted roles remain in user_roles (and their rows in
+      // table_permissions); only roles that still exist may grant access.
+      const existingRoleIds = new Set(roles.map((r) => Number(r.id)));
+      const activeRoleIds = roleIds.filter((id) => existingRoleIds.has(id));
+
+      if (activeRoleIds.length === 0) {
+        this.logger.warn(`User ${userId} has no existing roles`);
+        return this.createEmptyPermissions(userId, username);
+      }
+
       const permissionsTable =
         await this.nocoDBService.getTableByName('table_permissions');
       if (!permissionsTable) {
@@ -110,14 +120,14 @@ export class PermissionsService {
 
       const permissionRecords = await this.nocoDBService.listAll(
         permissionsTable.id,
-        { where: filterIn('role_id', roleIds) },
+        { where: filterIn('role_id', activeRoleIds) },
       );
 
       const permissionsMap = new Map<string, Set<CrudAction>>();
 
       for (const perm of permissionRecords) {
         const tableName = perm.table_name as string | undefined;
-        if (!tableName) continue;
+        if (!tableName || !existingRoleIds.has(Number(perm.role_id))) continue;
 
         if (!permissionsMap.has(tableName)) {
           permissionsMap.set(tableName, new Set());
