@@ -1,8 +1,9 @@
-import { createHttpClient } from './http-client';
-import { AuthService } from './services/auth.service';
-import { AdminService } from './services/admin.service';
-import { InMemoryTokenStorage } from './token-storage';
-import { ClientConfig, MiddlewareError } from './types';
+import { createHttpClient } from './http-client.js';
+import { AuthService } from './services/auth.service.js';
+import { AdminService } from './services/admin.service.js';
+import { RecordsService } from './services/records.service.js';
+import { InMemoryTokenStorage } from './token-storage.js';
+import { ClientConfig, MiddlewareError } from './types.js';
 
 /**
  * Main entry-point for the NocoDB Middleware client library.
@@ -18,6 +19,9 @@ import { ClientConfig, MiddlewareError } from './types';
  * // Inject tokens obtained from your IdP:
  * client.auth.setTokens({ accessToken: '<token>' });
  *
+ * // Read and write table data:
+ * const { list } = await client.records.list('customers', { limit: 10 });
+ *
  * // Manage roles and permissions:
  * const tables = await client.admin.listTables();
  * await client.admin.createRole('editor', 'Can create and edit content');
@@ -26,6 +30,7 @@ import { ClientConfig, MiddlewareError } from './types';
 export class NocodbMiddlewareClient {
   private readonly _auth: AuthService;
   private readonly _admin: AdminService;
+  private readonly _records: RecordsService;
 
   constructor(config: ClientConfig) {
     if (!config?.baseUrl) {
@@ -49,6 +54,7 @@ export class NocodbMiddlewareClient {
     // client because the middleware does not expose auth endpoints.
     this._auth = new AuthService(storage);
     this._admin = new AdminService(http);
+    this._records = new RecordsService(http);
   }
 
   /** Token management (set/get/clear tokens obtained from your identity provider). */
@@ -59,5 +65,10 @@ export class NocodbMiddlewareClient {
   /** Admin service (roles, permissions, user provisioning, health). */
   get admin(): AdminService {
     return this._admin;
+  }
+
+  /** Record CRUD on NocoDB tables via the data API (`/data/:table`). */
+  get records(): RecordsService {
+    return this._records;
   }
 }

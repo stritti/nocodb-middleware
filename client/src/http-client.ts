@@ -3,13 +3,20 @@ import axios, {
   AxiosError,
   InternalAxiosRequestConfig,
 } from 'axios';
-import { MiddlewareError, TokenStorage } from './types';
+import { MiddlewareError, TokenPair, TokenStorage } from './types.js';
 
 /** Internal flag added to retried requests to break refresh loops. */
 const RETRY_FLAG = '__nocodb_retry';
 
 interface RetryableConfig extends InternalAxiosRequestConfig {
   [RETRY_FLAG]?: boolean;
+}
+
+/** Compares by value: storages may return a new object on every get(). */
+function sameSession(a: TokenPair | null, b: TokenPair | null): boolean {
+  return (
+    a?.accessToken === b?.accessToken && a?.refreshToken === b?.refreshToken
+  );
 }
 
 /**
@@ -75,18 +82,34 @@ export function createHttpClient(
         originalRequest[RETRY_FLAG] = true;
         isRefreshing = true;
 
+        const sessionBefore = tokenStorage.get();
+        let newAccessToken: string;
         try {
-          const newAccessToken = await onRefresh();
-          isRefreshing = false;
-          originalRequest.headers = originalRequest.headers ?? {};
-          originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
-          return instance(originalRequest);
+          newAccessToken = await onRefresh();
         } catch {
-          isRefreshing = false;
           // Refresh failed – clear tokens and propagate the original error
           tokenStorage.clear();
           throw normaliseError(error);
+        } finally {
+          isRefreshing = false;
         }
+
+        // The session may have changed while the refresh was pending: signed
+        // out (cleared) or switched to another account (different tokens).
+        // The refreshed token belongs to the old session, so neither store
+        // nor retry with it. A callback that stored the refreshed token
+        // itself is fine.
+        const sessionNow = tokenStorage.get();
+        const unchanged = sameSession(sessionNow, sessionBefore);
+        const storedByCallback = sessionNow?.accessToken === newAccessToken;
+        if (!sessionNow || (!unchanged && !storedByCallback)) {
+          throw normaliseError(error);
+        }
+
+        // The request interceptor sets the header from storage, also for the
+        // retry below; keep a refresh token the callback may have stored.
+        tokenStorage.set({ ...sessionNow, accessToken: newAccessToken });
+        return instance(originalRequest);
       }
 
       throw normaliseError(error);

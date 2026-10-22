@@ -141,3 +141,6 @@ docs/openspec/
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# temporary probes of client/scripts/check-package.mjs
+client/.pkg-check-*

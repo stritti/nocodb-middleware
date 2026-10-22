@@ -44,6 +44,18 @@ const client = new NocodbMiddlewareClient({
 // Inject tokens obtained from your external IdP:
 client.auth.setTokens({ accessToken: '<your-jwt>' });
 
+// Read and write table data:
+interface Product { id: number; Name: string; Price: number }
+
+const { list, pageInfo } = await client.records.list<Product>('products', {
+  where: '(Price,gt,10)',
+  sort: '-Price',
+  limit: 20,
+});
+const created = await client.records.create<Product>('products', { Name: 'Pen', Price: 2 });
+await client.records.update<Product>('products', created.id, { Price: 3 });
+await client.records.delete('products', created.id);
+
 // List tables exposed by the middleware:
 const tables = await client.admin.listTables();
 console.log(tables);
@@ -118,7 +130,7 @@ onMounted(async () => {
   const client = useNocodb();
   // Inject token from your IdP before making authenticated calls
   client.auth.setTokens({ accessToken: myIdpToken });
-  roles.value = await client.admin.listRoles();
+  roles.value = (await client.admin.listRoles()).data;
 });
 </script>
 ```
@@ -156,7 +168,7 @@ export function RoleList() {
   useEffect(() => {
     // Inject token from your IdP first
     client.auth.setTokens({ accessToken: myIdpToken });
-    client.admin.listRoles().then(setRoles);
+    client.admin.listRoles().then((page) => setRoles(page.data));
   }, [client]);
 
   return <ul>{roles.map(r => <li key={r.id}>{r.roleName}</li>)}</ul>;
@@ -202,8 +214,10 @@ any `401` response to obtain a new access token and retry the request.
 The interceptor is guarded against re-entrant calls, so a failed refresh
 propagates the original 401 instead of looping.
 
-Use a shared `TokenStorage` instance so the callback can update stored
-tokens without a circular reference to the client itself:
+The callback returns the new access token; the client stores it and uses it
+for the retry and all later requests. If your IdP also rotates the refresh
+token, store the new pair in a shared `TokenStorage` instance (no circular
+reference to the client needed):
 
 ```typescript
 import {
@@ -250,11 +264,26 @@ const client = new NocodbMiddlewareClient({
 | Method                                               | Description                           |
 | ---------------------------------------------------- | ------------------------------------- |
 | `listTables()`                                       | List all exposed tables               |
-| `listRoles()`                                        | List all roles                        |
+| `listRoles(options?)`                                | One page of roles: `{ data, meta }`; options `page`, `take` (≤50) |
 | `createRole(roleName, description?, isSystemRole?)`  | Create a new role                     |
 | `setTablePermissions(roleId, tableName, flags)`      | Set CRUD flags for a role on a table  |
 | `createUser(dto)`                                    | Provision a new user                  |
 | `healthCheck()`                                      | Check Middleware health status        |
+
+### `client.records` – `RecordsService`
+
+Calls the Middleware data API `/data/:table`. Access is checked per table and action on the server; without permission the call rejects with a `MiddlewareError` with `statusCode` 403.
+
+| Method                         | Description                                                  |
+| ------------------------------ | ------------------------------------------------------------ |
+| `list<T>(table, options?)`     | `{ list, pageInfo }`; options: `where`, `sort`, `limit` (≤100), `offset` |
+| `read<T>(table, id)`           | Single record; rejects with 404 if missing                   |
+| `create<T>(table, data)`       | Create a record and return it                                |
+| `update<T>(table, id, data)`   | Update fields and return the record                          |
+| `delete(table, id)`            | Delete a record                                              |
+| `findOne<T>(table, where)`     | First match or `null`                                        |
+
+> Requires a Middleware version with the data API (`/data/:table`).
 
 ---
 

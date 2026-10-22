@@ -251,3 +251,45 @@ jobs:
             git commit -m "chore: update coverage badge [skip ci]"
             git push origin HEAD:badges
           fi
+
+  client:
+    name: Client Library (lint + test + build)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: client
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: |
+            package-lock.json
+            client/package-lock.json
+
+      # The client lints with the shared root ESLint config, whose plugins
+      # are root dev dependencies.
+      - name: Install root dependencies (shared ESLint config)
+        run: npm ci
+        working-directory: .
+
+      - name: Install client dependencies
+        run: npm ci
+
+      - name: Lint check
+        run: npm run lint:check
+
+      - name: Test with coverage (80% threshold)
+        run: npm run test:cov
+
+      - name: Build check
+        run: npm run build
+
+      - name: Package check (ESM import + CJS require)
+        run: npm run check:package
