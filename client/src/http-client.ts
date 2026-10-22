@@ -78,8 +78,13 @@ export function createHttpClient(
         try {
           const newAccessToken = await onRefresh();
           isRefreshing = false;
-          originalRequest.headers = originalRequest.headers ?? {};
-          originalRequest.headers['Authorization'] = `Bearer ${newAccessToken}`;
+          // Store the new token: the request interceptor sets the header from
+          // storage, also for the retry below. Keeps a refresh token the
+          // callback may have stored.
+          tokenStorage.set({
+            ...tokenStorage.get(),
+            accessToken: newAccessToken,
+          });
           return instance(originalRequest);
         } catch {
           isRefreshing = false;

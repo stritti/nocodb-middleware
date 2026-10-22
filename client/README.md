@@ -214,8 +214,10 @@ any `401` response to obtain a new access token and retry the request.
 The interceptor is guarded against re-entrant calls, so a failed refresh
 propagates the original 401 instead of looping.
 
-Use a shared `TokenStorage` instance so the callback can update stored
-tokens without a circular reference to the client itself:
+The callback returns the new access token; the client stores it and uses it
+for the retry and all later requests. If your IdP also rotates the refresh
+token, store the new pair in a shared `TokenStorage` instance (no circular
+reference to the client needed):
 
 ```typescript
 import {
