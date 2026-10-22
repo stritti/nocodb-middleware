@@ -6,9 +6,9 @@
 
 ## 2. Idempotente Provisionierung umsetzen
 
-- [ ] 2.1 Initialisierungslogik in `database-initialization.service` auf das definierte Standardschema erweitern
-- [ ] 2.2 Existenzprüfungen pro Tabelle und Feld ergänzen, um Duplikate bei Neustarts zu verhindern
-- [ ] 2.3 Fehlende Standardfelder in bestehenden Tabellen automatisch und deterministisch nachziehen
+- [ ] 2.1 Initialisierungslogik in `database-initialization.service` auf das definierte Standardschema erweitern _(gegen NocoDB v3 nicht lauffähig (Lookup über `table_name`); behoben in #287 inkl. Integrationstests)_
+- [ ] 2.2 Existenzprüfungen pro Tabelle und Feld ergänzen, um Duplikate bei Neustarts zu verhindern _(gegen NocoDB v3 nicht lauffähig (Lookup über `table_name`); behoben in #287 inkl. Integrationstests)_
+- [ ] 2.3 Fehlende Standardfelder in bestehenden Tabellen automatisch und deterministisch nachziehen _(gegen NocoDB v3 nicht lauffähig (Lookup über `table_name`); behoben in #287 inkl. Integrationstests)_
 - [ ] 2.4 Strukturierte Fehlerlogs für fehlgeschlagene Tabellen-/Feldanlage ergänzen
 
 ## 3. Service-Kompatibilität mit neuem Feldmodell herstellen

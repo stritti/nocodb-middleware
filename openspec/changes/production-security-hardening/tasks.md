@@ -1,6 +1,6 @@
 ## 1. Globaler JwtAuthGuard + @Public()-Decorator
 
-- [ ] 1.1 `JwtAuthGuard` als `APP_GUARD` in `AppModule` registrieren (`{ provide: APP_GUARD, useClass: JwtAuthGuard }`)
+- [ ] 1.1 `JwtAuthGuard` als `APP_GUARD` in `AppModule` registrieren (`{ provide: APP_GUARD, useClass: JwtAuthGuard }`) _(umgesetzt in #288)_
 - [ ] 1.2 Bestehende `@UseGuards(JwtAuthGuard, ...)`-Dekorationen auf die nicht-globalen Guards reduzieren
 - [ ] 1.3 `IS_PUBLIC_KEY` Konstante und `@Public()` Decorator erstellen
 - [ ] 1.4 `JwtAuthGuard.canActivate` erweitern: Reflector-Metadaten `isPublic` prüfen und ggf. überspringen
@@ -15,7 +15,7 @@
 
 ## 3. Swagger-Environment-Schutz
 
-- [ ] 3.1 `main.ts`: Swagger-Setup per `NODE_ENV !== 'production'` schützen
+- [x] 3.1 `main.ts`: Swagger-Setup per `NODE_ENV !== 'production'` schützen
 - [ ] 3.2 Optional: `SWAGGER_ENABLED=true`-Override für Staging
 
 ## 4. Konfigurierbares Rate-Limit
@@ -26,5 +26,5 @@
 
 ## 5. CORS-Validierung
 
-- [ ] 5.1 App-Start prüft `CORS_ORIGINS` und logged Warnung, wenn nicht gesetzt
+- [x] 5.1 App-Start prüft `CORS_ORIGINS` und logged Warnung, wenn nicht gesetzt _(`parseAndValidateCorsOrigins` in src/config/cors.config.ts)_
 - [ ] 5.2 Optionales Strict-Mode: `CORS_REQUIRED=true` lässt App ohne CORS-Konfiguration nicht starten

@@ -1,10 +1,10 @@
 ## 1. Auth-Flow E2E Tests
 
-- [ ] 1.1 Test-Helper `createTestToken()` bereitstellen
-- [ ] 1.2 Test: Request mit gültigem JWT → 200 OK
-- [ ] 1.3 Test: Request ohne Token → 401 Unauthorized
-- [ ] 1.4 Test: Request mit ungültigem (manipulierten) Token → 401
-- [ ] 1.5 Test: Request mit abgelaufenem Token → 401
+- [x] 1.1 Test-Helper `createTestToken()` bereitstellen _(als `createAuthToken()` in test/auth.e2e-spec.ts)_
+- [ ] 1.2 Test: Request mit gültigem JWT → 200 OK _(Test vorhanden, Suite auf main rot und nicht in CI; repariert in #287)_
+- [ ] 1.3 Test: Request ohne Token → 401 Unauthorized _(Test vorhanden, Suite auf main rot und nicht in CI; repariert in #287)_
+- [ ] 1.4 Test: Request mit ungültigem (manipulierten) Token → 401 _(Test vorhanden, Suite auf main rot und nicht in CI; repariert in #287)_
+- [ ] 1.5 Test: Request mit abgelaufenem Token → 401 _(Test konnte nicht fehlschlagen (`.end(resolve)`); behoben in #287)_
 
 ## 2. RolesGuard E2E Tests
 
