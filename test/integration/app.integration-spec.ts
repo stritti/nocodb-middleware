@@ -332,6 +332,14 @@ describe('Middleware against NocoDB v3 (full stack)', () => {
         .expect(404);
     });
 
+    it('answers 400 for a filter NocoDB cannot parse', () => {
+      return http()
+        .get('/api/data/customers')
+        .query({ where: '(name,noSuchOperator,x)' })
+        .set('Authorization', withScope(['customers:read']))
+        .expect(400);
+    });
+
     it('rejects unknown and read-only fields', async () => {
       const auth = withScope(['customers:create']);
       await http()

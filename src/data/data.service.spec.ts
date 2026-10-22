@@ -115,6 +115,31 @@ describe('DataService', () => {
     });
   });
 
+  describe('list with a query NocoDB rejects', () => {
+    it.each([400, 422])(
+      'turns an upstream %i for an invalid where/sort into a 400',
+      async (status) => {
+        nocodb.list.mockRejectedValue(upstreamError(status));
+
+        const error = await service
+          .list('customers', { where: '(Name,eqq,Alice' })
+          .catch((e: unknown) => e);
+
+        expect(error).toBeInstanceOf(BadRequestException);
+        expect((error as BadRequestException).message).toBe(
+          'NocoDB rejected the query (where/sort)',
+        );
+      },
+    );
+
+    it('does not hide other upstream errors', async () => {
+      const error = upstreamError(503);
+      nocodb.list.mockRejectedValue(error);
+
+      await expect(service.list('customers', {})).rejects.toBe(error);
+    });
+  });
+
   describe('table lookup', () => {
     it('throws NotFound for a table that does not exist in NocoDB', async () => {
       await expect(service.list('unknown', {})).rejects.toBeInstanceOf(

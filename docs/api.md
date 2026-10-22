@@ -181,7 +181,7 @@ Die Systemtabellen `users`, `roles`, `user_roles` und `table_permissions` sind �
 - Von NocoDB verwaltete Felder sind schreibgeschützt (`Read-only fields: …`): `id`, ID, AutoNumber, Formula, Rollup, Lookup, Links, CreatedTime/LastModifiedTime, CreatedBy/LastModifiedBy, Barcode, QrCode, Button. Verknüpfungen werden nicht über diese API gepflegt.
 - Lehnt NocoDB einen Wert ab (z. B. ungültige E-Mail), antwortet die API mit `400`.
 
-Nicht-numerische IDs liefern ebenfalls `400`.
+Nicht-numerische IDs liefern ebenfalls `400`, ebenso `where`- oder `sort`-Ausdrücke, die NocoDB nicht verarbeiten kann. Für `:table` gilt dieselbe Namensregel wie im Tabellenkatalog (Leerzeichen URL-kodiert, z. B. `/api/data/Customer%20Orders`).
 
 Tabellen-ID und Felder werden pro Tabelle 60 Sekunden gecacht: Neu angelegte Tabellen sind sofort erreichbar, neue Felder einer bereits genutzten Tabelle spätestens nach 60 Sekunden.
 

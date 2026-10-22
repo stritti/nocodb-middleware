@@ -14,6 +14,7 @@ import {
 
 export const DEFAULT_PAGE_SIZE = 25;
 export const TABLE_CACHE_TTL_MS = 60_000;
+const REJECTED_VALUES = 'NocoDB rejected the record values';
 
 /**
  * Field types whose values NocoDB computes or manages itself. Links are
@@ -72,13 +73,17 @@ export class DataService {
   async list(table: string, options: ListRecordsOptions): Promise<RecordList> {
     const { id } = await this.getTable(table);
     const offset = options.offset ?? 0;
-    const result = await this.nocoDBService.list(id, {
-      where: options.where,
-      sort: options.sort,
-      limit: options.limit ?? DEFAULT_PAGE_SIZE,
-      offset,
-      withCount: true,
-    });
+    const result = await this.withUpstreamValidation(
+      () =>
+        this.nocoDBService.list(id, {
+          where: options.where,
+          sort: options.sort,
+          limit: options.limit ?? DEFAULT_PAGE_SIZE,
+          offset,
+          withCount: true,
+        }),
+      'NocoDB rejected the query (where/sort)',
+    );
     const list = result.list ?? [];
 
     return {
@@ -103,8 +108,9 @@ export class DataService {
     assertRecordInput(data);
     const info = await this.getTable(table);
     assertWritableFields(info, data);
-    return this.withUpstreamValidation(() =>
-      this.nocoDBService.create(info.id, data),
+    return this.withUpstreamValidation(
+      () => this.nocoDBService.create(info.id, data),
+      REJECTED_VALUES,
     );
   }
 
@@ -116,8 +122,9 @@ export class DataService {
     assertRecordInput(data);
     const info = await this.getTable(table);
     assertWritableFields(info, data);
-    return this.withUpstreamValidation(() =>
-      this.nocoDBService.update(info.id, id, data),
+    return this.withUpstreamValidation(
+      () => this.nocoDBService.update(info.id, id, data),
+      REJECTED_VALUES,
     );
   }
 
@@ -150,14 +157,20 @@ export class DataService {
     return info;
   }
 
-  /** NocoDB rejects invalid values with 400/422; report them as 400. */
-  private async withUpstreamValidation<T>(call: () => Promise<T>): Promise<T> {
+  /**
+   * NocoDB answers invalid input (record values, filter or sort expressions)
+   * with 400/422; report that as a client error instead of a 500.
+   */
+  private async withUpstreamValidation<T>(
+    call: () => Promise<T>,
+    message: string,
+  ): Promise<T> {
     try {
       return await call();
     } catch (error) {
       const status = isAxiosError(error) ? error.response?.status : undefined;
       if (status === 400 || status === 422) {
-        throw new BadRequestException('NocoDB rejected the record values');
+        throw new BadRequestException(message);
       }
       throw error;
     }
