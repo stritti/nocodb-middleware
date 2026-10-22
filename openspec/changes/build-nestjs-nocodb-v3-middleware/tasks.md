@@ -8,16 +8,16 @@
 
 ## 2. V3 Meta Initialization Hardening
 
-- [ ] 2.1 Idempotente Tabelleninitialisierung in `src/nocodb/database-initialization.service.ts` gegen bestehende Meta-Zustände absichern _(gegen NocoDB v3 nicht lauffähig (Lookup über `table_name`); behoben in #287 inkl. Integrationstests)_
-- [ ] 2.2 Deterministische Spalten-Synchronisation (fehlende Spalten ergänzen, kompatible Spalten erhalten) implementieren _(gegen NocoDB v3 nicht lauffähig (Lookup über `table_name`); behoben in #287 inkl. Integrationstests)_
+- [x] 2.1 Idempotente Tabelleninitialisierung in `src/nocodb/database-initialization.service.ts` gegen bestehende Meta-Zustände absichern _(#287, Integrationstest gegen NocoDB 0.301.3)_
+- [x] 2.2 Deterministische Spalten-Synchronisation (fehlende Spalten ergänzen, kompatible Spalten erhalten) implementieren _(#287)_
 - [ ] 2.3 Wiederanlaufbare Fehlerbehandlung für partielle Initialisierungsfehler inklusive strukturierter Logs ergänzen
 - [x] 2.4 Integrationsnahe Tests für Mehrfachstart- und Recoveryszenarien in `src/nocodb/database-initialization.service.spec.ts` ergänzen
 
 ## 3. RBAC Enforcement
 
-- [ ] 3.1 Permissions-Decorator/Guard-Verkettung für tabellenbezogene CRUD-Aktionen in Controllern verankern _(nur Admin-Endpunkte geschützt; Daten-CRUD mit Tabellenrechten in #289)_
+- [x] 3.1 Permissions-Decorator/Guard-Verkettung für tabellenbezogene CRUD-Aktionen in Controllern verankern _(Daten-API mit `TablePermissionsGuard`, #289)_
 - [x] 3.2 Rollenaggregation im Permissions-Service für Mehrfachrollen deterministisch umsetzen _(Vereinigung der Rechte aller Rollen)_
-- [ ] 3.3 Auditierbares Logging bei abgelehnten Berechtigungsentscheidungen (userId/action/table) ergänzen _(Log ist unstrukturiert; strukturierte Felder mit #289)_
+- [x] 3.3 Auditierbares Logging bei abgelehnten Berechtigungsentscheidungen (userId/action/table) ergänzen _(strukturierte Felder, #289)_
 - [x] 3.4 Guard- und Service-Tests für erlaubte/verbotene Pfade in `src/permissions/*.spec.ts` ausbauen
 
 ## 4. Operability Controls

@@ -14,7 +14,7 @@
 ## 3. JWT- und OAuth-Konformitaet absichern
 
 - [x] 3.1 Zentralen Claim-Normalizer fuer lokale und externe Token einbauen
-- [ ] 3.2 Scope-/Roles-Mapping auf bestehende Permission-Checks abstimmen _(Scopes erreichen `req.user` nicht; behoben in #287)_
+- [x] 3.2 Scope-/Roles-Mapping auf bestehende Permission-Checks abstimmen _(#287)_
 - [x] 3.3 Guards/Strategien so erweitern, dass sie provider-unabhaengig mit normalisierten Claims arbeiten
 - [x] 3.4 Tests fuer gueltige/ungueltige Claims, abgelaufene Token und Rollenauflosung ausbauen
 
