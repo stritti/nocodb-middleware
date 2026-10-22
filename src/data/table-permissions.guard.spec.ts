@@ -119,7 +119,23 @@ describe('TablePermissionsGuard', () => {
     },
   );
 
-  it.each(['../users', 'customers;drop', 'a b', '', 'x'.repeat(65)])(
+  it.each(['sales-orders', 'Customer Orders'])(
+    'accepts %j, which the catalog lists and permissions accept',
+    async (table) => {
+      canUserPerformAction.mockResolvedValue(true);
+
+      await expect(
+        guard.canActivate(contextFor(request('GET', table))),
+      ).resolves.toBe(true);
+      expect(canUserPerformAction).toHaveBeenCalledWith(
+        7,
+        table,
+        CrudAction.READ,
+      );
+    },
+  );
+
+  it.each(['../users', 'customers;drop', 'quote"inside', '', 'x'.repeat(256)])(
     'rejects the invalid table name %j as not found',
     async (table) => {
       await expect(

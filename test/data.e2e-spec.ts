@@ -21,6 +21,7 @@ function token(scope?: string[]): string {
 const TABLES: Record<string, { id: string; title: string }> = {
   users: { id: 'tbl_users', title: 'users' },
   customers: { id: 'tbl_customers', title: 'customers' },
+  'Customer Orders': { id: 'tbl_orders', title: 'Customer Orders' },
 };
 
 const CUSTOMER_FIELDS = [
@@ -165,6 +166,13 @@ describe('Data API (e2e)', () => {
         offset: 5,
         withCount: true,
       });
+    });
+
+    it('serves a table whose name contains a space', () => {
+      return http()
+        .get('/api/data/Customer%20Orders')
+        .set('Authorization', `Bearer ${token(['Customer Orders:read'])}`)
+        .expect(200);
     });
 
     it('rejects a page size above 100', () => {

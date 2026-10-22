@@ -10,6 +10,7 @@ import { PermissionsService } from '../permissions/permissions.service';
 import { CrudAction } from '../permissions/enums/crud-action.enum';
 import { hasScopePermission } from '../permissions/scope-permission.util';
 import { logPermissionDenied } from '../permissions/permission-audit';
+import { isValidTableName } from '../common/validation/table-name';
 
 /** Internal tables of the middleware; never reachable via the data API. */
 export const SYSTEM_TABLES: ReadonlySet<string> = new Set([
@@ -18,8 +19,6 @@ export const SYSTEM_TABLES: ReadonlySet<string> = new Set([
   'user_roles',
   'table_permissions',
 ]);
-
-const TABLE_NAME_PATTERN = /^[A-Za-z0-9_]{1,64}$/;
 
 const METHOD_ACTIONS: Readonly<Record<string, CrudAction>> = {
   GET: CrudAction.READ,
@@ -52,7 +51,7 @@ export class TablePermissionsGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<DataRequest>();
     const table = request.params.table ?? '';
 
-    if (!TABLE_NAME_PATTERN.test(table) || SYSTEM_TABLES.has(table)) {
+    if (!isValidTableName(table) || SYSTEM_TABLES.has(table)) {
       throw new NotFoundException(`Table '${table}' not found`);
     }
 
