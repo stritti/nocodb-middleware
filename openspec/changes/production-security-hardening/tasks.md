@@ -1,10 +1,10 @@
 ## 1. Globaler JwtAuthGuard + @Public()-Decorator
 
-- [ ] 1.1 `JwtAuthGuard` als `APP_GUARD` in `AppModule` registrieren (`{ provide: APP_GUARD, useClass: JwtAuthGuard }`) _(umgesetzt in #288)_
-- [ ] 1.2 Bestehende `@UseGuards(JwtAuthGuard, ...)`-Dekorationen auf die nicht-globalen Guards reduzieren
-- [ ] 1.3 `IS_PUBLIC_KEY` Konstante und `@Public()` Decorator erstellen
-- [ ] 1.4 `JwtAuthGuard.canActivate` erweitern: Reflector-Metadaten `isPublic` prüfen und ggf. überspringen
-- [ ] 1.5 Specs für `JwtAuthGuard` mit/ohne `@Public()`-Decorator
+- [x] 1.1 `JwtAuthGuard` als `APP_GUARD` in `AppModule` registrieren (`{ provide: APP_GUARD, useClass: JwtAuthGuard }`) _(#288)_
+- [x] 1.2 Bestehende `@UseGuards(JwtAuthGuard, ...)`-Dekorationen auf die nicht-globalen Guards reduzieren
+- [x] 1.3 `IS_PUBLIC_KEY` Konstante und `@Public()` Decorator erstellen
+- [x] 1.4 `JwtAuthGuard.canActivate` erweitern: Reflector-Metadaten `isPublic` prüfen und ggf. überspringen
+- [x] 1.5 Specs für `JwtAuthGuard` mit/ohne `@Public()`-Decorator
 
 ## 2. Sicheres Bootstrap-Seeding
 
