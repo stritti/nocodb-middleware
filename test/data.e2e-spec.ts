@@ -5,6 +5,7 @@ import * as jwt from 'jsonwebtoken';
 import { AppModule } from './../src/app.module';
 import { NocoDBService } from './../src/nocodb/nocodb.service';
 import { DatabaseInitializationService } from './../src/nocodb/database-initialization.service';
+import { NocoDBException } from './../src/nocodb/exceptions/nocodb.exception';
 
 const TEST_JWT_SECRET = 'test-jwt-secret-for-data-e2e-2026';
 
@@ -16,12 +17,17 @@ function token(scope?: string[]): string {
   );
 }
 
-const TABLES: Record<string, { id: string; table_name: string }> = {
-  users: { id: 'tbl_users', table_name: 'users' },
-  customers: { id: 'tbl_customers', table_name: 'customers' },
-  // required at startup by ExampleRepository (NocoDBModule)
-  examples: { id: 'tbl_examples', table_name: 'examples' },
+// NocoDB v3 identifies tables by title
+const TABLES: Record<string, { id: string; title: string }> = {
+  users: { id: 'tbl_users', title: 'users' },
+  customers: { id: 'tbl_customers', title: 'customers' },
 };
+
+const CUSTOMER_FIELDS = [
+  { id: 'f0', title: 'Id', type: 'ID' },
+  { id: 'f1', title: 'Name', type: 'SingleLineText' },
+  { id: 'f2', title: 'CreatedAt', type: 'CreatedTime' },
+];
 
 const CUSTOMERS: Record<number, Record<string, unknown>> = {
   1: { id: 1, Name: 'Alice' },
@@ -29,6 +35,11 @@ const CUSTOMERS: Record<number, Record<string, unknown>> = {
 
 const mockNocoDBService = {
   getTableByName: jest.fn(async (name: string) => TABLES[name] ?? null),
+  getTableMetadata: jest.fn(async (tableId: string) => ({
+    id: tableId,
+    title: tableId,
+    fields: tableId === 'tbl_customers' ? CUSTOMER_FIELDS : [],
+  })),
   read: jest.fn(async (tableId: string, id: number) => {
     if (tableId === 'tbl_users') {
       return { id, username: 'alice', is_active: true };
@@ -43,11 +54,14 @@ const mockNocoDBService = {
     id: 2,
     ...data,
   })),
-  update: jest.fn(async (_tableId: string, id: number, data: object) => ({
-    id,
-    ...data,
-  })),
-  delete: jest.fn().mockResolvedValue(undefined),
+  // like NocoDBService: a missing record surfaces as NocoDBException(404)
+  update: jest.fn(async (tableId: string, id: number, data: object) => {
+    if (!CUSTOMERS[id]) throw NocoDBException.recordNotFound(tableId, id);
+    return { id, ...data };
+  }),
+  delete: jest.fn(async (tableId: string, id: number) => {
+    if (!CUSTOMERS[id]) throw NocoDBException.recordNotFound(tableId, id);
+  }),
   getBaseId: jest.fn().mockReturnValue('test-base'),
   getTablePrefix: jest.fn().mockReturnValue(''),
 };
@@ -149,6 +163,7 @@ describe('Data API (e2e)', () => {
         sort: '-Name',
         limit: 10,
         offset: 5,
+        withCount: true,
       });
     });
 
@@ -232,6 +247,40 @@ describe('Data API (e2e)', () => {
         .expect(204);
 
       expect(mockNocoDBService.delete).toHaveBeenCalledWith('tbl_customers', 1);
+    });
+
+    it('POST rejects a field that does not exist in the table', () => {
+      return http()
+        .post('/api/data/customers')
+        .set('Authorization', `Bearer ${token(['customers:create'])}`)
+        .send({ Name: 'Bob', isAdmin: true })
+        .expect(400)
+        .expect(({ body }) => {
+          expect(body.message).toBe('Unknown fields: isAdmin');
+        });
+    });
+
+    it('PATCH rejects a read-only field', () => {
+      return http()
+        .patch('/api/data/customers/1')
+        .set('Authorization', `Bearer ${token(['customers:update'])}`)
+        .send({ CreatedAt: '2020-01-01' })
+        .expect(400);
+    });
+
+    it('PATCH returns 404 for a missing record', () => {
+      return http()
+        .patch('/api/data/customers/999')
+        .set('Authorization', `Bearer ${token(['customers:update'])}`)
+        .send({ Name: 'Ghost' })
+        .expect(404);
+    });
+
+    it('DELETE returns 404 for a missing record', () => {
+      return http()
+        .delete('/api/data/customers/999')
+        .set('Authorization', `Bearer ${token(['customers:delete'])}`)
+        .expect(404);
     });
   });
 });

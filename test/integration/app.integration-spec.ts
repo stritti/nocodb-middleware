@@ -248,4 +248,102 @@ describe('Middleware against NocoDB v3 (full stack)', () => {
       }),
     ]);
   });
+
+  describe('data API', () => {
+    // runs after the catalog test, which creates mw_customers with field 'name'
+    const withScope = (scope: string[]) =>
+      `Bearer ${jwt.sign({ sub: adminUserId, scope }, JWT_SECRET, { expiresIn: '10m' })}`;
+
+    it('denies a user table without permission (admin role only covers system tables)', () => {
+      return http()
+        .get('/api/data/customers')
+        .set('Authorization', `Bearer ${token(adminUserId)}`)
+        .expect(403);
+    });
+
+    it('hides system tables', () => {
+      return http()
+        .get('/api/data/users')
+        .set('Authorization', withScope(['*:*']))
+        .expect(404);
+    });
+
+    it('creates, reads, lists, updates and deletes a record', async () => {
+      const auth = withScope(['customers:*']);
+
+      const created = await http()
+        .post('/api/data/customers')
+        .set('Authorization', auth)
+        .send({ name: 'Alice' })
+        .expect(201);
+      const id = created.body.id as number;
+      expect(created.body).toEqual(expect.objectContaining({ name: 'Alice' }));
+
+      await http()
+        .get(`/api/data/customers/${id}`)
+        .set('Authorization', auth)
+        .expect(200)
+        .expect(({ body }) => {
+          expect(body).toEqual(expect.objectContaining({ id, name: 'Alice' }));
+        });
+
+      await http()
+        .get('/api/data/customers')
+        .query({ limit: 10 })
+        .set('Authorization', auth)
+        .expect(200)
+        .expect(({ body }) => {
+          expect(body.list).toEqual(
+            expect.arrayContaining([expect.objectContaining({ id })]),
+          );
+          expect(body.pageInfo.totalRows).toBeGreaterThanOrEqual(1);
+        });
+
+      await http()
+        .patch(`/api/data/customers/${id}`)
+        .set('Authorization', auth)
+        .send({ name: 'Alicia' })
+        .expect(200)
+        .expect(({ body }) => {
+          expect(body).toEqual(expect.objectContaining({ id, name: 'Alicia' }));
+        });
+
+      await http()
+        .delete(`/api/data/customers/${id}`)
+        .set('Authorization', auth)
+        .expect(204);
+
+      await http()
+        .get(`/api/data/customers/${id}`)
+        .set('Authorization', auth)
+        .expect(404);
+    });
+
+    it('answers 404 for updating or deleting a missing record', async () => {
+      const auth = withScope(['customers:*']);
+      await http()
+        .patch('/api/data/customers/999999')
+        .set('Authorization', auth)
+        .send({ name: 'Ghost' })
+        .expect(404);
+      await http()
+        .delete('/api/data/customers/999999')
+        .set('Authorization', auth)
+        .expect(404);
+    });
+
+    it('rejects unknown and read-only fields', async () => {
+      const auth = withScope(['customers:create']);
+      await http()
+        .post('/api/data/customers')
+        .set('Authorization', auth)
+        .send({ name: 'Bob', isAdmin: true })
+        .expect(400);
+      await http()
+        .post('/api/data/customers')
+        .set('Authorization', auth)
+        .send({ name: 'Bob', Id: 5 })
+        .expect(400);
+    });
+  });
 });
