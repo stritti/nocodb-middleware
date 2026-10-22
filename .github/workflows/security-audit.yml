@@ -171,13 +171,41 @@ jobs:
         if: steps.snyk_token.outputs.available == 'true'
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        run: >-
-          snyk test
-          --all-projects
-          --exclude=example,.opencode
-          --severity-threshold=high
-          --fail-on=upgradable
-          --sarif-file-output=snyk.sarif
+        run: |
+          set +e
+          snyk test \
+            --all-projects \
+            --exclude=example,.opencode \
+            --severity-threshold=high \
+            --fail-on=upgradable \
+            --sarif-file-output=snyk.sarif > snyk-output.txt 2>&1
+          rc=$?
+          set -e
+          cat snyk-output.txt
+          echo "::notice title=Snyk exit code::$rc"
+          sed 's/\x1b\[[0-9;]*m//g' snyk-output.txt \
+            | grep -E 'Tested |Target file|Organization|Open Source Security|issues|Upgrade|✗' \
+            | head -n 8 | while IFS= read -r line; do echo "::notice title=Snyk::$line"; done
+          exit $rc
+
+      - name: Report Snyk findings
+        if: always() && hashFiles('snyk.sarif') != ''
+        run: |
+          count=$(jq '[.runs[].results[]] | length' snyk.sarif)
+          {
+            echo "### Snyk: $count finding(s) (HIGH/CRITICAL)"
+            if [ "$count" -gt 0 ]; then
+              echo
+              echo "| Rule | File | Details |"
+              echo "|---|---|---|"
+              jq -r '.runs[].results[]
+                | "| \(.ruleId) | \(.locations[0].physicalLocation.artifactLocation.uri) | \(.message.text | split("\n")[0] | gsub("\\|"; "/")) |"' \
+                snyk.sarif
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          jq -r '.runs[].results[]
+            | "::error file=\(.locations[0].physicalLocation.artifactLocation.uri)::\(.ruleId): \(.message.text | split("\n")[0])"' \
+            snyk.sarif | head -n 10
 
       - name: Upload Snyk results to GitHub Security
         if: always() && hashFiles('snyk.sarif') != ''
