@@ -7,6 +7,9 @@ on:
     branches: [main]
   schedule:
     - cron: '0 3 * * 1'  # Every Monday at 03:00 UTC
+  # The deep scans below skip pull requests; this allows running them on a
+  # branch, e.g. to verify a change to this workflow before merging.
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -85,8 +88,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Pinned to a commit: in March 2026 the trivy-action tags up to 0.34.2
+      # were hijacked (GHSA-69fq-xp46-6x23) and the unprefixed tags deleted.
+      # ed142fd = v0.36.0, a descendant of the verified safe v0.35.0 (57a97c7).
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@0.30.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: 'fs'
           scan-ref: '.'
@@ -94,7 +100,18 @@ jobs:
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
           exit-code: '1'
-          skip-dirs: 'node_modules,.git'
+          # .opencode holds local tooling of the OpenCode coding agent; it is
+          # not part of the application or the published client package.
+          skip-dirs: 'node_modules,client/node_modules,.git,.opencode'
+
+      # Findings are uploaded to the Security tab; also show them as
+      # annotations on the run so they are visible without that access.
+      - name: Annotate Trivy findings
+        if: always() && hashFiles('trivy-results.sarif') != ''
+        run: |
+          jq -r '.runs[].results[]
+            | "::error file=\(.locations[0].physicalLocation.artifactLocation.uri)::\(.ruleId): \(.message.text | split("\n")[0])"' \
+            trivy-results.sarif | head -n 40
 
       - name: Upload Trivy results to GitHub Security
         uses: github/codeql-action/upload-sarif@v3
@@ -137,7 +154,7 @@ jobs:
 
       - name: Run Snyk to check for vulnerabilities
         if: steps.snyk_token.outputs.available == 'true'
-        uses: snyk/actions/node@0.30.0
+        uses: snyk/actions/node@9adf32b1121593767fc3c057af55b55db032dc04 # v1.0.0
         continue-on-error: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
