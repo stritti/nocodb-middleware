@@ -122,13 +122,13 @@ import { Public } from '../auth/decorators/public.decorator';
 export class HealthController {}
 ```
 
-Aktuell öffentlich:
+Aktuell öffentlich (alle Routen liegen unter dem globalen Präfix `/api`):
 
 | Route | Grund |
 |---|---|
-| `GET /` | API-Info |
-| `GET /health` | Health Checks von Load Balancer und Container |
-| `POST /bootstrap/admin` | Kein JWT, stattdessen über den Header `x-bootstrap-token` geschützt |
+| `GET /api` | API-Info |
+| `GET /api/health` | Health Checks von Load Balancer und Container |
+| `POST /api/bootstrap/admin` | Kein JWT, stattdessen über den Header `x-bootstrap-token` geschützt |
 
 Autorisierung kommt zusätzlich per Controller-Guard dazu. Globale Guards laufen zuerst, `req.user` ist also gesetzt:
 
