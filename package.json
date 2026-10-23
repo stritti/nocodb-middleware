@@ -78,7 +78,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^26.6.5",
     "@types/passport-jwt": "^4.0.1",
-    "@types/sanitize-html": "^2.16.1",
+    "@types/sanitize-html": "^2.16.2",
     "@types/supertest": "^7.2.1",
     "conventional-changelog-cli": "^5.0.0",
     "eslint": "^10.8.1",
