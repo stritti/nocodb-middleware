@@ -9,6 +9,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
 import { NocoDBService } from '../nocodb/nocodb.service';
+import { SYSTEM_TABLE_NAMES } from '../common/system-table-names';
 import { andFilters, filterEq } from '../nocodb/nocodb-filter.util';
 import { BootstrapAdminDto } from './dto/bootstrap-admin.dto';
 import { hashPassword } from './password-hasher.util';
@@ -38,13 +39,13 @@ export class BootstrapAdminService {
     this.assertBootstrapAllowed(bootstrapToken);
 
     const usersTable = assertTableRef(
-      await this.nocoDBService.getTableByName('users'),
+      await this.nocoDBService.getTableByName(SYSTEM_TABLE_NAMES.USERS),
     );
     const rolesTable = assertTableRef(
-      await this.nocoDBService.getTableByName('roles'),
+      await this.nocoDBService.getTableByName(SYSTEM_TABLE_NAMES.ROLES),
     );
     const userRolesTable = assertTableRef(
-      await this.nocoDBService.getTableByName('user_roles'),
+      await this.nocoDBService.getTableByName(SYSTEM_TABLE_NAMES.USER_ROLES),
     );
 
     const existingByUsername = asUserRecord(

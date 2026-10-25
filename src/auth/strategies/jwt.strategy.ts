@@ -8,6 +8,7 @@ import { IdentityProviderPort } from '../identity/identity-provider.port';
 import { IDENTITY_PROVIDER } from '../identity/identity-provider.constants';
 import { AuthProviderConfigService } from '../auth-provider-config.service';
 import { NocoDBService } from '../../nocodb/nocodb.service';
+import { SYSTEM_TABLE_NAMES } from '../../common/system-table-names';
 
 interface JwtPayload {
   sub?: string | number;
@@ -77,7 +78,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         throw new UnauthorizedException('Token payload contains invalid sub');
       }
 
-      const usersTable = await this.nocoDBService.getTableByName('users');
+      const usersTable = await this.nocoDBService.getTableByName(
+        SYSTEM_TABLE_NAMES.USERS,
+      );
       if (!usersTable) {
         throw new UnauthorizedException('Users table is unavailable');
       }
