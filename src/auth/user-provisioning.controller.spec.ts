@@ -32,14 +32,24 @@ describe('UserProvisioningController', () => {
       .compile();
 
     app = moduleRef.createNestApplication();
+    // Mirrors the global validation pipe from app.setup.ts
     app.useGlobalPipes(
-      new ValidationPipe({ transform: true, whitelist: true }),
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: true,
+        transform: true,
+        transformOptions: { enableImplicitConversion: true },
+      }),
     );
     await app.init();
   });
 
   afterAll(async () => {
     await app.close();
+  });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
   });
 
   describe('POST /users', () => {
