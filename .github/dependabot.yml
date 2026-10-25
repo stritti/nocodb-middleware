@@ -60,11 +60,9 @@ updates:
           - "patch"
     ignore:
       - dependency-name: "typescript"
-        versions:
-          - ">=7.0.0"
+        versions: [">=7.0.0"]
       - dependency-name: "eslint"
-        update-types:
-          - "major"
+        update-types: ["version-update:semver-major"]
 
   # ── GitHub Actions updates ────────────────────────────────────────────────
   - package-ecosystem: "github-actions"

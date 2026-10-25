@@ -159,6 +159,8 @@
   "overrides": {
     "lodash": "^4.18.1",
     "vite": "^6.4.2",
-    "esbuild": "^0.25.12"
+    "esbuild": "^0.25.12",
+    "body-parser": "2.4.0",
+    "multer": "2.5.0"
   }
 }
