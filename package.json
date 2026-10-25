@@ -53,7 +53,6 @@
     "class-validator": "^0.15.1",
     "express-rate-limit": "^8.7.1",
     "helmet": "^8.3.0",
-    "nest-winston": "^2.0.0",
     "nestjs-pino": "^5.3.1",
     "nocodb-sdk": "^0.301.3",
     "passport": "^0.7.0",
@@ -61,8 +60,7 @@
     "pino-http": "^11.0.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
-    "sanitize-html": "^2.17.7",
-    "winston": "^3.19.0"
+    "sanitize-html": "^2.17.7"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.7",
@@ -98,7 +96,7 @@
     "ts-loader": "^9.6.2",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
-    "typescript": "~7.0.2",
+    "typescript": "~6.0.3",
     "typescript-eslint": "^8.72.0",
     "vitepress": "^1.6.4"
   },
@@ -131,22 +129,9 @@
     "collectCoverageFrom": [
       "**/*.(t|j)s",
       "!main.ts",
-      "!app.module.ts",
-      "!auth/auth.module.ts",
-      "!examples/examples.module.ts",
-      "!health/health.module.ts",
-      "!permissions/permissions.module.ts",
-      "!tracing/telemetry.module.ts",
-      "!**/tracing.ts",
+      "!**/*.module.ts",
       "!**/*.spec.ts",
-      "!**/test-phase*.ts",
-      "!**/debug-*.ts",
-      "!**/delete-*.ts",
-      "!**/inspect-*.ts",
-      "!**/investigate-*.ts",
-      "!**/test-*.ts",
-      "!config/cors.config.ts",
-      "!nocodb/middleware/rate-limit.middleware.ts"
+      "!**/*.d.ts"
     ],
     "coverageDirectory": "../coverage",
     "coverageReporters": [
@@ -159,6 +144,8 @@
   "overrides": {
     "lodash": "^4.18.1",
     "vite": "^6.4.2",
-    "esbuild": "^0.25.12"
+    "esbuild": "^0.25.12",
+    "body-parser": "2.4.0",
+    "multer": "2.5.0"
   }
 }
