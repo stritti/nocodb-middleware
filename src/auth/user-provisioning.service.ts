@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { NocoDBService } from '../nocodb/nocodb.service';
+import { SYSTEM_TABLE_NAMES } from '../common/system-table-names';
 import { andFilters, filterEq } from '../nocodb/nocodb-filter.util';
 import {
   NormalizedIdentityClaims,
@@ -26,7 +27,7 @@ export class UserProvisioningService {
     claims: NormalizedIdentityClaims,
   ): Promise<ResolvedIdentity> {
     const usersTable = assertTableRef(
-      await this.nocoDBService.getTableByName('users'),
+      await this.nocoDBService.getTableByName(SYSTEM_TABLE_NAMES.USERS),
     );
 
     const bySubject = await this.findBySubject(usersTable.id, claims);
@@ -90,7 +91,7 @@ export class UserProvisioningService {
 
   async createLocalUser(dto: ProvisionUserDto): Promise<ResolvedIdentity> {
     const usersTable = assertTableRef(
-      await this.nocoDBService.getTableByName('users'),
+      await this.nocoDBService.getTableByName(SYSTEM_TABLE_NAMES.USERS),
     );
 
     const byUsername = await this.nocoDBService.findOne(
@@ -139,7 +140,7 @@ export class UserProvisioningService {
     isActive: boolean,
   ): Promise<ResolvedIdentity> {
     const usersTable = assertTableRef(
-      await this.nocoDBService.getTableByName('users'),
+      await this.nocoDBService.getTableByName(SYSTEM_TABLE_NAMES.USERS),
     );
 
     const updated = await this.nocoDBService.update(usersTable.id, userId, {
@@ -169,10 +170,10 @@ export class UserProvisioningService {
     roleNames: string[],
   ): Promise<void> {
     const rolesTable = assertTableRef(
-      await this.nocoDBService.getTableByName('roles'),
+      await this.nocoDBService.getTableByName(SYSTEM_TABLE_NAMES.ROLES),
     );
     const userRolesTable = assertTableRef(
-      await this.nocoDBService.getTableByName('user_roles'),
+      await this.nocoDBService.getTableByName(SYSTEM_TABLE_NAMES.USER_ROLES),
     );
 
     for (const roleName of roleNames) {
