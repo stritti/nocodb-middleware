@@ -141,7 +141,7 @@ describe('UserRolesService', () => {
       const result = await service.getUserRoles(1, {
         take: 2,
         skip: 4,
-      } as never);
+      });
 
       expect(nocoDBService.list).toHaveBeenCalledWith('user_roles_id', {
         where: '(user_id,eq,1)',
