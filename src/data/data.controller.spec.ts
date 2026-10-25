@@ -26,9 +26,8 @@ describe('DataController (e2e-style unit)', () => {
 
     const moduleRef = await Test.createTestingModule({
       controllers: [DataController],
+      providers: [{ provide: DataService, useValue: dataService }],
     })
-      .overrideProvider(DataService)
-      .useValue(dataService)
       .overrideGuard(TablePermissionsGuard)
       .useValue({ canActivate: () => true })
       .compile();
@@ -91,6 +90,10 @@ describe('DataController (e2e-style unit)', () => {
   });
 
   describe('GET /data/:table/:id', () => {
+    beforeEach(() => {
+      dataService.read.mockReset();
+    });
+
     it('returns a single record', async () => {
       dataService.read.mockResolvedValue({ Id: 1, Name: 'Alice' });
 
