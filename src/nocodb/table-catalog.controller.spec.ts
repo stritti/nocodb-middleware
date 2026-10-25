@@ -14,9 +14,10 @@ describe('TableCatalogController', () => {
 
     const moduleRef = await Test.createTestingModule({
       controllers: [TableCatalogController],
+      providers: [
+        { provide: TableCatalogService, useValue: { listExternalTables } },
+      ],
     })
-      .overrideProvider(TableCatalogService)
-      .useValue({ listExternalTables })
       .overrideGuard(RolesGuard)
       .useValue({ canActivate: () => true })
       .compile();

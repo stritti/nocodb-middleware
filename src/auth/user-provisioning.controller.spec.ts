@@ -20,9 +20,13 @@ describe('UserProvisioningController', () => {
 
     const moduleRef = await Test.createTestingModule({
       controllers: [UserProvisioningController],
+      providers: [
+        {
+          provide: UserProvisioningService,
+          useValue: userProvisioningService,
+        },
+      ],
     })
-      .overrideProvider(UserProvisioningService)
-      .useValue(userProvisioningService)
       .overrideGuard(RolesGuard)
       .useValue({ canActivate: () => true })
       .compile();
