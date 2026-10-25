@@ -60,8 +60,8 @@ updates:
           - "patch"
     ignore:
       - dependency-name: "typescript"
-        update-types:
-          - "major"
+        versions:
+          - ">=7.0.0"
       - dependency-name: "eslint"
         update-types:
           - "major"
