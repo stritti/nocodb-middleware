@@ -34,7 +34,7 @@ describe('CacheInterceptor', () => {
     const context = makeContext('POST', '/api/resource');
     const next = { handle: jest.fn().mockReturnValue(of({ id: 1 })) };
 
-    const observable = await interceptor.intercept(context as any, next as any);
+    const observable = await interceptor.intercept(context, next as any);
     expect(cacheService.get).not.toHaveBeenCalled();
     observable.subscribe();
     expect(next.handle).toHaveBeenCalled();
@@ -46,7 +46,7 @@ describe('CacheInterceptor', () => {
     const context = makeContext('GET', '/api/examples');
     const next = { handle: jest.fn() };
 
-    const observable = await interceptor.intercept(context as any, next as any);
+    const observable = await interceptor.intercept(context, next as any);
     const result = await new Promise((resolve) =>
       observable.subscribe(resolve),
     );
@@ -65,7 +65,7 @@ describe('CacheInterceptor', () => {
     const context = makeContext('GET', '/api/examples');
     const next = { handle: jest.fn().mockReturnValue(of(responseData)) };
 
-    const observable = await interceptor.intercept(context as any, next as any);
+    const observable = await interceptor.intercept(context, next as any);
     await new Promise<void>((resolve) => {
       observable.subscribe({
         next: () => {},
