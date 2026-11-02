@@ -27,7 +27,7 @@ The NocoDB Middleware is a well-structured NestJS application that wraps NocoDB'
 | OpenTelemetry tracing   | ✅ Ready   | Opt-in via `OTEL_ENABLED=true`                         |
 | Security headers        | ✅ Ready   | `helmet` integrated                                    |
 | CORS                    | ✅ Ready   | Configurable via `CORS_ORIGINS`                        |
-| Unit test coverage      | ✅ Ready   | 213 tests, ≥80 % coverage target                       |
+| Unit test coverage      | ✅ Ready   | 431 tests, ≥80 % coverage target                       |
 | Docker support          | ✅ Ready   | `Dockerfile` + `docker-compose.yml`                    |
 | Graceful shutdown       | ✅ Ready   | `enableShutdownHooks()`                                |
 | E2E tests               | ✅ Ready   | Auth flow tests added (JWT guard, roles, bootstrap)    |
