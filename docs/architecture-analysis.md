@@ -193,8 +193,8 @@ Vollständiges RBAC-System auf Table-Ebene:
 
 ## 7. Testing
 
-- **213 Unit-Tests** (Jest), ≥ 80% Coverage
-- Coverage-Ziele: Statements ≥ 80%, Branches ≥ 80%, Functions ≥ 80%, Lines ≥ 80%
+- **431 Unit-Tests** (Jest), ≥ 80% Coverage
+- Coverage-Ziele: Statements ≥ 80%, Branches ≥ 70%, Functions ≥ 80%, Lines ≥ 80%
 - Coverage-Excludes: `main.ts`, `app.module.ts`, `tracing.ts`, Specs, Test-Helper
 - E2E-Tests: `test/app.e2e-spec.ts` (Supertest)
 - Einzelne Specs für: Services, Guards, Decorators, Filter, Middleware, Repositories, DTOs
@@ -221,7 +221,7 @@ Vollständiges RBAC-System auf Table-Ebene:
 | **Auto-Provisioning** | DatabaseInitializationService erstellt Tabellen automatisch |
 | **Caching** | Mehrschichtig: HTTP-Cache (5min), Permissions-Cache (5min), NocoDB-Rate-Limit |
 | **Observability** | Pino-Logging + optionales OpenTelemetry-Tracing |
-| **Testabdeckung** | 213 Tests, ≥ 80% Coverage |
+| **Testabdeckung** | 431 Tests, ≥ 80% Coverage |
 | **Sicherheit** | Helmet, CORS, Rate-Limiting, bcrypt, constant-time Token-Vergleich |
 
 ---
