@@ -68,7 +68,7 @@ describe('PermissionsManagementController', () => {
       const expected = { id: 1, role_name: 'admin' };
       rolesService.createRole.mockResolvedValue(expected);
 
-      const result = await controller.createRole(dto as any);
+      const result = await controller.createRole(dto);
       expect(rolesService.createRole).toHaveBeenCalledWith(dto);
       expect(result).toEqual(expected);
     });
@@ -117,7 +117,7 @@ describe('PermissionsManagementController', () => {
       const expected = { id: 1, ...dto };
       permissionsManagement.setTablePermissions.mockResolvedValue(expected);
 
-      const result = await controller.setTablePermissions(dto as any);
+      const result = await controller.setTablePermissions(dto);
       expect(permissionsManagement.setTablePermissions).toHaveBeenCalledWith(
         dto,
       );
@@ -131,7 +131,7 @@ describe('PermissionsManagementController', () => {
       const expected = { success: true, count: 0, results: [] };
       permissionsManagement.batchSetPermissions.mockResolvedValue(expected);
 
-      const result = await controller.batchSetPermissions(dto as any);
+      const result = await controller.batchSetPermissions(dto);
       expect(result).toEqual(expected);
     });
   });
@@ -189,7 +189,7 @@ describe('PermissionsManagementController', () => {
       const expected = { id: 1, ...dto };
       userRolesService.assignRole.mockResolvedValue(expected);
 
-      const result = await controller.assignRole(dto as any);
+      const result = await controller.assignRole(dto);
       expect(userRolesService.assignRole).toHaveBeenCalledWith(dto);
       expect(result).toEqual(expected);
     });
@@ -201,7 +201,7 @@ describe('PermissionsManagementController', () => {
       const expected = { assignedCount: 2 };
       userRolesService.assignMultipleRoles.mockResolvedValue(expected);
 
-      const result = await controller.assignMultipleRoles(dto as any);
+      const result = await controller.assignMultipleRoles(dto);
       expect(result).toEqual(expected);
     });
   });
