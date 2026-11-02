@@ -1,17 +1,26 @@
+/**
+ * DESTRUCTIVE: deletes tables (`user_roles`, `table_permissions`) from the
+ * configured NocoDB instance. Development only — never run against production.
+ */
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
-import { NocoDBService } from './nocodb/nocodb.service';
+import { AppModule } from '../../src/app.module';
+import { NocoDBService } from '../../src/nocodb/nocodb.service';
 import { Logger } from '@nestjs/common';
 
 async function bootstrap() {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(
+      'Refusing to run destructive debug script in production (NODE_ENV=production).',
+      n,
+    );
+  }
+
   const app = await NestFactory.createApplicationContext(AppModule);
   const nocoDBService = app.get(NocoDBService);
   const logger = new Logger('DeleteTables');
 
   try {
     const httpClient = nocoDBService.getHttpClient();
-
-    // Tables to delete
     const tablesToDelete = ['user_roles', 'table_permissions'];
 
     for (const tableName of tablesToDelete) {
@@ -24,21 +33,14 @@ async function bootstrap() {
         }
 
         logger.log(`Deleting table ${tableName} (ID: ${table.id})...`);
-
         await httpClient.delete(`/api/v3/meta/tables/${table.id}`);
-
         logger.log(`✓ Table ${tableName} deleted successfully`);
-      } catch (error: any) {
-        logger.error(
-          `Failed to delete table ${tableName}:`,
-          error.response?.data || error.message,
-        );
+      } catch (error) {
+        logger.error(`Error deleting table ${tableName}:`, error);
       }
     }
-
-    logger.log('Done!');
   } catch (error) {
-    logger.error('Error during table deletion', error);
+    logger.error('Fatal error:', error);
   } finally {
     await app.close();
   }

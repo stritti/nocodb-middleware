@@ -13,6 +13,9 @@ hero:
       text: API Reference
       link: /api
     - theme: alt
+      text: Example App
+      link: /example
+    - theme: alt
       text: View on GitHub
       link: https://github.com/stritti/nocodb-middleware
 
@@ -41,6 +44,9 @@ features:
   - icon: 🩺
     title: Health Check
     details: Ready for orchestration and monitoring probes.
+  - icon: 📚
+    title: Example Application
+    details: Complete Books management example (backend + frontend) demonstrating middleware, auth, and RBAC end to end.
   - icon: 🔭
     title: Tracing
     details: Optional OpenTelemetry integration.
@@ -57,5 +63,6 @@ features:
 - [Error Handling](./error-handling.md)
 - [Caching](./caching.md)
 - [Testing](./testing.md)
+- [Example: Books Application](./example.md)
 - [Product Readiness](./product-readiness.md)
 - [Versioning](./versioning.md)

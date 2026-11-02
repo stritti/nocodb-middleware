@@ -183,7 +183,7 @@ describe('PermissionsManagementService', () => {
         ],
       };
 
-      const result = await service.batchSetPermissions(dto as any);
+      const result = await service.batchSetPermissions(dto);
       expect(result.success).toBe(true);
       expect(result.count).toBe(2);
       expect(nocoDBService.create).toHaveBeenCalledTimes(2);

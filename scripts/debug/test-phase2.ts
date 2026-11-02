@@ -1,6 +1,6 @@
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
-import { NocoDBService } from './nocodb/nocodb.service';
+import { AppModule } from '../../src/app.module';
+import { NocoDBService } from '../../src/nocodb/nocodb.service';
 
 /**
  * Test script for Phase 2 - DatabaseInitializationService

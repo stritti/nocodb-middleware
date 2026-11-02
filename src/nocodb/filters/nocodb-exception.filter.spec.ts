@@ -31,7 +31,7 @@ describe('AllExceptionsFilter', () => {
   });
 
   it('should handle a generic HttpException', () => {
-    const { switchToHttp, responseMock } = makeHost('/api/test') as any;
+    const { switchToHttp, responseMock } = makeHost('/api/test');
     const host = { switchToHttp } as any;
     const exception = new HttpException('Forbidden', HttpStatus.FORBIDDEN);
 
@@ -47,7 +47,7 @@ describe('AllExceptionsFilter', () => {
   });
 
   it('should handle a NocoDBException and call warn', () => {
-    const { switchToHttp, responseMock } = makeHost('/api/resource') as any;
+    const { switchToHttp, responseMock } = makeHost('/api/resource');
     const host = { switchToHttp } as any;
     const exception = NocoDBException.tableNotFound('users');
 
@@ -58,7 +58,7 @@ describe('AllExceptionsFilter', () => {
   });
 
   it('should skip logging for 404 static asset requests', () => {
-    const { switchToHttp, responseMock } = makeHost('/favicon.ico') as any;
+    const { switchToHttp, responseMock } = makeHost('/favicon.ico');
     const host = { switchToHttp } as any;
     const exception = new HttpException('Not Found', HttpStatus.NOT_FOUND);
 
@@ -94,7 +94,7 @@ describe('AllExceptionsFilter', () => {
   });
 
   it('should include message from exception response object', () => {
-    const { switchToHttp, responseMock } = makeHost('/api/test') as any;
+    const { switchToHttp, responseMock } = makeHost('/api/test');
     const host = { switchToHttp } as any;
     const exception = new HttpException(
       { message: 'Detailed error', error: 'Custom Error' },

@@ -11,14 +11,12 @@ import { CrudAction } from '../permissions/enums/crud-action.enum';
 import { hasScopePermission } from '../permissions/scope-permission.util';
 import { logPermissionDenied } from '../permissions/permission-audit';
 import { isValidTableName } from '../common/validation/table-name';
+import { SYSTEM_TABLE_NAMES } from '../common/system-table-names';
 
 /** Internal tables of the middleware; never reachable via the data API. */
-export const SYSTEM_TABLES: ReadonlySet<string> = new Set([
-  'users',
-  'roles',
-  'user_roles',
-  'table_permissions',
-]);
+export const SYSTEM_TABLES: ReadonlySet<string> = new Set(
+  Object.values(SYSTEM_TABLE_NAMES),
+);
 
 const METHOD_ACTIONS: Readonly<Record<string, CrudAction>> = {
   GET: CrudAction.READ,

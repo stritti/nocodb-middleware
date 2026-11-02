@@ -647,7 +647,7 @@ export class NocoDBService implements OnModuleInit {
         this.logger.error('Error in batch create for record:', error);
         results.push({
           error: error instanceof Error ? error.message : String(error),
-        } as unknown as NocoRecordResponse);
+        });
       }
     }
     return results;
@@ -669,7 +669,7 @@ export class NocoDBService implements OnModuleInit {
         results.push({
           id: upd.id,
           error: error instanceof Error ? error.message : String(error),
-        } as unknown as NocoRecordResponse);
+        });
       }
     }
     return results;
