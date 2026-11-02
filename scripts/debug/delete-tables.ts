@@ -8,6 +8,13 @@ import { NocoDBService } from '../../src/nocodb/nocodb.service';
 import { Logger } from '@nestjs/common';
 
 async function bootstrap() {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(
+      'Refusing to run destructive debug script in production (NODE_ENV=production).',
+      n,
+    );
+  }
+
   const app = await NestFactory.createApplicationContext(AppModule);
   const nocoDBService = app.get(NocoDBService);
   const logger = new Logger('DeleteTables');
@@ -29,14 +36,14 @@ async function bootstrap() {
         await httpClient.delete(`/api/v3/meta/tables/${table.id}`);
         logger.log(`✓ Table ${tableName} deleted successfully`);
       } catch (error) {
-        logger.error(`Error deleting table ${tableName}:`, error as Error);
+        logger.error(`Error deleting table ${tableName}:`, error);
       }
     }
   } catch (error) {
-    logger.error('Fatal error:', error as Error);
+    logger.error('Fatal error:', error);
   } finally {
     await app.close();
   }
 }
 
-bootstrap();
+void bootstrap();
