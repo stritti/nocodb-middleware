@@ -23,7 +23,7 @@ interface TableDefinition {
  * cannot filter link fields by the id of the linked record, which the
  * permission lookups depend on.
  */
-export const SYSTEM_TABLES: readonly TableDefinition[] = [
+export const SYSTEM_TABLE_DEFINITIONS: readonly TableDefinition[] = [
   {
     tableName: SYSTEM_TABLE_NAMES.USERS,
     title: 'Users',
@@ -94,7 +94,7 @@ export class DatabaseInitializationService implements OnModuleInit {
   }
 
   private async initializeTables() {
-    for (const table of SYSTEM_TABLES) {
+    for (const table of SYSTEM_TABLE_DEFINITIONS) {
       const tableId = await this.ensureTableExists(table);
       if (!tableId) {
         this.logger.error(
@@ -257,12 +257,7 @@ export class DatabaseInitializationService implements OnModuleInit {
     permissionsTableId: string,
     adminRoleId: number,
   ): Promise<void> {
-    const protectedTables = [
-      SYSTEM_TABLE_NAMES.USERS,
-      SYSTEM_TABLE_NAMES.ROLES,
-      SYSTEM_TABLE_NAMES.USER_ROLES,
-      SYSTEM_TABLE_NAMES.TABLE_PERMISSIONS,
-    ];
+    const protectedTables = Object.values(SYSTEM_TABLE_NAMES);
 
     for (const tableName of protectedTables) {
       const existing = await this.nocoDBService.findOne(

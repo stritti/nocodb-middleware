@@ -1,7 +1,7 @@
 import { Logger } from '@nestjs/common';
 import {
   DatabaseInitializationService,
-  SYSTEM_TABLES,
+  SYSTEM_TABLE_DEFINITIONS,
 } from './database-initialization.service';
 import { NocoDBService } from './nocodb.service';
 import { NocoFieldDefinition, NocoRecord } from './nocodb.types';
@@ -92,7 +92,7 @@ describe('DatabaseInitializationService', () => {
 
     await serviceFor(fake).onModuleInit();
 
-    for (const definition of SYSTEM_TABLES) {
+    for (const definition of SYSTEM_TABLE_DEFINITIONS) {
       const table = fake.tables.get(definition.tableName);
       expect(table?.fields.map((f) => f.title)).toEqual(
         definition.fields.map((f) => f.title),
@@ -102,7 +102,7 @@ describe('DatabaseInitializationService', () => {
 
   it('keys relations by numeric id fields', () => {
     const fieldsOf = (name: string) =>
-      SYSTEM_TABLES.find((t) => t.tableName === name)!.fields;
+      SYSTEM_TABLE_DEFINITIONS.find((t) => t.tableName === name)!.fields;
 
     expect(fieldsOf('user_roles')).toEqual(
       expect.arrayContaining([
@@ -230,7 +230,9 @@ describe('DatabaseInitializationService', () => {
 
     expect(fake.tables.get('roles')!.records).toHaveLength(1);
     expect(fake.tables.get('table_permissions')!.records).toHaveLength(4);
-    expect(fake.createTable).toHaveBeenCalledTimes(SYSTEM_TABLES.length);
+    expect(fake.createTable).toHaveBeenCalledTimes(
+      SYSTEM_TABLE_DEFINITIONS.length,
+    );
   });
 
   it('skips seeding when a table cannot be created', async () => {
