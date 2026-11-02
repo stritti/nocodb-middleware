@@ -1,9 +1,10 @@
 import { Test } from '@nestjs/testing';
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { UserProvisioningController } from './user-provisioning.controller';
 import { UserProvisioningService } from './user-provisioning.service';
 import { RolesGuard } from './guards/roles.guard';
+import { createGlobalValidationPipe } from '../common/validation/global-validation-pipe.factory';
 
 describe('UserProvisioningController', () => {
   let app: INestApplication;
@@ -32,15 +33,7 @@ describe('UserProvisioningController', () => {
       .compile();
 
     app = moduleRef.createNestApplication();
-    // Mirrors the global validation pipe from app.setup.ts
-    app.useGlobalPipes(
-      new ValidationPipe({
-        whitelist: true,
-        forbidNonWhitelisted: true,
-        transform: true,
-        transformOptions: { enableImplicitConversion: true },
-      }),
-    );
+    app.useGlobalPipes(createGlobalValidationPipe());
     await app.init();
   });
 

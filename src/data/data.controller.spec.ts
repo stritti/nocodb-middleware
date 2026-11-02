@@ -1,9 +1,10 @@
 import { Test } from '@nestjs/testing';
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { DataController } from './data.controller';
 import { DataService } from './data.service';
 import { TablePermissionsGuard } from './table-permissions.guard';
+import { createGlobalValidationPipe } from '../common/validation/global-validation-pipe.factory';
 
 describe('DataController (e2e-style unit)', () => {
   let app: INestApplication;
@@ -33,14 +34,7 @@ describe('DataController (e2e-style unit)', () => {
       .compile();
 
     app = moduleRef.createNestApplication();
-    app.useGlobalPipes(
-      new ValidationPipe({
-        whitelist: true,
-        forbidNonWhitelisted: true,
-        transform: true,
-        transformOptions: { enableImplicitConversion: true },
-      }),
-    );
+    app.useGlobalPipes(createGlobalValidationPipe());
     await app.init();
   });
 
@@ -166,6 +160,38 @@ describe('DataController (e2e-style unit)', () => {
         .delete('/data/customers/1')
         .expect(204);
       expect(dataService.delete).toHaveBeenCalledWith('customers', 1);
+    });
+  });
+
+  describe('permission denial', () => {
+    let deniedApp: INestApplication;
+    let deniedService: { list: jest.Mock };
+
+    beforeAll(async () => {
+      deniedService = { list: jest.fn() };
+
+      const moduleRef = await Test.createTestingModule({
+        controllers: [DataController],
+        providers: [{ provide: DataService, useValue: deniedService }],
+      })
+        .overrideGuard(TablePermissionsGuard)
+        .useValue({ canActivate: () => false })
+        .compile();
+
+      deniedApp = moduleRef.createNestApplication();
+      deniedApp.useGlobalPipes(createGlobalValidationPipe());
+      await deniedApp.init();
+    });
+
+    afterAll(async () => {
+      await deniedApp.close();
+    });
+
+    it('returns 403 and never calls the service when the guard denies', async () => {
+      await request(deniedApp.getHttpServer())
+        .get('/data/customers')
+        .expect(403);
+      expect(deniedService.list).not.toHaveBeenCalled();
     });
   });
 
