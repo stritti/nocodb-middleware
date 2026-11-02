@@ -1,5 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { NocoDBService } from './nocodb.service';
+import { SYSTEM_TABLE_NAMES } from '../common/system-table-names';
 import { NocoFieldDefinition } from './nocodb.types';
 import { andFilters, filterEq } from './nocodb-filter.util';
 import { extractNumericId } from '../common/utils/nocodb-utils';
@@ -22,9 +23,9 @@ interface TableDefinition {
  * cannot filter link fields by the id of the linked record, which the
  * permission lookups depend on.
  */
-export const SYSTEM_TABLES: readonly TableDefinition[] = [
+export const SYSTEM_TABLE_DEFINITIONS: readonly TableDefinition[] = [
   {
-    tableName: 'users',
+    tableName: SYSTEM_TABLE_NAMES.USERS,
     title: 'Users',
     fields: [
       { title: 'username', type: 'SingleLineText' },
@@ -36,7 +37,7 @@ export const SYSTEM_TABLES: readonly TableDefinition[] = [
     ],
   },
   {
-    tableName: 'roles',
+    tableName: SYSTEM_TABLE_NAMES.ROLES,
     title: 'Roles',
     fields: [
       { title: 'role_name', type: 'SingleLineText' },
@@ -45,7 +46,7 @@ export const SYSTEM_TABLES: readonly TableDefinition[] = [
     ],
   },
   {
-    tableName: 'user_roles',
+    tableName: SYSTEM_TABLE_NAMES.USER_ROLES,
     title: 'User Roles',
     fields: [
       { title: 'user_id', type: 'Number' },
@@ -54,7 +55,7 @@ export const SYSTEM_TABLES: readonly TableDefinition[] = [
     ],
   },
   {
-    tableName: 'table_permissions',
+    tableName: SYSTEM_TABLE_NAMES.TABLE_PERMISSIONS,
     title: 'Table Permissions',
     fields: [
       { title: 'role_id', type: 'Number' },
@@ -93,7 +94,7 @@ export class DatabaseInitializationService implements OnModuleInit {
   }
 
   private async initializeTables() {
-    for (const table of SYSTEM_TABLES) {
+    for (const table of SYSTEM_TABLE_DEFINITIONS) {
       const tableId = await this.ensureTableExists(table);
       if (!tableId) {
         this.logger.error(
@@ -219,9 +220,12 @@ export class DatabaseInitializationService implements OnModuleInit {
   private async seedDefaultPermissions() {
     this.logger.log('Seeding default permissions...');
     try {
-      const rolesTable = await this.nocoDBService.getTableByName('roles');
-      const permissionsTable =
-        await this.nocoDBService.getTableByName('table_permissions');
+      const rolesTable = await this.nocoDBService.getTableByName(
+        SYSTEM_TABLE_NAMES.ROLES,
+      );
+      const permissionsTable = await this.nocoDBService.getTableByName(
+        SYSTEM_TABLE_NAMES.TABLE_PERMISSIONS,
+      );
 
       if (!rolesTable || !permissionsTable) return;
 
@@ -253,12 +257,7 @@ export class DatabaseInitializationService implements OnModuleInit {
     permissionsTableId: string,
     adminRoleId: number,
   ): Promise<void> {
-    const protectedTables = [
-      'users',
-      'roles',
-      'user_roles',
-      'table_permissions',
-    ];
+    const protectedTables = Object.values(SYSTEM_TABLE_NAMES);
 
     for (const tableName of protectedTables) {
       const existing = await this.nocoDBService.findOne(

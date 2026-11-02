@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { NocoDBService } from './nocodb.service';
 import { TableCatalogItemDto } from './dto/table-catalog-item.dto';
 import { isValidTableName } from '../common/validation/table-name';
+import { SYSTEM_TABLE_NAMES } from '../common/system-table-names';
 
 interface TableEntry {
   id: string | number;
@@ -9,12 +10,9 @@ interface TableEntry {
 }
 
 /** Internal tables of the middleware; never listed. */
-const INTERNAL_TABLE_NAMES: ReadonlySet<string> = new Set([
-  'users',
-  'roles',
-  'user_roles',
-  'table_permissions',
-]);
+const INTERNAL_TABLE_NAMES: ReadonlySet<string> = new Set(
+  Object.values(SYSTEM_TABLE_NAMES),
+);
 
 @Injectable()
 export class TableCatalogService {
