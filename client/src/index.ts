@@ -26,9 +26,5 @@ export type {
   PageOptions,
 } from './services/admin.service.js';
 export { InMemoryTokenStorage } from './token-storage.js';
-export type {
-  ClientConfig,
-  TokenPair,
-  TokenStorage,
-} from './types.js';
+export type { ClientConfig, TokenPair, TokenStorage } from './types.js';
 export { MiddlewareError } from './types.js';
