@@ -115,8 +115,10 @@ http://localhost:3000/api
 
 ### 5. Call a protected endpoint
 
-The table catalog requires a JWT with the `admin` role (created via
-`POST /api/bootstrap/admin`, see `docs/api.md`):
+The table catalog requires a JWT with the `admin` role. This middleware
+does not issue tokens: `POST /api/bootstrap/admin` only provisions the
+admin user (see `docs/api.md`). The token must come from your external
+identity provider or auth gateway:
 
 ```bash
 curl http://localhost:3000/api/meta/tables \
