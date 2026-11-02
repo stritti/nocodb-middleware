@@ -1,12 +1,9 @@
-import {
-  INestApplication,
-  Logger as NestLogger,
-  ValidationPipe,
-} from '@nestjs/common';
+import { INestApplication, Logger as NestLogger } from '@nestjs/common';
 import helmet from 'helmet';
 import { AllExceptionsFilter } from './nocodb/filters/nocodb-exception.filter';
 import { RateLimitMiddleware } from './nocodb/middleware/rate-limit.middleware';
 import { SanitizeMiddleware } from './common/middleware/sanitize.middleware';
+import { createGlobalValidationPipe } from './common/validation/global-validation-pipe.factory';
 import {
   parseAndValidateCorsOrigins,
   logCorsWarnings,
@@ -77,16 +74,7 @@ export function configureApp(app: INestApplication): void {
   app.useGlobalFilters(new AllExceptionsFilter());
 
   // Global validation pipe
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      forbidNonWhitelisted: true,
-      transform: true,
-      transformOptions: {
-        enableImplicitConversion: true,
-      },
-    }),
-  );
+  app.useGlobalPipes(createGlobalValidationPipe());
 
   // Global Prefix
   app.setGlobalPrefix('api');
