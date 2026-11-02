@@ -131,22 +131,9 @@
     "collectCoverageFrom": [
       "**/*.(t|j)s",
       "!main.ts",
-      "!app.module.ts",
-      "!auth/auth.module.ts",
-      "!examples/examples.module.ts",
-      "!health/health.module.ts",
-      "!permissions/permissions.module.ts",
-      "!tracing/telemetry.module.ts",
-      "!**/tracing.ts",
+      "!**/*.module.ts",
       "!**/*.spec.ts",
-      "!**/test-phase*.ts",
-      "!**/debug-*.ts",
-      "!**/delete-*.ts",
-      "!**/inspect-*.ts",
-      "!**/investigate-*.ts",
-      "!**/test-*.ts",
-      "!config/cors.config.ts",
-      "!nocodb/middleware/rate-limit.middleware.ts"
+      "!**/*.d.ts"
     ],
     "coverageDirectory": "../coverage",
     "coverageReporters": [
