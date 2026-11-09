@@ -52,9 +52,9 @@ paths:
       responses:
         '201':
           description: ''
-      security: &ref_0
+      security:
         - bearer: []
-      tags: &ref_1
+      tags:
         - Users
   /users/{id}/status:
     patch:
@@ -74,8 +74,10 @@ paths:
       responses:
         '200':
           description: ''
-      security: *ref_0
-      tags: *ref_1
+      security:
+        - bearer: []
+      tags:
+        - Users
   /health:
     get:
       operationId: HealthController_check
@@ -105,10 +107,10 @@ paths:
           description: Unauthorized
         '403':
           description: Forbidden – insufficient permissions
-      security: &ref_2
+      security:
         - bearer: []
       summary: Create a new role
-      tags: &ref_3
+      tags:
         - admin / permissions
     get:
       operationId: PermissionsManagementController_getAllRoles
@@ -144,9 +146,11 @@ paths:
           description: Unauthorized
         '403':
           description: Forbidden – insufficient permissions
-      security: *ref_2
+      security:
+        - bearer: []
       summary: List all roles (paginated)
-      tags: *ref_3
+      tags:
+        - admin / permissions
   /admin/permissions/roles/{roleId}:
     delete:
       operationId: PermissionsManagementController_deleteRole
@@ -166,9 +170,11 @@ paths:
           description: Forbidden – insufficient permissions
         '404':
           description: Role not found
-      security: *ref_2
+      security:
+        - bearer: []
       summary: Delete a role by ID
-      tags: *ref_3
+      tags:
+        - admin / permissions
   /admin/permissions/table-permissions:
     post:
       operationId: PermissionsManagementController_setTablePermissions
@@ -188,9 +194,11 @@ paths:
           description: Unauthorized
         '403':
           description: Forbidden – insufficient permissions
-      security: *ref_2
+      security:
+        - bearer: []
       summary: Set permissions for a role on a specific table
-      tags: *ref_3
+      tags:
+        - admin / permissions
   /admin/permissions/table-permissions/batch:
     post:
       operationId: PermissionsManagementController_batchSetPermissions
@@ -210,9 +218,11 @@ paths:
           description: Unauthorized
         '403':
           description: Forbidden – insufficient permissions
-      security: *ref_2
+      security:
+        - bearer: []
       summary: Batch-set permissions for a role across multiple tables
-      tags: *ref_3
+      tags:
+        - admin / permissions
   /admin/permissions/roles/{roleId}/permissions:
     get:
       operationId: PermissionsManagementController_getRolePermissions
@@ -254,9 +264,11 @@ paths:
           description: Unauthorized
         '403':
           description: Forbidden – insufficient permissions
-      security: *ref_2
+      security:
+        - bearer: []
       summary: Get all table permissions for a role (paginated)
-      tags: *ref_3
+      tags:
+        - admin / permissions
     delete:
       operationId: PermissionsManagementController_deleteRolePermissions
       parameters:
@@ -273,9 +285,11 @@ paths:
           description: Unauthorized
         '403':
           description: Forbidden – insufficient permissions
-      security: *ref_2
+      security:
+        - bearer: []
       summary: Delete all table permissions for a role
-      tags: *ref_3
+      tags:
+        - admin / permissions
   /admin/permissions/roles/{sourceRoleId}/copy-to/{targetRoleId}:
     post:
       operationId: PermissionsManagementController_copyPermissions
@@ -299,9 +313,11 @@ paths:
           description: Unauthorized
         '403':
           description: Forbidden – insufficient permissions
-      security: *ref_2
+      security:
+        - bearer: []
       summary: Copy all permissions from one role to another
-      tags: *ref_3
+      tags:
+        - admin / permissions
   /admin/permissions/user-roles/assign:
     post:
       operationId: PermissionsManagementController_assignRole
@@ -321,9 +337,11 @@ paths:
           description: Unauthorized
         '403':
           description: Forbidden – insufficient permissions
-      security: *ref_2
+      security:
+        - bearer: []
       summary: Assign a role to a user
-      tags: *ref_3
+      tags:
+        - admin / permissions
   /admin/permissions/user-roles/assign-multiple:
     post:
       operationId: PermissionsManagementController_assignMultipleRoles
@@ -343,9 +361,11 @@ paths:
           description: Unauthorized
         '403':
           description: Forbidden – insufficient permissions
-      security: *ref_2
+      security:
+        - bearer: []
       summary: Assign multiple roles to a user
-      tags: *ref_3
+      tags:
+        - admin / permissions
   /admin/permissions/user-roles/users/{userId}/roles/{roleId}:
     delete:
       operationId: PermissionsManagementController_removeRole
@@ -369,9 +389,11 @@ paths:
           description: Unauthorized
         '403':
           description: Forbidden – insufficient permissions
-      security: *ref_2
+      security:
+        - bearer: []
       summary: Remove a role from a user
-      tags: *ref_3
+      tags:
+        - admin / permissions
   /admin/permissions/users/{userId}/roles:
     get:
       operationId: PermissionsManagementController_getUserRoles
@@ -413,9 +435,11 @@ paths:
           description: Unauthorized
         '403':
           description: Forbidden – insufficient permissions
-      security: *ref_2
+      security:
+        - bearer: []
       summary: Get all roles assigned to a user (paginated)
-      tags: *ref_3
+      tags:
+        - admin / permissions
   /data/{table}:
     get:
       operationId: DataController_list
@@ -463,18 +487,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RecordListDto'
-        '400': &ref_4
+        '400':
           description: Invalid id, query or body (unknown or read-only fields)
-        '401': &ref_5
+        '401':
           description: Missing or invalid JWT
-        '403': &ref_6
+        '403':
           description: No permission for this table
-        '404': &ref_7
+        '404':
           description: Table or record not found
-      security: &ref_8
+      security:
         - bearer: []
       summary: List records of a table
-      tags: &ref_9
+      tags:
         - data
     post:
       operationId: DataController_create
@@ -514,13 +538,19 @@ paths:
                   id: 1
                   Name: Alice
                   Email: alice@example.com
-        '400': *ref_4
-        '401': *ref_5
-        '403': *ref_6
-        '404': *ref_7
-      security: *ref_8
+        '400':
+          description: Invalid id, query or body (unknown or read-only fields)
+        '401':
+          description: Missing or invalid JWT
+        '403':
+          description: No permission for this table
+        '404':
+          description: Table or record not found
+      security:
+        - bearer: []
       summary: Create a record
-      tags: *ref_9
+      tags:
+        - data
   /data/{table}/{id}:
     get:
       operationId: DataController_read
@@ -557,13 +587,19 @@ paths:
                   id: 1
                   Name: Alice
                   Email: alice@example.com
-        '400': *ref_4
-        '401': *ref_5
-        '403': *ref_6
-        '404': *ref_7
-      security: *ref_8
+        '400':
+          description: Invalid id, query or body (unknown or read-only fields)
+        '401':
+          description: Missing or invalid JWT
+        '403':
+          description: No permission for this table
+        '404':
+          description: Table or record not found
+      security:
+        - bearer: []
       summary: Read a single record
-      tags: *ref_9
+      tags:
+        - data
     patch:
       operationId: DataController_update
       parameters:
@@ -607,13 +643,19 @@ paths:
                   id: 1
                   Name: Alice
                   Email: alice@example.com
-        '400': *ref_4
-        '401': *ref_5
-        '403': *ref_6
-        '404': *ref_7
-      security: *ref_8
+        '400':
+          description: Invalid id, query or body (unknown or read-only fields)
+        '401':
+          description: Missing or invalid JWT
+        '403':
+          description: No permission for this table
+        '404':
+          description: Table or record not found
+      security:
+        - bearer: []
       summary: Update a record
-      tags: *ref_9
+      tags:
+        - data
     delete:
       operationId: DataController_delete
       parameters:
@@ -632,13 +674,19 @@ paths:
       responses:
         '204':
           description: Deleted
-        '400': *ref_4
-        '401': *ref_5
-        '403': *ref_6
-        '404': *ref_7
-      security: *ref_8
+        '400':
+          description: Invalid id, query or body (unknown or read-only fields)
+        '401':
+          description: Missing or invalid JWT
+        '403':
+          description: No permission for this table
+        '404':
+          description: Table or record not found
+      security:
+        - bearer: []
       summary: Delete a record
-      tags: *ref_9
+      tags:
+        - data
 info:
   title: NocoDB Middleware API
   description: >-
