@@ -1,6 +1,6 @@
 version: 2
 updates:
-  # ── npm dependency updates ────────────────────────────────────────────────
+  # ── npm dependency updates (root) ──────────────────────────────────────────
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
@@ -27,23 +27,51 @@ updates:
         update-types:
           - "minor"
           - "patch"
-      types:
-        patterns:
-          - "@types/*"
-        update-types:
-          - "minor"
-          - "patch"
-      eslint:
-        patterns:
-          - "eslint*"
-          - "@eslint/*"
-          - "typescript-eslint"
-        update-types:
-          - "minor"
-          - "patch"
       opentelemetry:
         patterns:
           - "@opentelemetry/*"
+        update-types:
+          - "minor"
+          - "patch"
+      auth:
+        patterns:
+          - "passport"
+          - "passport-jwt"
+          - "jsonwebtoken"
+        update-types:
+          - "minor"
+          - "patch"
+      http-client:
+        patterns:
+          - "axios"
+          - "axios-retry"
+          - "nocodb-sdk"
+        update-types:
+          - "minor"
+          - "patch"
+      security:
+        patterns:
+          - "helmet"
+          - "express-rate-limit"
+          - "sanitize-html"
+        update-types:
+          - "minor"
+          - "patch"
+      logging:
+        patterns:
+          - "nestjs-pino"
+          - "pino-http"
+          - "pino-pretty"
+        update-types:
+          - "minor"
+          - "patch"
+      core-libraries:
+        patterns:
+          - "class-validator"
+          - "class-transformer"
+          - "cache-manager"
+          - "rxjs"
+          - "reflect-metadata"
         update-types:
           - "minor"
           - "patch"
@@ -58,13 +86,101 @@ updates:
         update-types:
           - "minor"
           - "patch"
+      types:
+        patterns:
+          - "@types/*"
+        update-types:
+          - "minor"
+          - "patch"
+      eslint:
+        patterns:
+          - "eslint*"
+          - "@eslint/*"
+          - "typescript-eslint"
+          - "globals"
+        update-types:
+          - "minor"
+          - "patch"
+      formatting:
+        patterns:
+          - "prettier"
+          - "markdownlint-cli"
+        update-types:
+          - "minor"
+          - "patch"
+      build-tooling:
+        patterns:
+          - "typescript"
+          - "ts-node"
+          - "ts-loader"
+          - "tsconfig-paths"
+          - "source-map-support"
+          - "semver"
+          - "js-yaml"
+          - "@rollup/plugin-yaml"
+          - "@modelcontextprotocol/sdk"
+        update-types:
+          - "minor"
+          - "patch"
+      docs:
+        patterns:
+          - "vitepress"
+          - "conventional-changelog-cli"
+          - "@fission-ai/openspec"
+        update-types:
+          - "minor"
+          - "patch"
     ignore:
       - dependency-name: "typescript"
         versions: [">=7.0.0"]
       - dependency-name: "eslint"
         update-types: ["version-update:semver-major"]
 
-  # ── GitHub Actions updates ────────────────────────────────────────────────
+  # ── npm dependency updates (client library) ────────────────────────────────
+  - package-ecosystem: "npm"
+    directory: "/client"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "08:00"
+      timezone: "Europe/Berlin"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "stritti"
+    assignees:
+      - "stritti"
+    labels:
+      - "dependencies"
+      - "npm"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    groups:
+      testing:
+        patterns:
+          - "jest*"
+          - "ts-jest"
+          - "@types/jest"
+        update-types:
+          - "minor"
+          - "patch"
+      types:
+        patterns:
+          - "@types/*"
+        update-types:
+          - "minor"
+          - "patch"
+      client-dependencies:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+    ignore:
+      - dependency-name: "typescript"
+        versions: [">=7.0.0"]
+
+  # ── GitHub Actions updates ─────────────────────────────────────────────────
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
@@ -82,14 +198,29 @@ updates:
       prefix: "ci"
       include: "scope"
     groups:
-      actions:
+      security-actions:
+        patterns:
+          - "aquasecurity/*"
+          - "snyk/*"
+          - "github/codeql-action*"
+          - "actions/dependency-review-action"
+        update-types:
+          - "minor"
+          - "patch"
+      official-actions:
+        patterns:
+          - "actions/*"
+        update-types:
+          - "minor"
+          - "patch"
+      third-party-actions:
         patterns:
           - "*"
         update-types:
           - "minor"
           - "patch"
 
-  # ── Docker updates ────────────────────────────────────────────────────────
+  # ── Docker updates ─────────────────────────────────────────────────────────
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
@@ -106,3 +237,16 @@ updates:
     commit-message:
       prefix: "chore"
       include: "scope"
+    groups:
+      base-images:
+        patterns:
+          - "node"
+        update-types:
+          - "minor"
+          - "patch"
+      nocodb:
+        patterns:
+          - "nocodb/nocodb"
+        update-types:
+          - "minor"
+          - "patch"
