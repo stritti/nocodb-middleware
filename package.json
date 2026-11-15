@@ -23,6 +23,7 @@
     "test:debug": "node --experimental-vm-modules --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --config ./test/jest-e2e.json",
     "generate:openapi": "node scripts/generate-openapi.js",
+    "security:osv": "bash scripts/osv-scan.sh",
     "changelog": "conventional-changelog -p angular -i CHANGELOG.md -s",
     "docs:dev": "vitepress dev docs",
     "docs:build": "vitepress build docs",
