@@ -24,6 +24,32 @@ export class PermissionsService {
 
   constructor(private nocoDBService: NocoDBService) {}
 
+  async canAnonymousRead(tableName: string): Promise<boolean> {
+    const rolesTable = await this.nocoDBService.getTableByName('roles');
+    const permissionsTable =
+      await this.nocoDBService.getTableByName('table_permissions');
+    if (!rolesTable || !permissionsTable) return false;
+    const roles = await this.nocoDBService.list(rolesTable.id, {
+      where: filterEq('role_name', 'anonymous'),
+      limit: 2,
+      page: 1,
+    });
+    if (roles.list.length === 0) return false;
+    if (roles.list.length !== 1) throw new Error('Ambiguous anonymous role');
+    const roleId = extractNumericId(roles.list[0]);
+    const permissions = await this.nocoDBService.list(permissionsTable.id, {
+      where: andFilters(
+        filterEq('role_id', roleId),
+        filterEq('table_name', tableName),
+      ),
+      limit: 2,
+      page: 1,
+    });
+    if (permissions.list.length > 1)
+      throw new Error('Ambiguous anonymous permissions');
+    return permissions.list[0]?.can_read === true;
+  }
+
   /**
    * Get all tables in the configured workspace
    */

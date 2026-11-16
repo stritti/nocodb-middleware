@@ -40,6 +40,7 @@ function upstreamError(status: number): AxiosError {
 
 describe('DataService', () => {
   let nocodb: {
+    getTablePrefix: jest.Mock;
     getTableByName: jest.Mock;
     getTableMetadata: jest.Mock;
     list: jest.Mock;
@@ -55,6 +56,7 @@ describe('DataService', () => {
     now = 1_000_000;
     jest.spyOn(Date, 'now').mockImplementation(() => now);
     nocodb = {
+      getTablePrefix: jest.fn().mockReturnValue(''),
       getTableByName: jest.fn(async (name: string) =>
         name === 'customers' ? { id: 'tbl_customers', title: name } : null,
       ),
@@ -141,6 +143,49 @@ describe('DataService', () => {
   });
 
   describe('table lookup', () => {
+    it.each(['nc_registry_fields', 'api_resource_fields'])(
+      'denies protected table identity reached as %s for reads and writes',
+      async (name) => {
+        nocodb.getTableByName.mockResolvedValue({
+          id: 'sys_fields',
+          title: 'api_resource_fields',
+          table_name: 'nc_registry_fields',
+        });
+        nocodb.getTableMetadata.mockResolvedValue({
+          id: 'sys_fields',
+          title: 'api_resource_fields',
+          table_name: 'nc_registry_fields',
+          fields: [],
+        });
+        await expect(service.read(name, 1)).rejects.toBeInstanceOf(
+          NotFoundException,
+        );
+        await expect(
+          service.update(name, 1, { Name: 'Changed' }),
+        ).rejects.toBeInstanceOf(NotFoundException);
+        expect(nocodb.read).not.toHaveBeenCalled();
+        expect(nocodb.update).not.toHaveBeenCalled();
+      },
+    );
+
+    it('denies a renamed system table identified by its physical name', async () => {
+      nocodb.getTableByName.mockResolvedValue({
+        id: 'sys_fields',
+        title: 'inventory',
+        table_name: 'api_resource_fields',
+      });
+      nocodb.getTableMetadata.mockResolvedValue({
+        id: 'sys_fields',
+        title: 'inventory',
+        table_name: 'api_resource_fields',
+        fields: [],
+      });
+      await expect(service.read('inventory', 1)).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      expect(nocodb.read).not.toHaveBeenCalled();
+    });
+
     it('throws NotFound for a table that does not exist in NocoDB', async () => {
       await expect(service.list('unknown', {})).rejects.toBeInstanceOf(
         NotFoundException,

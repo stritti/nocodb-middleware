@@ -36,6 +36,111 @@ x-bootstrap-token: <BOOTSTRAP_ADMIN_TOKEN>
 
 ## Kernendpunkte
 
+### Konfigurierbare öffentliche Ressourcen
+
+`GET /api/public/:resource` und `GET /api/public/:resource/:id` veröffentlichen
+nur ausdrücklich konfigurierte Lesezugriffe. Ressourcennamen, Zieltabelle,
+Feldmapping und Filter werden in NocoDB gepflegt, nicht im Middleware-Code oder
+in anwendungsspezifischen Umgebungsvariablen. Der NocoDB-Token bleibt serverseitig.
+
+Beim Start werden drei **leere interne Tabellen** und die Rolle `anonymous`
+ohne Tabellenrechte angelegt. Es wird nichts automatisch öffentlich. Die
+Tabellen tragen gegebenenfalls `NOCODB_TABLE_PREFIX`; ihre Pflege erfolgt mit
+administrativen Rechten direkt in NocoDB, nicht über die generische Daten-API.
+
+| Tabelle                | Felder                                                                                              |
+| ---------------------- | --------------------------------------------------------------------------------------------------- |
+| `api_resources`        | `resource_name`, `table_name`, `enabled`                                                            |
+| `api_resource_fields`  | `resource_id` (Number), `source_field`, `response_field`, `normalization`, `default_json`           |
+| `api_resource_filters` | `resource_id` (Number), `query_param`, `source_field`, `required` (Checkbox), `allowed_values_json` |
+
+`resource_name` muss `[a-z][a-z0-9-]{0,62}` entsprechen und eindeutig sein.
+`table_name` ist der tatsächliche logische Tabellenname ohne Präfix, derselbe
+Name wie in `table_permissions`. Interne Tabellen sind auch unter anderen
+Ressourcennamen verboten. Quellfelder müssen existieren; ihre Titel dürfen
+wie Tabellennamen Buchstaben, Ziffern, Leerzeichen, `_` und `-` enthalten.
+
+Feldzeilen geben nur die expliziten Antwortfelder frei. `id` ist automatisch
+vorhanden und darf nicht überschrieben werden. Antwortnamen entsprechen
+`[A-Za-z][A-Za-z0-9_]{0,63}`; Prototype-Schlüssel und doppelte Antwortnamen sind
+verboten. `normalization` muss `none` oder `lowerFirstDeep` sein; letzteres
+normalisiert rekursiv die Anfangsbuchstaben von Objektschlüsseln, etwa bei
+Attachments. Dabei wird der gesamte ausgewählte Feldwert freigegeben.
+`default_json` ist optionaler JSON-Text (maximal 16 KiB), z. B. `[]`, und gilt
+bei fehlendem oder nullwertigem Quellwert. Ohne Feldzeilen keine Freigabe.
+
+Filterzeilen erlauben feste Stringwerte mit Gleichheit und AND-Verknüpfung.
+Die dekodierten Werte bleiben bis zur festen Enum-Prüfung unverändert; eine
+HTML-Umwandlung darf etwa `Tools & Plants` nicht in einen anderen Wert ändern.
+`allowed_values_json` enthält eine nichtleere JSON-Stringliste, z. B.
+`["Tools","Plants"]`. Filterfeldtitel sind auf Buchstaben des ASCII-Alphabets,
+Ziffern, `_` und `-` begrenzt; Werte dürfen keine doppelten Anführungszeichen,
+Steuerzeichen oder äußeren Leerzeichen enthalten. Filterparameter verwenden
+dieselbe Namensregel wie Antwortfelder; `page` und `take` sind reserviert.
+Kein beliebiges `where`, `sort`, `fields`, Tabellenname oder Operator ist erlaubt.
+
+Beispiel einer zusätzlichen Ressource, ausschließlich als Dateneingabe:
+
+1. `api_resources`: `resource_name=inventory`, `table_name=inventory`,
+   `enabled=false`. Die tatsächliche numerische ID notieren, etwa `7`.
+2. `api_resource_fields`: `resource_id=7`, `source_field=Name`,
+   `response_field=label`, `normalization=none`; `default_json` leer lassen.
+3. Optional `api_resource_filters`: `resource_id=7`, `query_param=category`,
+   `source_field=Category`, `required=false`, `allowed_values_json=["Tools","Plants"]`.
+4. ID der Rolle `anonymous` ermitteln. In `table_permissions` genau eine Zeile
+   für diese `role_id` und `table_name=inventory` anlegen: `can_read=true`,
+   `can_create=false`, `can_update=false`, `can_delete=false`.
+5. Erst nach Prüfung der freigegebenen Daten `enabled=true` setzen.
+
+```bash
+curl 'http://localhost:3000/api/public/inventory?category=Tools&page=1&take=25'
+curl 'http://localhost:3000/api/public/inventory/1'
+```
+
+Listen liefern `{ "data": [{ "id": 1, "label": "Spade" }], "meta": {
+"page": 1, "take": 25, "total": 1, "pageCount": 1 } }`, Details direkt das
+Objekt. `page` beginnt bei 1; `take` ist 1 bis 50, Standardwerte sind 1 und 25.
+Erforderliche konfigurierte Filter gelten nur für Listen. Detailabrufe
+akzeptieren keine Query-Parameter. IDs sind positive sichere Ganzzahlen.
+
+Die aktivierte Ressourcenkonfiguration wird höchstens **30 Sekunden** verwendet;
+Änderungen werden danach beim nächsten Request ohne Neustart geladen.
+Konfigurationsseiten werden vollständig gelesen, begrenzt auf weniger als
+10.000 Zeilen je Tabelle. Ungültige, doppelte oder verwaiste Datensätze und
+nicht auflösbare Felder/Tabellen sperren den Snapshot. Bei größeren Änderungen
+zuerst deaktivieren und zuletzt aktivieren; Mehrtabellenänderungen sind nicht
+atomar. Ein fehlgeschlagenes Neuladen verwendet keinen abgelaufenen Snapshot.
+
+Die Berechtigung der existierenden, eindeutigen Rolle `anonymous` wird dagegen
+**vor jeder Anfrage frisch geprüft, auch vor Antwort-Cache-Treffern**.
+Fehlende Rolle oder fehlendes boolesches `can_read=true` bedeutet keine Freigabe.
+Doppelte Rollen oder Berechtigungseinträge werden nicht zusammengeführt, sondern
+abgewiesen. Ein Rechteentzug wirkt auf nachfolgende erfolgreich geprüfte
+Anfragen; bereits laufende Anfragen werden nicht nachträglich abgebrochen.
+Ein mitgesendetes JWT erweitert die öffentlichen Rechte nicht. Das sind von der
+Middleware ausgewertete Tabellenrechte, nicht die native NocoDB-Benutzerverwaltung.
+
+Erfolgreiche Antworten werden bis zu 60 Sekunden gecacht; Snapshot-Version,
+Ressource, Tabelle, Seite und Filter trennen die Cache-Einträge. Eine neue
+Feldfreigabe verwendet keine alte projizierte Antwort. Bei Fehlern der Rechte-
+oder Konfigurationsquelle werden keine gecachten Daten ausgeliefert.
+
+Der gesamte öffentliche Pfad sendet zusätzlich `Cache-Control: no-store`, auch
+bei Fehlerantworten. Reverse-Proxys/CDNs müssen diesen Header respektieren und
+dürfen für `/api/public/*` keinen eigenen Response-Cache erzwingen. Nur der
+autorisierungsabhängige Server-Cache darf die Nutzdaten wiederverwenden.
+
+- 400: ungültige Pagination, ID, Filter oder zusätzliche Query-Parameter.
+- 403: keine anonyme Lesefreigabe.
+- 404: unbekannte/deaktivierte Ressource oder fehlender Datensatz.
+- 503: ungültige/nicht verfügbare Ressourcen- oder Berechtigungsdaten.
+
+Die globale Rate-Begrenzung gilt weiterhin. `CORS_ORIGINS` auf die tatsächliche
+Frontend-Origin setzen; CORS ist keine Zugriffskontrolle für andere HTTP-Clients.
+Es gibt keine öffentlichen Schreiboperationen. Bestehende JWT-/Scope-geschützte
+`/api/data/:table`- und Admin-Routen bleiben unverändert autorisiert. Neue
+Ressourcen benötigen weder Codeänderung noch neues Deployment.
+
 ### Health
 
 - `GET /api/health`
@@ -151,19 +256,22 @@ Antwort: `[{ "id": "m1a2b3", "tableName": "customers", "title": "app_customers" 
 - `tableName` ist der **logische** Name ohne `NOCODB_TABLE_PREFIX`. Diesen Namen verwenden Tabellenrechte (`tableName` in `/admin/permissions/table-permissions`).
 - Erlaubt sind Tabellennamen aus Buchstaben, Ziffern, Leerzeichen, `_` und `-` (1–255 Zeichen, ohne Leerzeichen am Anfang oder Ende), z. B. `Customer Orders`. Dieselbe Regel gilt für Tabellenrechte. Tabellen mit anderen Zeichen im Namen (etwa `"` oder `/`) erscheinen nicht im Katalog, weil sich für sie keine Rechte vergeben lassen.
 - `title` ist der Tabellentitel in NocoDB.
-- Systemtabellen (`users`, `roles`, `user_roles`, `table_permissions`) werden nicht gelistet. Bei gesetztem Präfix erscheinen nur Tabellen mit diesem Präfix.
+- Systemtabellen (`users`, `roles`, `user_roles`, `table_permissions`, `api_resources`, `api_resource_fields`, `api_resource_filters`) werden nicht gelistet. Bei gesetztem Präfix erscheinen nur Tabellen mit diesem Präfix.
 
 ### Daten-API (Records)
 
 Generischer CRUD-Zugriff auf eigene NocoDB-Tabellen. `:table` ist der Tabellenname ohne Präfix.
+Er muss dem tatsächlichen logischen Tabellentitel entsprechen; physische
+Aliasnamen werden hier nicht auf andere Tabellen umgeleitet. Die aufgelösten
+Titel und physischen Namen werden zusätzlich auf Systemtabellen geprüft.
 
-| Methode | Pfad | Aktion | Antwort |
-|---|---|---|---|
-| `GET` | `/api/data/:table` | `read` | `{ list, pageInfo }` |
-| `GET` | `/api/data/:table/:id` | `read` | Datensatz |
-| `POST` | `/api/data/:table` | `create` | `201` + Datensatz |
-| `PATCH` | `/api/data/:table/:id` | `update` | Datensatz |
-| `DELETE` | `/api/data/:table/:id` | `delete` | `204` |
+| Methode  | Pfad                   | Aktion   | Antwort              |
+| -------- | ---------------------- | -------- | -------------------- |
+| `GET`    | `/api/data/:table`     | `read`   | `{ list, pageInfo }` |
+| `GET`    | `/api/data/:table/:id` | `read`   | Datensatz            |
+| `POST`   | `/api/data/:table`     | `create` | `201` + Datensatz    |
+| `PATCH`  | `/api/data/:table/:id` | `update` | Datensatz            |
+| `DELETE` | `/api/data/:table/:id` | `delete` | `204`                |
 
 Query-Parameter für die Liste: `where` (NocoDB-Filter, z. B. `(Name,eq,Alice)`), `sort` (z. B. `-CreatedAt`), `limit` (1–100, Default 25), `offset` (Default 0). `pageInfo.totalRows` ist die Anzahl aller Treffer des Filters, unabhängig von `limit`/`offset`.
 
@@ -172,7 +280,7 @@ Query-Parameter für die Liste: `where` (NocoDB-Filter, z. B. `(Name,eq,Alice)`)
 - Der JWT enthält einen passenden Scope: `customers:read`, `customers:*`, `*:read` oder `*:*`.
 - Eine Rolle des Benutzers hat das Recht in `table_permissions` (siehe RBAC oben).
 
-Die Systemtabellen `users`, `roles`, `user_roles` und `table_permissions` sind über diese API nicht erreichbar und liefern `404`, ebenso unbekannte Tabellen und ungültige Namen. Ein fehlender Datensatz liefert bei `GET`, `PATCH` und `DELETE` ebenfalls `404`.
+Alle oben genannten Systemtabellen einschließlich der drei Ressourcenkonfigurationstabellen sind über diese API nicht erreichbar und liefern `404`, ebenso unbekannte Tabellen und ungültige Namen. Auch Wildcard-Scopes umgehen diese Sperre nicht. Ein fehlender Datensatz liefert bei `GET`, `PATCH` und `DELETE` ebenfalls `404`.
 
 **Validierung des Bodys** (`POST`/`PATCH`), sonst `400`:
 

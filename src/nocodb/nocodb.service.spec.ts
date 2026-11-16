@@ -191,6 +191,16 @@ describe('NocoDBService', () => {
   });
 
   describe('list', () => {
+    it('sends v3 page pagination when a page is explicitly requested', async () => {
+      mockHttpClient.get.mockResolvedValue({ data: { records: [] } });
+
+      await service.list('t1', { limit: 10, page: 2 });
+
+      expect(mockHttpClient.get).toHaveBeenCalledWith(`${DATA}/records`, {
+        params: { page: '2', pageSize: '10' },
+      });
+    });
+
     it('passes where, JSON sort, fields and offset paging', async () => {
       mockHttpClient.get.mockResolvedValue({
         data: { records: [{ id: 1, fields: { name: 'Alice' } }] },

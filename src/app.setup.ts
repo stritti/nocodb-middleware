@@ -4,6 +4,7 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import helmet from 'helmet';
+import { NextFunction, Request, Response } from 'express';
 import { AllExceptionsFilter } from './nocodb/filters/nocodb-exception.filter';
 import { RateLimitMiddleware } from './nocodb/middleware/rate-limit.middleware';
 import { SanitizeMiddleware } from './common/middleware/sanitize.middleware';
@@ -43,6 +44,14 @@ export function configureApp(app: INestApplication): void {
     }),
   );
 
+  app.use(
+    '/api/public',
+    (_request: Request, response: Response, next: NextFunction) => {
+      response.setHeader('Cache-Control', 'no-store');
+      next();
+    },
+  );
+
   // CORS Configuration with validation
   const isProduction = process.env.NODE_ENV === 'production';
   const corsValidation = parseAndValidateCorsOrigins(
@@ -66,7 +75,13 @@ export function configureApp(app: INestApplication): void {
   // Global input sanitization middleware (after CORS, before rate limiting)
   // Sanitizes all request data (body, query, params) to prevent XSS
   const sanitizeMiddleware = new SanitizeMiddleware();
-  app.use(sanitizeMiddleware.use.bind(sanitizeMiddleware));
+  const publicSanitizeMiddleware = new SanitizeMiddleware({ query: false });
+  app.use((request: Request, response: Response, next: NextFunction) => {
+    const middleware = request.path.startsWith('/api/public/')
+      ? publicSanitizeMiddleware
+      : sanitizeMiddleware;
+    middleware.use(request, response, next);
+  });
 
   // Global rate limiting middleware (must be after CORS and sanitization)
   // This ensures req.user is available from JWT authentication

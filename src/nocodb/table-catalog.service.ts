@@ -2,19 +2,13 @@ import { Injectable } from '@nestjs/common';
 import { NocoDBService } from './nocodb.service';
 import { TableCatalogItemDto } from './dto/table-catalog-item.dto';
 import { isValidTableName } from '../common/validation/table-name';
+import { isInternalTable } from './system-tables';
 
 interface TableEntry {
   id: string | number;
   title: string;
+  table_name?: string;
 }
-
-/** Internal tables of the middleware; never listed. */
-const INTERNAL_TABLE_NAMES: ReadonlySet<string> = new Set([
-  'users',
-  'roles',
-  'user_roles',
-  'table_permissions',
-]);
 
 @Injectable()
 export class TableCatalogService {
@@ -35,13 +29,13 @@ export class TableCatalogService {
       tables
         .map((table) => this.normalizeTableMeta(table))
         .filter((table): table is TableEntry => table !== null)
+        .filter((table) => !isInternalTable(table, prefix))
         .filter((table) => table.title.startsWith(prefix))
         .map((table) => ({
           id: String(table.id),
           tableName: table.title.slice(prefix.length),
           title: table.title,
         }))
-        .filter((table) => !INTERNAL_TABLE_NAMES.has(table.tableName))
         // same rule as table permissions and the data API
         .filter((table) => isValidTableName(table.tableName))
     );
@@ -61,6 +55,12 @@ export class TableCatalogService {
       return null;
     }
 
-    return { id: table.id, title: table.title };
+    return {
+      id: table.id,
+      title: table.title,
+      ...(typeof table.table_name === 'string'
+        ? { table_name: table.table_name }
+        : {}),
+    };
   }
 }

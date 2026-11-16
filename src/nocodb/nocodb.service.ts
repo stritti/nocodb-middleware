@@ -53,6 +53,7 @@ export interface FilterOptions {
   fields?: string[];
   limit?: number;
   offset?: number;
+  page?: number;
   /** Also fetch the total number of matching records (extra request). */
   withCount?: boolean;
 }
@@ -545,10 +546,16 @@ export class NocoDBService implements OnModuleInit {
           if (options?.where) params.where = options.where;
           if (options?.sort) params.sort = toV3Sort(options.sort);
           if (options?.fields) params.fields = options.fields.join(',');
-          if (options?.limit !== undefined)
-            params.limit = String(options.limit);
-          if (options?.offset !== undefined)
-            params.offset = String(options.offset);
+          if (options?.page !== undefined) {
+            params.page = String(options.page);
+            if (options.limit !== undefined)
+              params.pageSize = String(options.limit);
+          } else {
+            if (options?.limit !== undefined)
+              params.limit = String(options.limit);
+            if (options?.offset !== undefined)
+              params.offset = String(options.offset);
+          }
 
           const response = await this.httpClient.get(
             RECORDS_PATH(this.baseId, tableId),

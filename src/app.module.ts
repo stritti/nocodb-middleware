@@ -10,6 +10,7 @@ import { HealthModule } from './health/health.module';
 import { PermissionsModule } from './permissions/permissions.module';
 import { DataModule } from './data/data.module';
 import { TelemetryModule } from './tracing/telemetry.module';
+import { PublicReadModule } from './public-read/public-read.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { TelemetryModule } from './tracing/telemetry.module';
     HealthModule,
     PermissionsModule,
     DataModule,
+    PublicReadModule,
   ],
   controllers: [AppController],
   providers: [

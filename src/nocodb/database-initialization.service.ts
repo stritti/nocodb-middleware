@@ -3,6 +3,7 @@ import { NocoDBService } from './nocodb.service';
 import { NocoFieldDefinition } from './nocodb.types';
 import { andFilters, filterEq } from './nocodb-filter.util';
 import { extractNumericId } from '../common/utils/nocodb-utils';
+import { INTERNAL_TABLE_NAMES } from './system-tables';
 
 /**
  * Field of a system table. The NocoDB v3 Data API keys record values by the
@@ -63,6 +64,37 @@ export const SYSTEM_TABLES: readonly TableDefinition[] = [
       { title: 'can_read', type: 'Checkbox' },
       { title: 'can_update', type: 'Checkbox' },
       { title: 'can_delete', type: 'Checkbox' },
+    ],
+  },
+  {
+    tableName: 'api_resources',
+    title: 'API Resources',
+    fields: [
+      { title: 'resource_name', type: 'SingleLineText' },
+      { title: 'table_name', type: 'SingleLineText' },
+      { title: 'enabled', type: 'Checkbox' },
+    ],
+  },
+  {
+    tableName: 'api_resource_fields',
+    title: 'API Resource Fields',
+    fields: [
+      { title: 'resource_id', type: 'Number' },
+      { title: 'source_field', type: 'SingleLineText' },
+      { title: 'response_field', type: 'SingleLineText' },
+      { title: 'normalization', type: 'SingleLineText' },
+      { title: 'default_json', type: 'LongText' },
+    ],
+  },
+  {
+    tableName: 'api_resource_filters',
+    title: 'API Resource Filters',
+    fields: [
+      { title: 'resource_id', type: 'Number' },
+      { title: 'query_param', type: 'SingleLineText' },
+      { title: 'source_field', type: 'SingleLineText' },
+      { title: 'required', type: 'Checkbox' },
+      { title: 'allowed_values_json', type: 'LongText' },
     ],
   },
 ];
@@ -243,6 +275,18 @@ export class DatabaseInitializationService implements OnModuleInit {
       const adminRoleId = extractNumericId(adminRole);
       await this.ensureAdminPermissions(permissionsTable.id, adminRoleId);
 
+      const anonymousRole = await this.nocoDBService.findOne(
+        rolesTable.id,
+        filterEq('role_name', 'anonymous'),
+      );
+      if (!anonymousRole) {
+        await this.nocoDBService.create(rolesTable.id, {
+          role_name: 'anonymous',
+          description: 'Public readers; explicit table read grants required',
+          is_system_role: true,
+        });
+      }
+
       this.logger.log('Default permissions seeded (admin role ensured)');
     } catch (error) {
       this.logger.error('Failed to seed default permissions', error);
@@ -253,14 +297,7 @@ export class DatabaseInitializationService implements OnModuleInit {
     permissionsTableId: string,
     adminRoleId: number,
   ): Promise<void> {
-    const protectedTables = [
-      'users',
-      'roles',
-      'user_roles',
-      'table_permissions',
-    ];
-
-    for (const tableName of protectedTables) {
+    for (const tableName of INTERNAL_TABLE_NAMES) {
       const existing = await this.nocoDBService.findOne(
         permissionsTableId,
         andFilters(
