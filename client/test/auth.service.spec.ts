@@ -14,7 +14,10 @@ describe('AuthService', () => {
   describe('setTokens', () => {
     it('persists a token pair in storage', () => {
       service.setTokens({ accessToken: 'at1', refreshToken: 'rt1' });
-      expect(storage.get()).toEqual({ accessToken: 'at1', refreshToken: 'rt1' });
+      expect(storage.get()).toEqual({
+        accessToken: 'at1',
+        refreshToken: 'rt1',
+      });
     });
   });
 

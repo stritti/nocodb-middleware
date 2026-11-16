@@ -1,12 +1,8 @@
-export const INTERNAL_TABLE_NAMES: ReadonlySet<string> = new Set([
-  'users',
-  'roles',
-  'user_roles',
-  'table_permissions',
-  'api_resources',
-  'api_resource_fields',
-  'api_resource_filters',
-]);
+import { SYSTEM_TABLE_NAMES } from '../common/system-table-names';
+
+export const INTERNAL_TABLE_NAMES: ReadonlySet<string> = new Set(
+  Object.values(SYSTEM_TABLE_NAMES),
+);
 
 export function isInternalTable(
   table: { title: string; table_name?: string },

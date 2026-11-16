@@ -4,6 +4,7 @@ import { andFilters, filterEq, filterIn } from '../nocodb/nocodb-filter.util';
 import { CrudAction } from './enums/crud-action.enum';
 import { UserPermissions } from './interfaces/permission.interface';
 import { extractNumericId } from '../common/utils/nocodb-utils';
+import { SYSTEM_TABLE_NAMES } from '../common/system-table-names';
 
 /** In-memory permission cache TTL (5 minutes). */
 const PERMISSIONS_CACHE_TTL_MS = 5 * 60 * 1000;
@@ -25,9 +26,12 @@ export class PermissionsService {
   constructor(private nocoDBService: NocoDBService) {}
 
   async canAnonymousRead(tableName: string): Promise<boolean> {
-    const rolesTable = await this.nocoDBService.getTableByName('roles');
-    const permissionsTable =
-      await this.nocoDBService.getTableByName('table_permissions');
+    const rolesTable = await this.nocoDBService.getTableByName(
+      SYSTEM_TABLE_NAMES.ROLES,
+    );
+    const permissionsTable = await this.nocoDBService.getTableByName(
+      SYSTEM_TABLE_NAMES.TABLE_PERMISSIONS,
+    );
     if (!rolesTable || !permissionsTable) return false;
     const roles = await this.nocoDBService.list(rolesTable.id, {
       where: filterEq('role_name', 'anonymous'),
@@ -80,7 +84,9 @@ export class PermissionsService {
     }
 
     try {
-      const usersTable = await this.nocoDBService.getTableByName('users');
+      const usersTable = await this.nocoDBService.getTableByName(
+        SYSTEM_TABLE_NAMES.USERS,
+      );
       if (!usersTable) {
         this.logger.warn('Users table not found');
         return this.createEmptyPermissions(userId, 'unknown');
@@ -89,8 +95,9 @@ export class PermissionsService {
       const user = await this.nocoDBService.read(usersTable.id, userId);
       const username = (user?.username as string | undefined) ?? 'unknown';
 
-      const userRolesTable =
-        await this.nocoDBService.getTableByName('user_roles');
+      const userRolesTable = await this.nocoDBService.getTableByName(
+        SYSTEM_TABLE_NAMES.USER_ROLES,
+      );
       if (!userRolesTable) {
         this.logger.warn('User_roles table not found');
         return this.createEmptyPermissions(userId, username);
@@ -114,7 +121,9 @@ export class PermissionsService {
         return this.createEmptyPermissions(userId, username);
       }
 
-      const rolesTable = await this.nocoDBService.getTableByName('roles');
+      const rolesTable = await this.nocoDBService.getTableByName(
+        SYSTEM_TABLE_NAMES.ROLES,
+      );
       if (!rolesTable) {
         this.logger.warn('Roles table not found');
         return this.createEmptyPermissions(userId, username);
@@ -138,8 +147,9 @@ export class PermissionsService {
         return this.createEmptyPermissions(userId, username);
       }
 
-      const permissionsTable =
-        await this.nocoDBService.getTableByName('table_permissions');
+      const permissionsTable = await this.nocoDBService.getTableByName(
+        SYSTEM_TABLE_NAMES.TABLE_PERMISSIONS,
+      );
       if (!permissionsTable) {
         this.logger.warn('Table_permissions table not found');
         return this.createEmptyPermissions(userId, username);
@@ -233,8 +243,9 @@ export class PermissionsService {
     permissions: Partial<Record<CrudAction, boolean>>,
   ): Promise<void> {
     try {
-      const permissionsTable =
-        await this.nocoDBService.getTableByName('table_permissions');
+      const permissionsTable = await this.nocoDBService.getTableByName(
+        SYSTEM_TABLE_NAMES.TABLE_PERMISSIONS,
+      );
 
       if (!permissionsTable) {
         throw new Error('Table_permissions table not found');

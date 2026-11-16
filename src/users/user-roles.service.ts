@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { NocoDBService } from '../nocodb/nocodb.service';
+import { SYSTEM_TABLE_NAMES } from '../common/system-table-names';
 import { PageOptionsDto } from '../nocodb/dto/page-options.dto';
 import { PageMetaDto } from '../nocodb/dto/page-meta.dto';
 import { PageDto } from '../nocodb/dto/page.dto';
@@ -28,8 +29,9 @@ export class UserRolesService {
    */
   async assignRole(dto: AssignRoleDto): Promise<any> {
     try {
-      const userRolesTable =
-        await this.nocoDBService.getTableByName('user_roles');
+      const userRolesTable = await this.nocoDBService.getTableByName(
+        SYSTEM_TABLE_NAMES.USER_ROLES,
+      );
       if (!userRolesTable) {
         throw new NotFoundException('User_roles table not found');
       }
@@ -103,8 +105,9 @@ export class UserRolesService {
    */
   async removeRole(userId: number, roleId: number): Promise<void> {
     try {
-      const userRolesTable =
-        await this.nocoDBService.getTableByName('user_roles');
+      const userRolesTable = await this.nocoDBService.getTableByName(
+        SYSTEM_TABLE_NAMES.USER_ROLES,
+      );
       if (!userRolesTable) {
         throw new NotFoundException('User_roles table not found');
       }
@@ -142,8 +145,9 @@ export class UserRolesService {
     pageOptionsDto?: PageOptionsDto,
   ): Promise<PageDto<any>> {
     try {
-      const userRolesTable =
-        await this.nocoDBService.getTableByName('user_roles');
+      const userRolesTable = await this.nocoDBService.getTableByName(
+        SYSTEM_TABLE_NAMES.USER_ROLES,
+      );
 
       if (!userRolesTable) {
         return new PageDto(
@@ -193,7 +197,9 @@ export class UserRolesService {
       return [];
     }
 
-    const rolesTable = await this.nocoDBService.getTableByName('roles');
+    const rolesTable = await this.nocoDBService.getTableByName(
+      SYSTEM_TABLE_NAMES.ROLES,
+    );
     if (!rolesTable) {
       return [];
     }

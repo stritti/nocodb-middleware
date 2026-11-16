@@ -45,7 +45,7 @@ export function asUserRecord(value: unknown): NocoUserRecord | null {
   if (!value || typeof value !== 'object') {
     return null;
   }
-  return value as NocoUserRecord;
+  return value;
 }
 
 /**
@@ -55,7 +55,7 @@ export function asRoleRecord(value: unknown): NocoRoleRecord | null {
   if (!value || typeof value !== 'object') {
     return null;
   }
-  return value as NocoRoleRecord;
+  return value;
 }
 
 /**

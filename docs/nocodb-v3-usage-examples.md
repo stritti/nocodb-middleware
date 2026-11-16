@@ -43,5 +43,4 @@ await nocoDBV3Service.createWithLinks(tableId, {
 ## Wichtig
 
 - Zielbild: API-Verhalten semantisch eng an NocoDB V3 halten.
-- Aktuell existiert im Code noch ein Hybridbetrieb (v2/v3) in Teilen der RBAC-/Init-Logik.
-- Die vollständige V3-Harmonisierung läuft über OpenSpec-Changes.
+- Der Code spricht ausschließlich die NocoDB-v3-API (Meta + Data) an; v2-Pfade (`/api/v2`) kommen in `src/` nicht vor.

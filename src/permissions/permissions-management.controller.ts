@@ -35,6 +35,7 @@ import {
   RequireRead,
   RequireDelete,
 } from './permissions.decorator';
+import { SYSTEM_TABLE_NAMES } from '../common/system-table-names';
 
 @ApiTags('admin / permissions')
 @ApiBearerAuth()
@@ -50,7 +51,7 @@ export class PermissionsManagementController {
   // ========== Roles Management ==========
 
   @Post('roles')
-  @RequireCreate('roles')
+  @RequireCreate(SYSTEM_TABLE_NAMES.ROLES)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a new role' })
   @ApiResponse({ status: 201, description: 'Role created successfully' })
@@ -65,7 +66,7 @@ export class PermissionsManagementController {
   }
 
   @Get('roles')
-  @RequireRead('roles')
+  @RequireRead(SYSTEM_TABLE_NAMES.ROLES)
   @ApiOperation({ summary: 'List all roles (paginated)' })
   @ApiResponse({ status: 200, description: 'Paginated list of roles' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
@@ -78,7 +79,7 @@ export class PermissionsManagementController {
   }
 
   @Delete('roles/:roleId')
-  @RequireDelete('roles')
+  @RequireDelete(SYSTEM_TABLE_NAMES.ROLES)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete a role by ID' })
   @ApiParam({ name: 'roleId', description: 'Numeric role ID', type: Number })
@@ -96,7 +97,7 @@ export class PermissionsManagementController {
   // ========== Table Permissions Management ==========
 
   @Post('table-permissions')
-  @RequireCreate('table_permissions')
+  @RequireCreate(SYSTEM_TABLE_NAMES.TABLE_PERMISSIONS)
   @ApiOperation({ summary: 'Set permissions for a role on a specific table' })
   @ApiResponse({ status: 201, description: 'Permissions set' })
   @ApiResponse({ status: 400, description: 'Validation error' })
@@ -110,7 +111,7 @@ export class PermissionsManagementController {
   }
 
   @Post('table-permissions/batch')
-  @RequireCreate('table_permissions')
+  @RequireCreate(SYSTEM_TABLE_NAMES.TABLE_PERMISSIONS)
   @ApiOperation({
     summary: 'Batch-set permissions for a role across multiple tables',
   })
@@ -126,7 +127,7 @@ export class PermissionsManagementController {
   }
 
   @Get('roles/:roleId/permissions')
-  @RequireRead('table_permissions')
+  @RequireRead(SYSTEM_TABLE_NAMES.TABLE_PERMISSIONS)
   @ApiOperation({ summary: 'Get all table permissions for a role (paginated)' })
   @ApiParam({ name: 'roleId', description: 'Numeric role ID', type: Number })
   @ApiResponse({ status: 200, description: 'Paginated role permissions' })
@@ -146,7 +147,7 @@ export class PermissionsManagementController {
   }
 
   @Delete('roles/:roleId/permissions')
-  @RequireDelete('table_permissions')
+  @RequireDelete(SYSTEM_TABLE_NAMES.TABLE_PERMISSIONS)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Delete all table permissions for a role' })
   @ApiParam({ name: 'roleId', description: 'Numeric role ID', type: Number })
@@ -161,7 +162,7 @@ export class PermissionsManagementController {
   }
 
   @Post('roles/:sourceRoleId/copy-to/:targetRoleId')
-  @RequireCreate('table_permissions')
+  @RequireCreate(SYSTEM_TABLE_NAMES.TABLE_PERMISSIONS)
   @ApiOperation({ summary: 'Copy all permissions from one role to another' })
   @ApiParam({
     name: 'sourceRoleId',
@@ -192,7 +193,7 @@ export class PermissionsManagementController {
   // ========== User Roles Assignment ==========
 
   @Post('user-roles/assign')
-  @RequireCreate('user_roles')
+  @RequireCreate(SYSTEM_TABLE_NAMES.USER_ROLES)
   @ApiOperation({ summary: 'Assign a role to a user' })
   @ApiResponse({ status: 201, description: 'Role assigned' })
   @ApiResponse({ status: 400, description: 'Validation error' })
@@ -206,7 +207,7 @@ export class PermissionsManagementController {
   }
 
   @Post('user-roles/assign-multiple')
-  @RequireCreate('user_roles')
+  @RequireCreate(SYSTEM_TABLE_NAMES.USER_ROLES)
   @ApiOperation({ summary: 'Assign multiple roles to a user' })
   @ApiResponse({ status: 201, description: 'Roles assigned' })
   @ApiResponse({ status: 400, description: 'Validation error' })
@@ -220,7 +221,7 @@ export class PermissionsManagementController {
   }
 
   @Delete('user-roles/users/:userId/roles/:roleId')
-  @RequireDelete('user_roles')
+  @RequireDelete(SYSTEM_TABLE_NAMES.USER_ROLES)
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Remove a role from a user' })
   @ApiParam({ name: 'userId', description: 'Numeric user ID', type: Number })
@@ -239,7 +240,7 @@ export class PermissionsManagementController {
   }
 
   @Get('users/:userId/roles')
-  @RequireRead('user_roles')
+  @RequireRead(SYSTEM_TABLE_NAMES.USER_ROLES)
   @ApiOperation({ summary: 'Get all roles assigned to a user (paginated)' })
   @ApiParam({ name: 'userId', description: 'Numeric user ID', type: Number })
   @ApiResponse({ status: 200, description: 'Paginated user roles' })

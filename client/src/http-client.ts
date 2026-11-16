@@ -130,8 +130,7 @@ export function normaliseError(error: unknown): MiddlewareError {
   if (axios.isAxiosError(error)) {
     const status = error.response?.status ?? 0;
     const data = error.response?.data as
-      | { message?: string; error?: string }
-      | undefined;
+      { message?: string; error?: string } | undefined;
     const message =
       data?.message ??
       data?.error ??

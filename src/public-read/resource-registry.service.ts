@@ -8,6 +8,7 @@ import { NocoDBService } from '../nocodb/nocodb.service';
 import { NocoRecord } from '../nocodb/nocodb.types';
 import { INTERNAL_TABLE_NAMES, isInternalTable } from '../nocodb/system-tables';
 import { isValidTableName } from '../common/validation/table-name';
+import { SYSTEM_TABLE_NAMES } from '../common/system-table-names';
 import { filterEq } from '../nocodb/nocodb-filter.util';
 
 export interface ResourceField {
@@ -121,9 +122,9 @@ export class ResourceRegistryService {
   }
 
   private async load(): Promise<Map<string, ConfiguredResource>> {
-    const definitions = await this.rows('api_resources');
-    const fieldRows = await this.rows('api_resource_fields');
-    const filterRows = await this.rows('api_resource_filters');
+    const definitions = await this.rows(SYSTEM_TABLE_NAMES.API_RESOURCES);
+    const fieldRows = await this.rows(SYSTEM_TABLE_NAMES.API_RESOURCE_FIELDS);
+    const filterRows = await this.rows(SYSTEM_TABLE_NAMES.API_RESOURCE_FILTERS);
     const ids = new Set<number>();
     const names = new Set<string>();
     for (const definition of definitions) {

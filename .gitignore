@@ -144,3 +144,11 @@ vite.config.ts.timestamp-*
 
 # temporary probes of client/scripts/check-package.mjs
 client/.pkg-check-*
+
+# Local AI-agent tooling configs (kept locally, not tracked)
+.agent/
+.gemini/
+.cursor/
+.slim/
+.opencode/
+.specify/

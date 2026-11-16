@@ -26,7 +26,7 @@ Alle Phasen 1–11 der ursprünglichen Checkliste sind implementiert:
 - [x] Error-Handling (Custom Exceptions, Global Filter)
 - [x] Swagger UI (`/api`) + statisches `openapi.yaml` (auto-regeneriert via CI)
 - [x] Health Check (`/health`)
-- [x] Unit-Tests (213 Tests, ≥ 80 % Coverage)
+- [x] Unit-Tests (431 Tests, ≥ 80 % Coverage)
 - [x] Docker-Support (`Dockerfile` + `docker-compose.yml`)
 - [x] Graceful Shutdown
 - [x] OpenTelemetry Tracing (opt-in via `OTEL_ENABLED=true`)

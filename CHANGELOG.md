@@ -4,6 +4,16 @@
 
 - configure JWT algorithms for external provider RSA/EC support ([#203](https://github.com/stritti/nocodb-middleware/issues/203)) ([3e5d0ba](https://github.com/stritti/nocodb-middleware/commit/3e5d0badd7141f530ddfad4492c1706856fdd0db))
 
+## [0.8.1](https://github.com/stritti/nocodb-middleware/compare/nocodb-middleware-v0.8.0...nocodb-middleware-v0.8.1) (2026-11-02)
+
+
+### Bug Fixes
+
+* **deps:** bump @opentelemetry/semantic-conventions ([#335](https://github.com/stritti/nocodb-middleware/issues/335)) ([0c9eda4](https://github.com/stritti/nocodb-middleware/commit/0c9eda472eb5808c2d1c0447434db6f0731f3262))
+* **deps:** bump axios from 1.20.0 to 1.21.0 ([#340](https://github.com/stritti/nocodb-middleware/issues/340)) ([548d7a5](https://github.com/stritti/nocodb-middleware/commit/548d7a585c2fbb68f45916e168c98cf44eb0b0a5))
+* **deps:** bump express-rate-limit from 8.7.1 to 8.7.2 ([#341](https://github.com/stritti/nocodb-middleware/issues/341)) ([39ddecd](https://github.com/stritti/nocodb-middleware/commit/39ddecdacb6257f585facdf8b03e25bc55ba06a2))
+* **deps:** bump the nestjs group with 8 updates ([#332](https://github.com/stritti/nocodb-middleware/issues/332)) ([3f7aaf4](https://github.com/stritti/nocodb-middleware/commit/3f7aaf4ea204da5fa0f7d49b66e46e8900521b3a))
+
 ## [0.8.0](https://github.com/stritti/nocodb-middleware/compare/nocodb-middleware-v0.7.0...nocodb-middleware-v0.8.0) (2026-10-22)
 
 
