@@ -26,6 +26,16 @@ function severityRank(label) {
   return SEVERITY_RANK[String(label).toUpperCase()] ?? 0;
 }
 
+// Docker-based actions (like osv-scanner-action) report paths as seen inside
+// the container (e.g. /github/workspace/...); map them back to checkout-relative.
+function displayFile(path) {
+  const rel = relative(process.cwd(), path);
+  if (!rel.startsWith('..')) return rel || path;
+  const containerWs = process.env.GITHUB_WORKSPACE ?? '/github/workspace';
+  if (path.startsWith(`${containerWs}/`)) return path.slice(containerWs.length + 1);
+  return path;
+}
+
 function severityFromScore(score) {
   const n = Number(score);
   if (!Number.isFinite(n)) return 'UNKNOWN';
@@ -98,7 +108,7 @@ function main() {
       r.id,
       r.package,
       r.devOnly ? 'dev' : 'prod',
-      relative(process.cwd(), r.file) || r.file,
+      displayFile(r.file),
     ]);
     const widths = header.map((h, i) =>
       Math.max(h.length, ...lines.map((l) => l[i].length)),
@@ -117,7 +127,7 @@ function main() {
     if (rows.length > 0) {
       summary.push('| Severity | ID | Package | Groups | Lockfile |', '|---|---|---|---|---|');
       for (const r of rows) {
-        const file = relative(process.cwd(), r.file) || r.file;
+        const file = displayFile(r.file);
         summary.push(
           `| ${r.severity} | ${r.id} | ${r.package} | ${r.devOnly ? 'dev' : 'prod'} | ${file} |`,
         );
@@ -128,7 +138,7 @@ function main() {
   }
 
   for (const r of blocking.slice(0, 10)) {
-    const file = relative(process.cwd(), r.file) || r.file;
+    const file = displayFile(r.file);
     console.log(
       `::error file=${file}::OSV-Scanner: ${r.severity} ${r.id} in ${r.package} (${r.aliases || 'no aliases'})`,
     );
