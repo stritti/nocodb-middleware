@@ -91,6 +91,7 @@ jobs:
           exit 1
 
       - name: Run OSV-Scanner (SARIF for code scanning)
+        id: sarif
         if: hashFiles('osv-results.json') != ''
         uses: google/osv-scanner-action/osv-scanner-action@0e457b42d0120153c352875e9b758b1e5c58c7e5 # v2.7.1
         env:
@@ -102,6 +103,15 @@ jobs:
             --format=sarif
             --output-file=osv-results.sarif
         continue-on-error: true
+
+      # Same guard as for the JSON scan: an operationally failed SARIF scan
+      # writes no file and must not silently skip the Security tab upload
+      # (vulnerability findings still write the file, so they pass this).
+      - name: Check that the SARIF scan completed
+        if: steps.sarif.outcome == 'failure' && hashFiles('osv-results.sarif') == ''
+        run: |
+          echo "::error::OSV-Scanner SARIF scan failed without writing osv-results.sarif; see the 'Run OSV-Scanner (SARIF for code scanning)' step for the cause."
+          exit 1
 
       # Fails the job on HIGH/CRITICAL findings in production dependencies
       # (the production image is built with `npm ci --only=production`);

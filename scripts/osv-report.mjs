@@ -7,8 +7,9 @@
 // - exits 1 when blocking findings exist, 0 when clean, 2 on usage errors
 //
 // Policy (configurable via env):
-//   OSV_FAIL_ON      comma-separated severities that fail the check
-//                    (default: CRITICAL,HIGH)
+//   OSV_FAIL_ON      comma-separated severities; the check fails on any
+//                    finding at or above the lowest listed severity
+//                    (default: CRITICAL,HIGH, i.e. HIGH and CRITICAL)
 //   OSV_FAIL_ON_DEV  "true" to also fail on dev-only findings
 //                    (default: false; the production image is built with
 //                    `npm ci --only=production`, so dev-only findings do not
@@ -50,7 +51,9 @@ function collectFindings(report) {
           id: vuln.id ?? '(unknown)',
           aliases: (vuln.aliases ?? []).join(', '),
           severity: String(severity).toUpperCase(),
-          devOnly: groups.length > 0 && groups.every((g) => g === 'dev' || g === 'optional'),
+          // `npm ci --only=production` omits only dev dependencies; optional
+          // dependencies are still installed in production and stay in scope.
+          devOnly: groups.includes('dev'),
         });
       }
     }
@@ -73,7 +76,7 @@ function main() {
     .map((s) => s.trim().toUpperCase())
     .filter(Boolean);
   const failOnDev = process.env.OSV_FAIL_ON_DEV === 'true';
-  const minRank = Math.max(...failOn.map(severityRank), 0);
+  const minRank = failOn.length > 0 ? Math.min(...failOn.map(severityRank)) : 0;
 
   const rows = collectFindings(report);
   const blocking = rows.filter(
