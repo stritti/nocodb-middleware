@@ -132,7 +132,7 @@ Konfiguration: `LOG_LEVEL` (siehe `.env.example`). Default: `debug` in Entwicklu
 ## Geplante Schärfung (OpenSpec)
 
 Die Beseitigung dieser Lücken ist als OpenSpec-Change formuliert:
-[`openspec/changes/structured-logging-concept/`](../openspec/changes/structured-logging-concept/proposal.md)
+[`openspec/changes/structured-logging-concept/proposal.md`](https://github.com/stritti/nocodb-middleware/blob/main/openspec/changes/structured-logging-concept/proposal.md)
 
 - Konsolidierung auf einen einzigen Request-Log-Pfad (Pino `autoLogging`)
 - Request-ID (`X-Request-Id`) mit Weitergabe an Upstream-Calls
