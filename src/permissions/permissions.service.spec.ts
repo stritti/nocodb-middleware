@@ -16,7 +16,7 @@ type Tables = Partial<
  * records of a table and remembers the filter, so tests can assert the
  * lookups the service performs.
  */
-function createNocoDB(tables: Tables, prefix = '') {
+function createNocoDB(tables: Tables) {
   const tableIds: Record<string, string> = {
     users: 'tbl_users',
     user_roles: 'tbl_user_roles',
@@ -28,9 +28,6 @@ function createNocoDB(tables: Tables, prefix = '') {
   );
 
   return {
-    getTablePrefix: jest.fn().mockReturnValue(prefix),
-    getBaseId: jest.fn().mockReturnValue('base'),
-    listBaseTables: jest.fn(),
     getTableByName: jest.fn((name: string) =>
       Promise.resolve(
         name in tables ? { id: tableIds[name], title: name } : null,
@@ -44,9 +41,6 @@ function createNocoDB(tables: Tables, prefix = '') {
     listAll: jest.fn((tableId: string) =>
       Promise.resolve(tables[byId[tableId] as keyof Tables] ?? []),
     ),
-    findOne: jest.fn(),
-    create: jest.fn(),
-    update: jest.fn(),
   };
 }
 
@@ -335,80 +329,6 @@ describe('PermissionsService', () => {
       await service.getUserPermissions(1);
 
       expect(nocodb.listAll).toHaveBeenCalledTimes(2);
-    });
-  });
-
-  describe('setTablePermissions', () => {
-    const nocodb = () =>
-      createNocoDB({ table_permissions: [], users: [], roles: [] });
-
-    it('updates an existing permission entry of the role', async () => {
-      const stub = nocodb();
-      stub.findOne.mockResolvedValue({ id: 5 });
-
-      await serviceFor(stub).setTablePermissions(1, 'orders', {
-        [CrudAction.READ]: true,
-      });
-
-      expect(stub.findOne).toHaveBeenCalledWith(
-        'tbl_permissions',
-        '(role_id,eq,1)~and(table_name,eq,"orders")',
-      );
-      expect(stub.update).toHaveBeenCalledWith('tbl_permissions', 5, {
-        role_id: 1,
-        table_name: 'orders',
-        can_create: false,
-        can_read: true,
-        can_update: false,
-        can_delete: false,
-      });
-    });
-
-    it('creates a permission entry when none exists', async () => {
-      const stub = nocodb();
-      stub.findOne.mockResolvedValue(null);
-
-      await serviceFor(stub).setTablePermissions(2, 'orders', {});
-
-      expect(stub.create).toHaveBeenCalledWith(
-        'tbl_permissions',
-        expect.objectContaining({ role_id: 2, table_name: 'orders' }),
-      );
-    });
-
-    it('throws when the table_permissions table is missing', async () => {
-      await expect(
-        serviceFor(createNocoDB({})).setTablePermissions(1, 'orders', {}),
-      ).rejects.toThrow('Table_permissions table not found');
-    });
-  });
-
-  describe('getAllWorkspaceTables', () => {
-    it('returns table names', async () => {
-      const stub = createNocoDB({});
-      stub.listBaseTables.mockResolvedValue([
-        { id: 't1', title: 'users' },
-        { id: 't2', title: 'orders' },
-      ]);
-
-      await expect(serviceFor(stub).getAllWorkspaceTables()).resolves.toEqual([
-        'users',
-        'orders',
-      ]);
-    });
-
-    it('returns logical names of the prefixed tables only', async () => {
-      const stub = createNocoDB({}, 'nc_');
-      stub.listBaseTables.mockResolvedValue([
-        { id: 't1', title: 'nc_users' },
-        { id: 't2', title: 'nc_orders' },
-        { id: 't3', title: 'other_table' },
-      ]);
-
-      await expect(serviceFor(stub).getAllWorkspaceTables()).resolves.toEqual([
-        'users',
-        'orders',
-      ]);
     });
   });
 });

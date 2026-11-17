@@ -26,11 +26,14 @@ export class PermissionsService {
   constructor(private nocoDBService: NocoDBService) {}
 
   async canAnonymousRead(tableName: string): Promise<boolean> {
+    const tables = await this.nocoDBService.listTables();
     const rolesTable = await this.nocoDBService.getTableByName(
       SYSTEM_TABLE_NAMES.ROLES,
+      tables,
     );
     const permissionsTable = await this.nocoDBService.getTableByName(
       SYSTEM_TABLE_NAMES.TABLE_PERMISSIONS,
+      tables,
     );
     if (!rolesTable || !permissionsTable) return false;
     const roles = await this.nocoDBService.list(rolesTable.id, {
@@ -52,26 +55,6 @@ export class PermissionsService {
     if (permissions.list.length > 1)
       throw new Error('Ambiguous anonymous permissions');
     return permissions.list[0]?.can_read === true;
-  }
-
-  /**
-   * Get all tables in the configured workspace
-   */
-  async getAllWorkspaceTables(): Promise<string[]> {
-    try {
-      const baseId = this.nocoDBService.getBaseId();
-      const tables = await this.nocoDBService.listBaseTables(baseId);
-      const prefix = this.nocoDBService.getTablePrefix();
-
-      // Permissions refer to tables by their logical (unprefixed) name.
-      return tables
-        .map((table) => table.title)
-        .filter((name) => (prefix ? name.startsWith(prefix) : true))
-        .map((name) => name.slice(prefix.length));
-    } catch (error) {
-      this.logger.error('Error fetching workspace tables:', error);
-      throw error;
-    }
   }
 
   /**
@@ -232,82 +215,6 @@ export class PermissionsService {
     }
 
     return tablePermissions.has(action);
-  }
-
-  /**
-   * Set permissions for a role on a table
-   */
-  async setTablePermissions(
-    roleId: number,
-    tableName: string,
-    permissions: Partial<Record<CrudAction, boolean>>,
-  ): Promise<void> {
-    try {
-      const permissionsTable = await this.nocoDBService.getTableByName(
-        SYSTEM_TABLE_NAMES.TABLE_PERMISSIONS,
-      );
-
-      if (!permissionsTable) {
-        throw new Error('Table_permissions table not found');
-      }
-
-      const existing = await this.nocoDBService.findOne(
-        permissionsTable.id,
-        andFilters(
-          filterEq('role_id', roleId),
-          filterEq('table_name', tableName),
-        ),
-      );
-
-      const permissionData = {
-        role_id: roleId,
-        table_name: tableName,
-        can_create: permissions[CrudAction.CREATE] ?? false,
-        can_read: permissions[CrudAction.READ] ?? false,
-        can_update: permissions[CrudAction.UPDATE] ?? false,
-        can_delete: permissions[CrudAction.DELETE] ?? false,
-      };
-
-      if (existing) {
-        await this.nocoDBService.update(
-          permissionsTable.id,
-          extractNumericId(existing),
-          permissionData,
-        );
-      } else {
-        await this.nocoDBService.create(permissionsTable.id, permissionData);
-      }
-
-      this.logger.log(
-        `Permissions set for role ${roleId} on table ${tableName}`,
-      );
-
-      this.permissionsCache.clear();
-    } catch (error) {
-      this.logger.error('Error setting table permissions:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Initialize permissions for all tables in workspace for a role
-   */
-  async initializePermissionsForRole(
-    roleId: number,
-    roleName: string,
-    defaultPermissions: Partial<Record<CrudAction, boolean>>,
-  ): Promise<void> {
-    this.logger.log(`Initializing permissions for role ${roleName}...`);
-
-    const tables = await this.getAllWorkspaceTables();
-
-    for (const tableName of tables) {
-      await this.setTablePermissions(roleId, tableName, defaultPermissions);
-    }
-
-    this.logger.log(
-      `${tables.length} table permissions initialized for role ${roleName}`,
-    );
   }
 
   /**
