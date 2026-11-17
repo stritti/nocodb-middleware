@@ -53,8 +53,86 @@ jobs:
           fail-on-severity: high
           comment-summary-in-pr: true
 
+  # OSV-Scanner (https://github.com/google/osv-scanner) scans only the
+  # lockfiles against the OSV database, needs no token and is fast enough to
+  # run on every event, complementing npm audit / Trivy / Snyk.
+  osv-scanner:
+    name: OSV-Scanner (OSV.dev)
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # Pinned to a commit like the other third-party actions in this file.
+      # Scans both lockfiles (middleware root + client library). Exits 1 when
+      # vulnerabilities are found, hence continue-on-error; the report step
+      # below decides the job outcome.
+      - name: Run OSV-Scanner
+        id: scan
+        uses: google/osv-scanner-action/osv-scanner-action@0e457b42d0120153c352875e9b758b1e5c58c7e5 # v2.7.1
+        env:
+          GOTOOLCHAIN: auto
+        with:
+          scan-args: |-
+            --lockfile=package-lock.json
+            --lockfile=client/package-lock.json
+            --format=json
+            --output-file=osv-results.json
+        continue-on-error: true
+
+      # A scan that errored writes no results file; fail instead of silently
+      # reporting "no vulnerabilities found".
+      - name: Check that the scan completed
+        if: steps.scan.outcome == 'failure' && hashFiles('osv-results.json') == ''
+        run: |
+          echo "::error::OSV-Scanner failed without writing osv-results.json; see the 'Run OSV-Scanner' step for the cause."
+          exit 1
+
+      - name: Run OSV-Scanner (SARIF for code scanning)
+        id: sarif
+        if: hashFiles('osv-results.json') != ''
+        uses: google/osv-scanner-action/osv-scanner-action@0e457b42d0120153c352875e9b758b1e5c58c7e5 # v2.7.1
+        env:
+          GOTOOLCHAIN: auto
+        with:
+          scan-args: |-
+            --lockfile=package-lock.json
+            --lockfile=client/package-lock.json
+            --format=sarif
+            --output-file=osv-results.sarif
+        continue-on-error: true
+
+      # Same guard as for the JSON scan: an operationally failed SARIF scan
+      # writes no file and must not silently skip the Security tab upload
+      # (vulnerability findings still write the file, so they pass this).
+      - name: Check that the SARIF scan completed
+        if: steps.sarif.outcome == 'failure' && hashFiles('osv-results.sarif') == ''
+        run: |
+          echo "::error::OSV-Scanner SARIF scan failed without writing osv-results.sarif; see the 'Run OSV-Scanner (SARIF for code scanning)' step for the cause."
+          exit 1
+
+      # Fails the job on HIGH/CRITICAL findings in production dependencies
+      # (the production image is built with `npm ci --only=production`);
+      # all findings are listed in the job summary.
+      - name: Report OSV-Scanner findings
+        if: hashFiles('osv-results.json') != ''
+        run: node scripts/osv-report.mjs osv-results.json
+
+      - name: Upload OSV-Scanner results to GitHub Security
+        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        if: always() && hashFiles('osv-results.sarif') != ''
+        # Pull requests from Dependabot or forks get a read-only token; the
+        # findings are still in the job summary there.
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        with:
+          sarif_file: osv-results.sarif
+          category: 'osv-scanner'
+
   # ── Deep scans: CodeQL and Snyk only on main push, schedule or manual ────
   #    run; Trivy also on pull requests, so findings show up before merge.
+
   codeql:
     name: CodeQL Analysis
     if: github.event_name != 'pull_request'

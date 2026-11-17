@@ -133,6 +133,21 @@ check_audit() {
     fi
 }
 
+# Function to check OSV-Scanner (google/osv-scanner) against both lockfiles.
+# Mirrors the osv-scanner job in .github/workflows/security-audit.yml:
+# fails on HIGH/CRITICAL findings in production dependencies.
+check_osv() {
+    echo "🔍 Checking OSV-Scanner (dependency vulnerabilities)..."
+    if npm run security:osv > /dev/null 2>&1; then
+        echo "✅ OSV-Scanner passed"
+        return 0
+    else
+        echo "❌ OSV-Scanner found blocking vulnerabilities"
+        npm run security:osv 2>&1 | tail -30
+        return 1
+    fi
+}
+
 # Main execution
 echo "=========================================="
 echo "  PR Quality Gate Verification"
@@ -182,6 +197,11 @@ fi
 echo ""
 
 if ! check_audit; then
+    FAILED=1
+fi
+echo ""
+
+if ! check_osv; then
     FAILED=1
 fi
 echo ""

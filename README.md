@@ -152,6 +152,7 @@ Before deployment, check these points:
 - Review RBAC defaults before exposing admin routes.
 - Rotate secrets and bootstrap tokens.
 - Confirm that `/api/health`, `/api/docs`, and admin endpoints exposure matches your environment.
+- Dependencies are scanned for known vulnerabilities in CI with [OSV-Scanner](https://github.com/google/osv-scanner); locally via `npm run security:osv` (details in `docs/security.md`).
 
 A more detailed checklist is in `docs/security.md`.
 
