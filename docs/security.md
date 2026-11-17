@@ -108,6 +108,30 @@ Aus `docs/product-readiness.md` ergeben sich vor allem diese Punkte:
 - kein Redis-Cache für mehrere Instanzen
 - keine dedizierten Metriken wie `/metrics`
 
+## Abhängigkeits-Scanning mit OSV-Scanner
+
+[OSV-Scanner](https://github.com/google/osv-scanner) von Google scannt die Lockfiles gegen die [OSV-Datenbank](https://osv.dev) und ergänzt damit `npm audit`, Trivy, Snyk und Dependency Review im Workflow [`.github/workflows/security-audit.yml`](../.github/workflows/security-audit.yml) (Job **OSV-Scanner (OSV.dev)**).
+
+- Gescannt werden `package-lock.json` (Middleware) und `client/package-lock.json` (Client-Library).
+- Der Job läuft bei jedem PR, Push auf `main`, wöchentlich per Schedule und manuell; er benötigt kein Token.
+- Alle Findings landen als SARIF (Kategorie `osv-scanner`) im GitHub-Tab „Security → Code scanning“ und als Tabelle in der Job-Zusammenfassung.
+- Der Job schlägt fehl bei **HIGH/CRITICAL in Produktionsabhängigkeiten** (das Produktionsimage wird mit `npm ci --only=production` gebaut). Dev-only-Findings werden berichtet, blockieren aber nicht; Dependabot und Dependency Review kümmern sich um deren Aktualisierung.
+
+Lokal läuft derselbe Check mit:
+
+```bash
+npm run security:osv
+```
+
+Dabei lädt `scripts/osv-scan.sh` die gepinnte Version `v2.7.1` (SHA-256-Verifikation über die Release-Checksummen) nach `node_modules/.cache/osv-scanner/`, scannt beide Lockfiles und wertet das JSON-Ergebnis mit `scripts/osv-report.mjs` aus. Voraussetzung ist die authentifizierte GitHub CLI (`gh`).
+
+Die Auswertung ist über Umgebungsvariablen konfigurierbar:
+
+- `OSV_FAIL_ON` – kommaseparierte Severities, die fehlschlagen (Default: `CRITICAL,HIGH`)
+- `OSV_FAIL_ON_DEV=true` – dev-only Findings ebenfalls hart fehlschlagen lassen
+
+Bekannte, akzeptierte Schwachstellen können über eine `osv-scanner.toml` ignoriert werden (automatisch pro Lockfile-Verzeichnis erkannt, siehe [OSV-Scanner Configuration](https://google.github.io/osv-scanner/configuration/)); jede Ausnahme sollte mit einer Begründung dokumentiert werden.
+
 ## Authentifizierung standardmäßig
 
 Der `JwtAuthGuard` ist als globaler Guard (`APP_GUARD`) registriert. **Jede Route erfordert einen gültigen JWT**, auch wenn am Controller kein `@UseGuards` steht. Ein vergessener Guard kann einen Endpoint damit nicht mehr versehentlich öffnen.

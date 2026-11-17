@@ -9,6 +9,7 @@ This directory contains automation scripts for repository maintenance and qualit
 | Script | Description | Usage |
 |--------|-------------|-------|
 | [`verify-pr.sh`](./verify-pr.sh) | Verify all quality gates for a PR | `./verify-pr.sh <pr-number>` |
+| [`osv-scan.sh`](./osv-scan.sh) | Scan both lockfiles with [OSV-Scanner](https://github.com/google/osv-scanner) (pinned, SHA-256-verified download) and evaluate the findings | `npm run security:osv` |
 
 ---
 
@@ -26,6 +27,7 @@ Verifies that a Pull Request meets all **Quality Gates** before it can be marked
 6. ✅ **Coverage** (`npm run test:cov`)
 7. ✅ **OpenAPI Spec** (`npm run generate:openapi`)
 8. ✅ **npm Audit** (`npm audit --production`)
+9. ✅ **OSV-Scanner** (`npm run security:osv`, see below)
 
 ### Usage
 
@@ -86,6 +88,38 @@ PR #189 is ready for review!
 - [GitHub CLI (`gh`)](https://cli.github.com/) must be installed and authenticated
 - Node.js and npm must be installed
 - All project dependencies must be installed (`npm install`)
+
+---
+
+## 🛡️ osv-scan.sh
+
+### Description
+Runs [OSV-Scanner](https://github.com/google/osv-scanner) (Google) against both
+lockfiles of this repository (`package-lock.json` and `client/package-lock.json`)
+and evaluates the findings with [`osv-report.mjs`](./osv-report.mjs).
+
+The scanner binary is downloaded once from the pinned GitHub release
+(`v2.7.1`) into `node_modules/.cache/osv-scanner/` (gitignored) and verified
+against the release `SHA256SUMS`. Requires an authenticated GitHub CLI (`gh`).
+
+### Usage
+```bash
+npm run security:osv
+```
+
+### Policy
+- The check **fails on HIGH/CRITICAL findings in production dependencies**
+  (the production image is built with `npm ci --only=production`).
+- Dev-only findings are reported but do not fail the check; Dependabot and
+  Dependency Review handle their updates.
+- Configurable via environment variables: `OSV_FAIL_ON=CRITICAL,HIGH` (default)
+  and `OSV_FAIL_ON_DEV=true` to also fail on dev-only findings.
+
+### CI
+The same scan runs in
+[`.github/workflows/security-audit.yml`](../.github/workflows/security-audit.yml)
+(job **OSV-Scanner (OSV.dev)**) on every PR, push, weekly schedule and manual
+run; SARIF results are uploaded to the Security tab (category `osv-scanner`).
 
 ---
 

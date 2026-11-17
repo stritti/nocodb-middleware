@@ -204,6 +204,7 @@ updates:
           - "snyk/*"
           - "github/codeql-action*"
           - "actions/dependency-review-action"
+          - "google/osv-scanner-action*"
         update-types:
           - "minor"
           - "patch"
