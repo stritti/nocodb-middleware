@@ -31,8 +31,9 @@ function severityRank(label) {
 function displayFile(path) {
   const rel = relative(process.cwd(), path);
   if (!rel.startsWith('..')) return rel || path;
-  const containerWs = process.env.GITHUB_WORKSPACE ?? '/github/workspace';
-  if (path.startsWith(`${containerWs}/`)) return path.slice(containerWs.length + 1);
+  for (const ws of [process.env.GITHUB_WORKSPACE, '/github/workspace']) {
+    if (ws && path.startsWith(`${ws}/`)) return path.slice(ws.length + 1);
+  }
   return path;
 }
 
