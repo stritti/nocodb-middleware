@@ -53,6 +53,7 @@ export interface FilterOptions {
   fields?: string[];
   limit?: number;
   offset?: number;
+  page?: number;
   /** Also fetch the total number of matching records (extra request). */
   withCount?: boolean;
 }
@@ -287,13 +288,16 @@ export class NocoDBService implements OnModuleInit {
    * is how NocoDB v3 identifies them; the physical `table_name` is accepted
    * as a fallback for older NocoDB versions.
    */
-  async getTableByName(tableName: string): Promise<NocoTableMeta | null> {
+  async getTableByName(
+    tableName: string,
+    tables?: readonly NocoTableMeta[],
+  ): Promise<NocoTableMeta | null> {
     const prefixedName = this.getPrefixedTableName(tableName);
     try {
-      const tables = await this.listTables();
+      const availableTables = tables ?? (await this.listTables());
       const table =
-        tables.find((t) => t.title === prefixedName) ??
-        tables.find((t) => t.table_name === prefixedName) ??
+        availableTables.find((t) => t.title === prefixedName) ??
+        availableTables.find((t) => t.table_name === prefixedName) ??
         null;
       if (!table) {
         this.logger.warn(`Table ${prefixedName} not found`);
@@ -545,10 +549,16 @@ export class NocoDBService implements OnModuleInit {
           if (options?.where) params.where = options.where;
           if (options?.sort) params.sort = toV3Sort(options.sort);
           if (options?.fields) params.fields = options.fields.join(',');
-          if (options?.limit !== undefined)
-            params.limit = String(options.limit);
-          if (options?.offset !== undefined)
-            params.offset = String(options.offset);
+          if (options?.page !== undefined) {
+            params.page = String(options.page);
+            if (options.limit !== undefined)
+              params.pageSize = String(options.limit);
+          } else {
+            if (options?.limit !== undefined)
+              params.limit = String(options.limit);
+            if (options?.offset !== undefined)
+              params.offset = String(options.offset);
+          }
 
           const response = await this.httpClient.get(
             RECORDS_PATH(this.baseId, tableId),

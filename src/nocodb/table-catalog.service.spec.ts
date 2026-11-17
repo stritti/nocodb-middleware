@@ -14,6 +14,36 @@ function serviceWith(prefix: string, titles: string[]) {
 }
 
 describe('TableCatalogService', () => {
+  it('hides renamed system tables by resolved identity', async () => {
+    const nocodb = {
+      getTablePrefix: () => 'app_',
+      listTables: jest.fn().mockResolvedValue([
+        {
+          id: 'sys_fields',
+          title: 'app_inventory',
+          table_name: 'app_api_resource_fields',
+        },
+        { id: 'external', title: 'app_products', table_name: 'nc_products' },
+      ]),
+    };
+    const service = new TableCatalogService(nocodb as unknown as NocoDBService);
+    await expect(service.listExternalTables()).resolves.toEqual([
+      { id: 'external', tableName: 'products', title: 'app_products' },
+    ]);
+  });
+
+  it('never lists the resource registry, including with a table prefix', async () => {
+    const service = serviceWith('app_', [
+      'app_api_resources',
+      'app_api_resource_fields',
+      'app_api_resource_filters',
+      'app_inventory',
+    ]);
+    await expect(service.listExternalTables()).resolves.toEqual([
+      { id: 't3', tableName: 'inventory', title: 'app_inventory' },
+    ]);
+  });
+
   it('lists user tables by name and hides system tables', async () => {
     const service = serviceWith('', ['customers', 'users', 'roles', 'orders']);
 

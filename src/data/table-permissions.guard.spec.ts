@@ -106,7 +106,15 @@ describe('TablePermissionsGuard', () => {
     );
   });
 
-  it.each(['users', 'roles', 'user_roles', 'table_permissions'])(
+  it.each([
+    'users',
+    'roles',
+    'user_roles',
+    'table_permissions',
+    'api_resources',
+    'api_resource_fields',
+    'api_resource_filters',
+  ])(
     'hides the internal system table %s even from users with full scope',
     async (table) => {
       const ctx = contextFor(

@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { isAxiosError } from 'axios';
 import { NocoDBService } from '../nocodb/nocodb.service';
+import { isInternalTable } from '../nocodb/system-tables';
 import {
   NocoFieldMeta,
   NocoPageInfo,
@@ -140,13 +141,21 @@ export class DataService {
     }
 
     const meta = await this.nocoDBService.getTableByName(table);
-    if (!meta?.id) {
+    const prefix = this.nocoDBService.getTablePrefix();
+    if (
+      !meta?.id ||
+      meta.title !== `${prefix}${table}` ||
+      isInternalTable(meta, prefix)
+    ) {
       this.tables.delete(table);
       throw new NotFoundException(`Table '${table}' not found`);
     }
 
     const tableId = String(meta.id);
-    const { fields = [] } = await this.nocoDBService.getTableMetadata(tableId);
+    const metadata = await this.nocoDBService.getTableMetadata(tableId);
+    if (isInternalTable(metadata, prefix))
+      throw new NotFoundException(`Table '${table}' not found`);
+    const { fields = [] } = metadata;
     const info: TableInfo = {
       id: tableId,
       writableFields: fieldTitles(fields, (f) => !isReadOnly(f)),

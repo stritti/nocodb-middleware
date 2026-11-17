@@ -687,6 +687,77 @@ paths:
       summary: Delete a record
       tags:
         - data
+  /public/{resource}:
+    get:
+      operationId: PublicReadController_list
+      parameters:
+        - name: resource
+          required: true
+          in: path
+          description: Enabled resource name configured in NocoDB
+          schema:
+            type: string
+        - name: take
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            maximum: 50
+            example: 25
+            type: number
+        - name: page
+          required: false
+          in: query
+          schema:
+            minimum: 1
+            example: 1
+            type: number
+      responses:
+        '200':
+          description: >-
+            Configured fields in data, with meta: page, take, total and pageCount. Additional query filters are defined
+            by the resource configuration.
+        '400':
+          description: Invalid pagination, configured filter, ID or query parameter
+        '403':
+          description: Anonymous role has no read permission on the resource table
+        '404':
+          description: Resource disabled, unknown or record not found
+        '503':
+          description: Resource configuration or permissions unavailable
+      summary: List an explicitly authorized configured public resource
+      tags:
+        - Public resources
+  /public/{resource}/{id}:
+    get:
+      operationId: PublicReadController_read
+      parameters:
+        - name: resource
+          required: true
+          in: path
+          description: Enabled resource name configured in NocoDB
+          schema:
+            type: string
+        - name: id
+          required: true
+          in: path
+          description: Positive record ID
+          schema:
+            type: number
+      responses:
+        '200':
+          description: Record ID and explicitly mapped resource fields
+        '400':
+          description: Invalid pagination, configured filter, ID or query parameter
+        '403':
+          description: Anonymous role has no read permission on the resource table
+        '404':
+          description: Resource disabled, unknown or record not found
+        '503':
+          description: Resource configuration or permissions unavailable
+      summary: Read an explicitly authorized configured public record
+      tags:
+        - Public resources
 info:
   title: NocoDB Middleware API
   description: >-

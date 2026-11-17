@@ -7,6 +7,9 @@ export const SYSTEM_TABLE_NAMES = {
   ROLES: 'roles',
   USER_ROLES: 'user_roles',
   TABLE_PERMISSIONS: 'table_permissions',
+  API_RESOURCES: 'api_resources',
+  API_RESOURCE_FIELDS: 'api_resource_fields',
+  API_RESOURCE_FILTERS: 'api_resource_filters',
 } as const;
 
 export type SystemTableName =

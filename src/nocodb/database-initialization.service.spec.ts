@@ -115,6 +115,34 @@ describe('DatabaseInitializationService', () => {
     );
   });
 
+  it('initializes empty resource configuration and an anonymous role without grants', async () => {
+    const fake = createFakeNocoDB();
+    await serviceFor(fake).onModuleInit();
+    for (const tableName of [
+      'api_resources',
+      'api_resource_fields',
+      'api_resource_filters',
+    ]) {
+      expect(fake.tables.get(tableName)?.records).toEqual([]);
+    }
+    expect(fake.tables.get('api_resource_fields')?.fields).toEqual(
+      expect.arrayContaining([
+        { title: 'resource_id', type: 'Number' },
+        { title: 'response_field', type: 'SingleLineText' },
+        { title: 'default_json', type: 'LongText' },
+      ]),
+    );
+    const anonymous = fake.tables
+      .get('roles')!
+      .records.find((record) => record.role_name === 'anonymous');
+    expect(anonymous).toBeDefined();
+    expect(
+      fake.tables
+        .get('table_permissions')!
+        .records.filter((record) => record.role_id === anonymous?.id),
+    ).toEqual([]);
+  });
+
   it('adds only the missing fields to an existing table', async () => {
     const fake = createFakeNocoDB([
       {
@@ -204,6 +232,9 @@ describe('DatabaseInitializationService', () => {
     const permissions = fake.tables.get('table_permissions')!.records;
 
     expect(permissions.map((p) => p.table_name).sort()).toEqual([
+      'api_resource_fields',
+      'api_resource_filters',
+      'api_resources',
       'roles',
       'table_permissions',
       'user_roles',
@@ -228,8 +259,8 @@ describe('DatabaseInitializationService', () => {
     await serviceFor(fake).onModuleInit();
     await serviceFor(fake).onModuleInit();
 
-    expect(fake.tables.get('roles')!.records).toHaveLength(1);
-    expect(fake.tables.get('table_permissions')!.records).toHaveLength(4);
+    expect(fake.tables.get('roles')!.records).toHaveLength(2);
+    expect(fake.tables.get('table_permissions')!.records).toHaveLength(7);
     expect(fake.createTable).toHaveBeenCalledTimes(
       SYSTEM_TABLE_DEFINITIONS.length,
     );
