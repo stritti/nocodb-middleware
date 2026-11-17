@@ -71,7 +71,7 @@ jobs:
       # below decides the job outcome.
       - name: Run OSV-Scanner
         id: scan
-        uses: google/osv-scanner-action/osv-scanner-action@0e457b42d0120153c352875e9b758b1e5c58c7e5 # v2.7.1
+        uses: google/osv-scanner-action/osv-scanner-action@d3c1414ded37de590f207572e37a7d180f1d0ef7 # v2.7.1
         env:
           GOTOOLCHAIN: auto
         with:
@@ -93,7 +93,7 @@ jobs:
       - name: Run OSV-Scanner (SARIF for code scanning)
         id: sarif
         if: hashFiles('osv-results.json') != ''
-        uses: google/osv-scanner-action/osv-scanner-action@0e457b42d0120153c352875e9b758b1e5c58c7e5 # v2.7.1
+        uses: google/osv-scanner-action/osv-scanner-action@d3c1414ded37de590f207572e37a7d180f1d0ef7 # v2.7.1
         env:
           GOTOOLCHAIN: auto
         with:
