@@ -157,6 +157,9 @@ const nocoDB = {
   ),
   getBaseId: jest.fn().mockReturnValue('test-base'),
   getTablePrefix: jest.fn().mockReturnValue(''),
+  listTables: jest.fn(async () =>
+    Object.keys(records).map((name) => ({ id: name, title: name })),
+  ),
   getTableByName: jest.fn(async (name: string) =>
     records[name] ? { id: name, title: name } : null,
   ),

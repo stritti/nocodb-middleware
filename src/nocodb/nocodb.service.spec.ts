@@ -4,9 +4,11 @@ import { NocoDBService } from './nocodb.service';
 import { Logger } from '@nestjs/common';
 import { AxiosError } from 'axios';
 import { NocoDBException } from './exceptions/nocodb.exception';
+import { PermissionsService } from '../permissions/permissions.service';
 
 describe('NocoDBService', () => {
   let service: NocoDBService;
+  let permissions: PermissionsService;
   let configService: ConfigService;
   let mockHttpClient: any;
 
@@ -22,6 +24,7 @@ describe('NocoDBService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         NocoDBService,
+        PermissionsService,
         {
           provide: ConfigService,
           useValue: {
@@ -40,6 +43,7 @@ describe('NocoDBService', () => {
     }).compile();
 
     service = module.get<NocoDBService>(NocoDBService);
+    permissions = module.get<PermissionsService>(PermissionsService);
     configService = module.get<ConfigService>(ConfigService);
 
     jest.spyOn(Logger.prototype, 'log').mockImplementation(() => {});
@@ -325,6 +329,74 @@ describe('NocoDBService', () => {
         expect.objectContaining({ id: 't3' }),
       );
     });
+
+    it.each([
+      [
+        'prefixed titles',
+        [
+          { id: 'roles', title: 'nc_roles' },
+          { id: 'permissions', title: 'nc_table_permissions' },
+        ],
+      ],
+      [
+        'physical names',
+        [
+          { id: 'roles', title: 'Roles', table_name: 'nc_roles' },
+          {
+            id: 'permissions',
+            title: 'Permissions',
+            table_name: 'nc_table_permissions',
+          },
+        ],
+      ],
+    ])(
+      'uses one fresh catalog per anonymous check with %s',
+      async (_name, tables) => {
+        let canRead = true;
+        mockHttpClient.get.mockImplementation((path: string) => {
+          const responses: Record<string, unknown> = {
+            [`${META}/tables`]: { list: tables },
+            '/api/v3/data/test-base-id/roles/records': {
+              records: [{ id: 7, fields: { role_name: 'anonymous' } }],
+            },
+            '/api/v3/data/test-base-id/permissions/records': {
+              records: [
+                {
+                  id: 1,
+                  fields: {
+                    role_id: 7,
+                    table_name: 'orders',
+                    can_read: canRead,
+                  },
+                },
+              ],
+            },
+          };
+          if (!(path in responses))
+            return Promise.reject(new Error(`Unexpected request: ${path}`));
+          return Promise.resolve({ data: responses[path] });
+        });
+
+        await expect(permissions.canAnonymousRead('orders')).resolves.toBe(
+          true,
+        );
+        expect(
+          mockHttpClient.get.mock.calls.filter(
+            ([path]: [string]) => path === `${META}/tables`,
+          ),
+        ).toHaveLength(1);
+
+        canRead = false;
+        await expect(permissions.canAnonymousRead('orders')).resolves.toBe(
+          false,
+        );
+        expect(
+          mockHttpClient.get.mock.calls.filter(
+            ([path]: [string]) => path === `${META}/tables`,
+          ),
+        ).toHaveLength(2);
+      },
+    );
 
     it('creates tables titled with the prefixed name', async () => {
       mockHttpClient.post.mockResolvedValue({ data: { id: 'new' } });
