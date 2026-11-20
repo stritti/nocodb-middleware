@@ -116,7 +116,7 @@ Zentraler Datenzugriffs-Layer. Stellt bereit:
 
 Vollständiges RBAC-System auf Table-Ebene:
 
-- **PermissionsService**: Lädt User-Permissions aus NocoDB-Tabellen (user → user_roles → roles → table_permissions), cached 5 Min.
+- **PermissionsService**: Lädt User-Permissions aus NocoDB-Tabellen (user → user_roles → roles → table_permissions), cached 60 s (`PERMISSIONS_CACHE_TTL_SECONDS`).
 - **PermissionsGuard**: Validiert `@RequirePermissions()` / `@RequireRead('table')` Decorator gegen berechnete Permissions.
 - **PermissionsManagementService/Controller**: Admin-CRUD für Rollen, Table-Permissions, User-Role-Zuweisungen.
 - **RolesService**: CRUD für Rollen (mit Validierung, Duplicate-Check).
@@ -278,7 +278,7 @@ PermissionsGuard.canActivate()
                          │
                          ├── NocoDB: table_permissions → get permissions
                          │
-                         └── Aggregate → Cache set (5 Min.)
+                         └── Aggregate → Cache set (60 s)
 ```
 
 ---
