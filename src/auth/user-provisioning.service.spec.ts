@@ -11,6 +11,7 @@ describe('UserProvisioningService', () => {
     findOne: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
+    listAll: jest.fn(),
   };
 
   beforeEach(async () => {
@@ -71,14 +72,8 @@ describe('UserProvisioningService', () => {
     ).rejects.toThrow(ConflictException);
   });
 
-  it('updates existing subject mapping without creating a new user', async () => {
+  it('returns an existing subject mapping without writing when nothing changed', async () => {
     mockNocoDBService.findOne.mockResolvedValueOnce({
-      id: '10',
-      username: 'legacy-user',
-      email: 'legacy@example.com',
-      is_active: true,
-    });
-    mockNocoDBService.update.mockResolvedValueOnce({
       id: '10',
       username: 'legacy-user',
       email: 'legacy@example.com',
@@ -88,14 +83,12 @@ describe('UserProvisioningService', () => {
     const result = await service.upsertIdentityUser({
       subject: 'subject-legacy',
       provider: 'external',
+      username: 'legacy-user',
       roles: ['admin'],
       scope: [],
     });
 
-    expect(mockNocoDBService.update).toHaveBeenCalledWith('users-table', 10, {
-      email: 'legacy@example.com',
-      username: 'legacy-user',
-    });
+    expect(mockNocoDBService.update).not.toHaveBeenCalled();
     expect(mockNocoDBService.create).not.toHaveBeenCalled();
     expect(result).toEqual({
       userId: 10,
@@ -103,6 +96,101 @@ describe('UserProvisioningService', () => {
       email: 'legacy@example.com',
       active: true,
       roles: ['admin'],
+    });
+  });
+
+  it('updates only changed fields of an existing subject mapping', async () => {
+    mockNocoDBService.findOne
+      .mockResolvedValueOnce({
+        id: 10,
+        username: 'old-name',
+        email: 'same@example.com',
+        is_active: true,
+      })
+      .mockResolvedValueOnce(null);
+    mockNocoDBService.update.mockResolvedValueOnce({
+      id: 10,
+      username: 'new-name',
+      email: 'same@example.com',
+      is_active: true,
+    });
+
+    const result = await service.upsertIdentityUser({
+      subject: 'subject-10',
+      provider: 'external',
+      email: 'same@example.com',
+      username: 'new-name',
+      roles: [],
+      scope: [],
+    });
+
+    expect(mockNocoDBService.update).toHaveBeenCalledWith('users-table', 10, {
+      username: 'new-name',
+    });
+    expect(result.username).toBe('new-name');
+  });
+
+  describe('linking an existing account by email', () => {
+    const existingUser = {
+      id: 55,
+      username: 'mail-user',
+      email: 'mail@example.com',
+      is_active: true,
+      auth_provider: 'local',
+      external_subject: 'mail@example.com',
+    };
+
+    const claims = {
+      subject: 'subject-mail',
+      provider: 'external' as const,
+      email: 'mail@example.com',
+      roles: [],
+      scope: [],
+    };
+
+    it('rejects an unverified email', async () => {
+      mockNocoDBService.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(existingUser)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(existingUser);
+
+      await expect(service.upsertIdentityUser(claims)).rejects.toThrow(
+        ConflictException,
+      );
+      await expect(
+        service.upsertIdentityUser({ ...claims, emailVerified: false }),
+      ).rejects.toThrow(ConflictException);
+      expect(mockNocoDBService.update).not.toHaveBeenCalled();
+      expect(mockNocoDBService.create).not.toHaveBeenCalled();
+    });
+
+    it('rejects an account already linked to another subject', async () => {
+      mockNocoDBService.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({
+          ...existingUser,
+          auth_provider: 'external',
+          external_subject: 'other-subject',
+        });
+
+      await expect(
+        service.upsertIdentityUser({ ...claims, emailVerified: true }),
+      ).rejects.toThrow(ConflictException);
+      expect(mockNocoDBService.update).not.toHaveBeenCalled();
+    });
+
+    it('rejects an account with the admin role', async () => {
+      mockNocoDBService.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(existingUser)
+        .mockResolvedValueOnce({ id: 1, role_name: 'admin' });
+      mockNocoDBService.listAll.mockResolvedValueOnce([{ role_id: 1 }]);
+
+      await expect(
+        service.upsertIdentityUser({ ...claims, emailVerified: true }),
+      ).rejects.toThrow(ConflictException);
+      expect(mockNocoDBService.update).not.toHaveBeenCalled();
     });
   });
 
@@ -114,7 +202,11 @@ describe('UserProvisioningService', () => {
         username: 'mail-user',
         email: 'mail@example.com',
         is_active: true,
+        auth_provider: 'local',
       });
+    // user_roles: a non-admin role only
+    mockNocoDBService.listAll.mockResolvedValueOnce([{ role_id: 2 }]);
+    mockNocoDBService.findOne.mockResolvedValueOnce(null);
     mockNocoDBService.update.mockResolvedValueOnce({
       id: 55,
       username: 'mail-user',
@@ -126,6 +218,7 @@ describe('UserProvisioningService', () => {
       subject: 'subject-mail',
       provider: 'external',
       email: 'mail@example.com',
+      emailVerified: true,
       roles: ['developer'],
       scope: ['users:read'],
     });

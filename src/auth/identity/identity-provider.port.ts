@@ -2,6 +2,8 @@ export interface NormalizedIdentityClaims {
   subject: string;
   provider: 'local' | 'external';
   email?: string;
+  /** `true` only if the token carries `email_verified: true`. */
+  emailVerified?: boolean;
   username?: string;
   roles: string[];
   scope: string[];
