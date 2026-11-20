@@ -4,6 +4,25 @@
 
 - configure JWT algorithms for external provider RSA/EC support ([#203](https://github.com/stritti/nocodb-middleware/issues/203)) ([3e5d0ba](https://github.com/stritti/nocodb-middleware/commit/3e5d0badd7141f530ddfad4492c1706856fdd0db))
 
+## [0.8.2](https://github.com/stritti/nocodb-middleware/compare/nocodb-middleware-v0.8.1...nocodb-middleware-v0.8.2) (2026-11-20)
+
+
+### Bug Fixes
+
+* **auth:** only link external identities to verified, unlinked, non-admin accounts ([#396](https://github.com/stritti/nocodb-middleware/issues/396)) ([6e28ed3](https://github.com/stritti/nocodb-middleware/commit/6e28ed35b1aa246ed922e3c4d98fc770997802dd))
+* **auth:** resolve roles from user_roles instead of the JWT claim ([#395](https://github.com/stritti/nocodb-middleware/issues/395)) ([8682d75](https://github.com/stritti/nocodb-middleware/commit/8682d75f3032d7fd41387bcda2c8ff69b3e4915b))
+* **deps:** bump axios from 1.21.0 to 1.21.1 in the http-client group ([#380](https://github.com/stritti/nocodb-middleware/issues/380)) ([1a2f31c](https://github.com/stritti/nocodb-middleware/commit/1a2f31c92668bd505c79aee45ea7fa6ec4d78884))
+* **deps:** bump express-rate-limit from 8.7.2 to 8.7.3 ([#363](https://github.com/stritti/nocodb-middleware/issues/363)) ([eda676f](https://github.com/stritti/nocodb-middleware/commit/eda676ff5fa91b229323416b807056b958a2ea8c))
+* **deps:** bump the nestjs group across 1 directory with 11 updates ([#375](https://github.com/stritti/nocodb-middleware/issues/375)) ([eac0f3a](https://github.com/stritti/nocodb-middleware/commit/eac0f3ac9e2e9720fbb4c6e5dc98b2f5372da32b))
+* **deps:** bump the nestjs group with 4 updates ([#378](https://github.com/stritti/nocodb-middleware/issues/378)) ([08cdf82](https://github.com/stritti/nocodb-middleware/commit/08cdf820878012aba8629aaa7b0eac8f37860670))
+* **deps:** bump the nestjs group with 5 updates ([#389](https://github.com/stritti/nocodb-middleware/issues/389)) ([c1becc0](https://github.com/stritti/nocodb-middleware/commit/c1becc06334995aacba4cafbc4550a859f2b5bc2))
+* **deps:** bump the opentelemetry group across 1 directory with 6 updates ([#374](https://github.com/stritti/nocodb-middleware/issues/374)) ([3b5bb3f](https://github.com/stritti/nocodb-middleware/commit/3b5bb3f530ba30083234b21e5cf46c730b68d1bd))
+* **deps:** bump the opentelemetry group with 5 updates ([#379](https://github.com/stritti/nocodb-middleware/issues/379)) ([726159b](https://github.com/stritti/nocodb-middleware/commit/726159b56b79242cf16418fbd00d14cfe13da910))
+* **deps:** bump the security group with 2 updates ([#381](https://github.com/stritti/nocodb-middleware/issues/381)) ([2112275](https://github.com/stritti/nocodb-middleware/commit/2112275a7f34aa7c90721c1fa4357d80cda389a5))
+* **docker:** bind NocoDB port to loopback only ([#393](https://github.com/stritti/nocodb-middleware/issues/393)) ([10461b2](https://github.com/stritti/nocodb-middleware/commit/10461b222b5ba506b16e99038ffa167a3508d2a3))
+* **permissions:** never apply wildcard scopes to system tables ([#394](https://github.com/stritti/nocodb-middleware/issues/394)) ([2864298](https://github.com/stritti/nocodb-middleware/commit/28642982ee5ccf8097cdaa616bf0513072262875))
+* **rate-limit:** limit per user after authentication and support trust proxy ([#397](https://github.com/stritti/nocodb-middleware/issues/397)) ([d15af96](https://github.com/stritti/nocodb-middleware/commit/d15af967afa42dbf476abd52453cbe740d7bc7f4))
+
 ## [0.8.1](https://github.com/stritti/nocodb-middleware/compare/nocodb-middleware-v0.8.0...nocodb-middleware-v0.8.1) (2026-11-02)
 
 
