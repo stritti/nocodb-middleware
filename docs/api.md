@@ -59,6 +59,10 @@ Beispielantwort:
 
 - `POST /api/bootstrap/admin`
 - Auth: `x-bootstrap-token`
+- Legt den ersten Admin an oder macht einen bestehenden Benutzer zum Admin.
+- **Sperrt sich selbst**, sobald ein Benutzer die Rolle `admin` hat: Weitere Aufrufe liefern `403`. Ein erneuter Aufruf für einen Benutzer, der bereits Admin ist, bleibt idempotent (`created: false`). Weitere Admins werden über `POST /api/admin/permissions/user-roles/assign` vergeben.
+- Höchstens 5 Versuche pro 15 Minuten und Client-Netz, danach `429`.
+- Jeder Aufruf wird als `event: bootstrap_admin` mit Ergebnis (`created`, `promoted`, `unchanged`, `denied`, `rate_limited`) geloggt.
 
 ```bash
 curl -X POST http://localhost:3000/api/bootstrap/admin \

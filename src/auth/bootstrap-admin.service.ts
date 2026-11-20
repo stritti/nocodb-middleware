@@ -5,6 +5,7 @@ import {
   NotFoundException,
   UnauthorizedException,
   IntrinsicException,
+  Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
@@ -20,8 +21,19 @@ import {
   extractNumericId,
 } from '../common/utils/nocodb-utils';
 
+/**
+ * Creates the first admin, or promotes an existing user to admin, guarded by
+ * `BOOTSTRAP_ADMIN_TOKEN`.
+ *
+ * The endpoint locks itself once any user holds the admin role: further
+ * calls are rejected with 403, so a leaked token cannot be used later to
+ * promote arbitrary users. Repeating the call for a user who already is admin
+ * stays idempotent. Every call is written to the audit log.
+ */
 @Injectable()
 export class BootstrapAdminService {
+  private readonly logger = new Logger(BootstrapAdminService.name);
+
   constructor(
     private readonly configService: ConfigService,
     private readonly nocoDBService: NocoDBService,
@@ -36,7 +48,12 @@ export class BootstrapAdminService {
     username: string;
     created: boolean;
   }> {
-    this.assertBootstrapAllowed(bootstrapToken);
+    try {
+      this.assertBootstrapAllowed(bootstrapToken);
+    } catch (error) {
+      this.audit('denied', dto.username, 'invalid_token');
+      throw error;
+    }
 
     const usersTable = assertTableRef(
       await this.nocoDBService.getTableByName(SYSTEM_TABLE_NAMES.USERS),
@@ -87,20 +104,33 @@ export class BootstrapAdminService {
 
     if (existingByUsername) {
       const existingUserId = extractNumericId(existingByUsername);
-      if (
-        !(await this.nocoDBService.findOne(
-          userRolesTable.id,
-          andFilters(
-            filterEq('user_id', existingUserId),
-            filterEq('role_id', adminRoleId),
-          ),
-        ))
-      ) {
-        await this.nocoDBService.create(userRolesTable.id, {
-          user_id: existingUserId,
-          role_id: adminRoleId,
-        });
+      const alreadyAdmin = await this.nocoDBService.findOne(
+        userRolesTable.id,
+        andFilters(
+          filterEq('user_id', existingUserId),
+          filterEq('role_id', adminRoleId),
+        ),
+      );
+      if (alreadyAdmin) {
+        this.audit('unchanged', dto.username, 'already_admin');
+        return {
+          success: true,
+          userId: existingUserId,
+          username: dto.username,
+          created: false,
+        };
       }
+    }
+
+    await this.assertNoAdminExists(userRolesTable.id, adminRoleId, dto);
+
+    if (existingByUsername) {
+      const existingUserId = extractNumericId(existingByUsername);
+      await this.nocoDBService.create(userRolesTable.id, {
+        user_id: existingUserId,
+        role_id: adminRoleId,
+      });
+      this.audit('promoted', dto.username);
 
       return {
         success: true,
@@ -131,6 +161,7 @@ export class BootstrapAdminService {
       user_id: userId,
       role_id: adminRoleId,
     });
+    this.audit('created', dto.username);
 
     return {
       success: true,
@@ -138,6 +169,37 @@ export class BootstrapAdminService {
       username: dto.username,
       created: true,
     };
+  }
+
+  private async assertNoAdminExists(
+    userRolesTableId: string,
+    adminRoleId: number,
+    dto: BootstrapAdminDto,
+  ): Promise<void> {
+    const anyAdmin = await this.nocoDBService.findOne(
+      userRolesTableId,
+      filterEq('role_id', adminRoleId),
+    );
+    if (anyAdmin) {
+      this.audit('denied', dto.username, 'admin_exists');
+      throw new ForbiddenException(
+        'Bootstrap is locked because an admin already exists',
+      );
+    }
+  }
+
+  private audit(
+    outcome: 'created' | 'promoted' | 'unchanged' | 'denied',
+    username: string,
+    reason?: string,
+  ): void {
+    // Structured audit entry; with nestjs-pino the object becomes JSON fields.
+    const entry = { event: 'bootstrap_admin', outcome, username, reason };
+    if (outcome === 'denied') {
+      this.logger.warn(entry, 'Bootstrap admin denied');
+    } else {
+      this.logger.log(entry, `Bootstrap admin ${outcome}`);
+    }
   }
 
   private assertBootstrapAllowed(bootstrapToken: string | undefined): void {

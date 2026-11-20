@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import {
   ConflictException,
+  ForbiddenException,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -116,7 +117,8 @@ describe('BootstrapAdminService', () => {
       .mockResolvedValueOnce({ id: 99, username: 'admin' })
       .mockResolvedValueOnce({ id: 99, username: 'admin' })
       .mockResolvedValueOnce({ id: 1, role_name: 'admin' })
-      .mockResolvedValueOnce(null);
+      .mockResolvedValueOnce(null) // user is not admin yet
+      .mockResolvedValueOnce(null); // no admin exists
 
     mockNocoDBService.create.mockResolvedValue({ id: 777 });
 
@@ -143,6 +145,72 @@ describe('BootstrapAdminService', () => {
         role_id: 1,
       }),
     );
+  });
+
+  it('is locked once any admin exists', async () => {
+    mockNocoDBService.findOne
+      .mockResolvedValueOnce({ id: 99, username: 'victim' })
+      .mockResolvedValueOnce({ id: 99, username: 'victim' })
+      .mockResolvedValueOnce({ id: 1, role_name: 'admin' })
+      .mockResolvedValueOnce(null) // victim is not admin
+      .mockResolvedValueOnce({ id: 5, user_id: 1, role_id: 1 }); // admin exists
+
+    await expect(
+      service.bootstrapAdmin(
+        {
+          username: 'victim',
+          email: 'victim@example.com',
+          password: 'ComplexPassword#123',
+        },
+        'bootstrap-secret-token',
+      ),
+    ).rejects.toThrow(ForbiddenException);
+    expect(mockNocoDBService.create).not.toHaveBeenCalled();
+  });
+
+  it('does not create a second admin user once an admin exists', async () => {
+    mockNocoDBService.findOne
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ id: 1, role_name: 'admin' })
+      .mockResolvedValueOnce({ id: 5, user_id: 1, role_id: 1 });
+
+    await expect(
+      service.bootstrapAdmin(
+        {
+          username: 'second-admin',
+          email: 'second@example.com',
+          password: 'ComplexPassword#123',
+        },
+        'bootstrap-secret-token',
+      ),
+    ).rejects.toThrow(ForbiddenException);
+    expect(mockNocoDBService.create).not.toHaveBeenCalled();
+  });
+
+  it('stays idempotent for a user who already is admin', async () => {
+    mockNocoDBService.findOne
+      .mockResolvedValueOnce({ id: 1, username: 'admin' })
+      .mockResolvedValueOnce({ id: 1, username: 'admin' })
+      .mockResolvedValueOnce({ id: 1, role_name: 'admin' })
+      .mockResolvedValueOnce({ id: 5, user_id: 1, role_id: 1 });
+
+    await expect(
+      service.bootstrapAdmin(
+        {
+          username: 'admin',
+          email: 'admin@example.com',
+          password: 'ComplexPassword#123',
+        },
+        'bootstrap-secret-token',
+      ),
+    ).resolves.toEqual({
+      success: true,
+      userId: 1,
+      username: 'admin',
+      created: false,
+    });
+    expect(mockNocoDBService.create).not.toHaveBeenCalled();
   });
 
   it('should reject when email belongs to another user', async () => {
