@@ -44,8 +44,14 @@ services:
     # Pinned: the middleware is verified against this version
     # (CI job "Integration"). Test before upgrading.
     image: nocodb/nocodb:0.301.3
+    # Security: NocoDB must only be reachable through the middleware.
+    # The port is bound to the loopback interface so it can be used for the
+    # initial setup (creating the base and API token) from the Docker host,
+    # but it is never exposed on public interfaces. Remove the `ports`
+    # entry entirely once the setup is done; the middleware reaches NocoDB
+    # over the internal `nocodb-network`.
     ports:
-      - '8080:8080'
+      - '127.0.0.1:8080:8080'
     environment:
       - NC_DB=sqlite:///data/nocodb.db
     volumes:
