@@ -86,6 +86,10 @@ Beispielantwort:
 
 Basispfad: `/api/admin/permissions`
 
+Die Admin-Endpunkte prüfen Rechte auf die Systemtabellen `roles`, `user_roles` und `table_permissions` (z. B. `POST /user-roles/assign` verlangt `create` auf `user_roles`). Erlaubt ist ein Request, wenn eine Rolle des Benutzers dieses Recht in `table_permissions` hat oder der JWT einen Scope enthält, der die Systemtabelle **ausdrücklich** nennt (z. B. `user_roles:create` oder `roles:*`). Wildcard-Scopes wie `*:*` oder `*:create` gelten nur für Datentabellen, nie für Systemtabellen. So kann ein Token mit breitem Datenzugriff sich nicht selbst Admin-Rechte geben.
+
+Wer Rechte auf `table_permissions` oder `user_roles` hat, kann damit weitere Rechte vergeben, auch auf Systemtabellen. Diese Rechte entsprechen daher Admin-Rechten und sollten nur Admin-Rollen erhalten.
+
 - `POST /roles`
 - `GET /roles`
 - `DELETE /roles/:roleId`
@@ -169,7 +173,7 @@ Query-Parameter für die Liste: `where` (NocoDB-Filter, z. B. `(Name,eq,Alice)`)
 
 **Autorisierung pro Tabelle und Aktion**, sonst `403`. Erlaubt ist ein Request, wenn eins von beiden zutrifft:
 
-- Der JWT enthält einen passenden Scope: `customers:read`, `customers:*`, `*:read` oder `*:*`.
+- Der JWT enthält einen passenden Scope: `customers:read`, `customers:*`, `*:read` oder `*:*`. Wildcards gelten nie für Systemtabellen (siehe RBAC oben).
 - Eine Rolle des Benutzers hat das Recht in `table_permissions` (siehe RBAC oben).
 
 Die Systemtabellen `users`, `roles`, `user_roles` und `table_permissions` sind über diese API nicht erreichbar und liefern `404`, ebenso unbekannte Tabellen und ungültige Namen. Ein fehlender Datensatz liefert bei `GET`, `PATCH` und `DELETE` ebenfalls `404`.
