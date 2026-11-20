@@ -28,6 +28,8 @@ Für diese Middleware ist die Frage nicht nur, **ob** ein Token sicher gespeiche
 `NOCODB_API_TOKEN` ist ein Backend-Secret.
 Es darf nie im Browser, in mobilen Clients oder in öffentlich ausgelieferten Build-Artefakten landen.
 
+Fehlgeschlagene NocoDB-Requests werden vor dem Loggen bereinigt: Ein Axios-Interceptor ersetzt `xc-token`/`xc-auth` in der Request-Konfiguration durch `[REDACTED]` und entfernt das rohe `ClientRequest`-Objekt, das die Header ebenfalls enthält. Zusätzlich maskiert Pino diese Header in geloggten Fehlerobjekten.
+
 ## Empfohlene Sicherheitsmuster
 
 ### Muster A: Browser-SPA mit In-Memory Access Token
