@@ -29,7 +29,15 @@ import { TelemetryModule } from './tracing/telemetry.module';
                 options: { colorize: true, singleLine: true },
               }
             : undefined,
-        redact: ['req.headers.authorization', 'req.headers.cookie'],
+        redact: [
+          'req.headers.authorization',
+          'req.headers.cookie',
+          // Defense in depth: NocoDB credentials inside logged Axios errors
+          'err.config.headers["xc-token"]',
+          'err.config.headers["xc-auth"]',
+          '*.config.headers["xc-token"]',
+          '*.config.headers["xc-auth"]',
+        ],
         autoLogging: {
           ignore: (req) => req.url === '/health',
         },
