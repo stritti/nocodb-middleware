@@ -6,6 +6,11 @@ interface RolesRequest {
   user?: { roles?: string[] };
 }
 
+/**
+ * Allows a request when the user has one of the roles required by
+ * `@Roles()`. `request.user.roles` is filled by `JwtStrategy` from the user's
+ * role assignments in NocoDB, not from token claims.
+ */
 @Injectable()
 export class RolesGuard implements CanActivate {
   constructor(private reflector: Reflector) {}

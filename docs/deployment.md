@@ -77,7 +77,7 @@ Siehe auch `src/config/cors.config.ts` für die vollständige Validierungslogik.
 
 1. Secrets für Zielprovider bereitstellen (`JWT_SECRET` oder `EXTERNAL_JWT_SECRET`).
 2. In Staging `AUTH_PROVIDER` umstellen und Health + Auth-Endpunkte testen.
-3. Token-Claims (`sub`, `roles`, `scope`) gegen RBAC-Guard-Entscheidungen verifizieren.
+3. Token-Claims (`sub`, `scope`) und die Rollenzuweisungen in `user_roles` gegen RBAC-Guard-Entscheidungen verifizieren. Ein `roles`-Claim des IdP wird ignoriert.
 4. Bei Problemen auf vorherigen Provider zurückschalten und Deployment neu starten.
 
 ## Reverse Proxy
