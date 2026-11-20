@@ -24,10 +24,25 @@ describe('IdentityClaimsNormalizerService', () => {
       subject: 'abc123',
       provider: 'external',
       email: 'dev@example.com',
+      emailVerified: false,
       username: 'dev-user',
       roles: ['admin', 'developer'],
       scope: ['users:read', 'users:write'],
     });
+  });
+
+  it.each([
+    [true, true],
+    ['true', true],
+    [false, false],
+    ['yes', false],
+    [undefined, false],
+  ])('maps email_verified %p to emailVerified %p', (value, expected) => {
+    const result = service.normalize(
+      { sub: 'abc', email_verified: value },
+      'external',
+    );
+    expect(result.emailVerified).toBe(expected);
   });
 
   it('throws when sub is missing', () => {
