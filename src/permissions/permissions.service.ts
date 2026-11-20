@@ -1,4 +1,10 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  Optional,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { NocoDBService } from '../nocodb/nocodb.service';
 import { andFilters, filterEq, filterIn } from '../nocodb/nocodb-filter.util';
 import { CrudAction } from './enums/crud-action.enum';
@@ -6,8 +12,12 @@ import { UserPermissions } from './interfaces/permission.interface';
 import { extractNumericId } from '../common/utils/nocodb-utils';
 import { SYSTEM_TABLE_NAMES } from '../common/system-table-names';
 
-/** In-memory permission cache TTL (5 minutes). */
-const PERMISSIONS_CACHE_TTL_MS = 5 * 60 * 1000;
+/**
+ * Default in-memory permission cache TTL (60 seconds). Changes made through
+ * the API clear the cache of this instance at once; changes made directly in
+ * NocoDB or through another instance take effect after at most this TTL.
+ */
+export const DEFAULT_PERMISSIONS_CACHE_TTL_SECONDS = 60;
 export const PERMISSIONS_CACHE_MAX_ENTRIES = 1000;
 
 @Injectable()
@@ -21,8 +31,16 @@ export class PermissionsService {
     number,
     { value: UserPermissions; expiresAt: number }
   >();
+  private readonly CACHE_TTL: number;
 
-  constructor(private nocoDBService: NocoDBService) {}
+  constructor(
+    private nocoDBService: NocoDBService,
+    @Optional() configService?: ConfigService,
+  ) {
+    this.CACHE_TTL = resolveCacheTtlMs(
+      configService?.get<string | number>('PERMISSIONS_CACHE_TTL_SECONDS'),
+    );
+  }
 
   /**
    * Get all tables in the configured workspace
@@ -48,7 +66,8 @@ export class PermissionsService {
    * Load all permissions for a user
    */
   async getUserPermissions(userId: number): Promise<UserPermissions> {
-    const cached = this.permissionsCache.get(userId);
+    const cached =
+      this.CACHE_TTL > 0 ? this.permissionsCache.get(userId) : undefined;
     if (cached && cached.expiresAt > Date.now()) {
       return cached.value;
     }
@@ -170,6 +189,9 @@ export class PermissionsService {
    * moves a user to the end.
    */
   private cachePermissions(userId: number, value: UserPermissions): void {
+    if (this.CACHE_TTL <= 0) {
+      return;
+    }
     const now = Date.now();
     for (const [id, entry] of this.permissionsCache) {
       if (entry.expiresAt <= now) this.permissionsCache.delete(id);
@@ -181,7 +203,7 @@ export class PermissionsService {
     }
     this.permissionsCache.set(userId, {
       value,
-      expiresAt: now + PERMISSIONS_CACHE_TTL_MS,
+      expiresAt: now + this.CACHE_TTL,
     });
   }
 
@@ -303,4 +325,18 @@ export class PermissionsService {
       permissions: new Map(),
     };
   }
+}
+
+/**
+ * `PERMISSIONS_CACHE_TTL_SECONDS`: non-negative number of seconds; `0`
+ * disables the cache. Missing or invalid values use the default.
+ */
+export function resolveCacheTtlMs(value: string | number | undefined): number {
+  if (value === undefined || value === '') {
+    return DEFAULT_PERMISSIONS_CACHE_TTL_SECONDS * 1000;
+  }
+  const seconds = Number(value);
+  return Number.isFinite(seconds) && seconds >= 0
+    ? seconds * 1000
+    : DEFAULT_PERMISSIONS_CACHE_TTL_SECONDS * 1000;
 }

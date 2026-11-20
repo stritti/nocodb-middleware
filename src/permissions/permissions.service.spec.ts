@@ -1,6 +1,8 @@
 import { Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import {
   PermissionsService,
+  resolveCacheTtlMs,
   PERMISSIONS_CACHE_MAX_ENTRIES,
 } from './permissions.service';
 import { NocoDBService } from '../nocodb/nocodb.service';
@@ -264,16 +266,41 @@ describe('PermissionsService', () => {
     // one uncached load reads user_roles, roles and table_permissions
     const LOOKUPS_PER_LOAD = 3;
 
-    it('reloads permissions once the cache entry is older than 5 minutes', async () => {
+    it('reloads permissions once the cache entry is older than 60 seconds', async () => {
       const nocodb = createNocoDB(tables);
       const service = serviceFor(nocodb);
 
       await service.getUserPermissions(1);
-      jest.advanceTimersByTime(4 * 60 * 1000);
+      jest.advanceTimersByTime(50 * 1000);
       await service.getUserPermissions(1);
       expect(nocodb.listAll).toHaveBeenCalledTimes(LOOKUPS_PER_LOAD);
 
-      jest.advanceTimersByTime(2 * 60 * 1000);
+      jest.advanceTimersByTime(20 * 1000);
+      await service.getUserPermissions(1);
+      expect(nocodb.listAll).toHaveBeenCalledTimes(2 * LOOKUPS_PER_LOAD);
+    });
+
+    it('uses PERMISSIONS_CACHE_TTL_SECONDS', async () => {
+      const nocodb = createNocoDB(tables);
+      const service = new PermissionsService(
+        nocodb as unknown as NocoDBService,
+        { get: () => '10' } as unknown as ConfigService,
+      );
+
+      await service.getUserPermissions(1);
+      jest.advanceTimersByTime(11 * 1000);
+      await service.getUserPermissions(1);
+      expect(nocodb.listAll).toHaveBeenCalledTimes(2 * LOOKUPS_PER_LOAD);
+    });
+
+    it('does not cache when PERMISSIONS_CACHE_TTL_SECONDS is 0', async () => {
+      const nocodb = createNocoDB(tables);
+      const service = new PermissionsService(
+        nocodb as unknown as NocoDBService,
+        { get: () => '0' } as unknown as ConfigService,
+      );
+
+      await service.getUserPermissions(1);
       await service.getUserPermissions(1);
       expect(nocodb.listAll).toHaveBeenCalledTimes(2 * LOOKUPS_PER_LOAD);
     });
@@ -290,7 +317,7 @@ describe('PermissionsService', () => {
       }
       expect(cacheSize(service)).toBe(3);
 
-      jest.advanceTimersByTime(6 * 60 * 1000);
+      jest.advanceTimersByTime(61 * 1000);
       await service.getUserPermissions(4);
 
       expect(cacheSize(service)).toBe(1);
@@ -410,5 +437,19 @@ describe('PermissionsService', () => {
         'orders',
       ]);
     });
+  });
+});
+
+describe('resolveCacheTtlMs', () => {
+  it.each([
+    [undefined, 60_000],
+    ['', 60_000],
+    ['abc', 60_000],
+    ['-5', 60_000],
+    ['0', 0],
+    ['30', 30_000],
+    [120, 120_000],
+  ])('maps %p to %p ms', (value, expected) => {
+    expect(resolveCacheTtlMs(value)).toBe(expected);
   });
 });

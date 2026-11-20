@@ -164,7 +164,7 @@ test/
 | Item                                    | Status               |
 | --------------------------------------- | -------------------- |
 | In-memory GET caching                   | ✅                   |
-| Permissions cache (5 min TTL)           | ✅                   |
+| Permissions cache (60 s TTL)            | ✅                   |
 | NocoDB Data API rate limiting (5 req/s) | ✅                   |
 | Lazy module loading                     | ❌                   |
 | Redis cache support                     | ❌ (in-memory only)  |
