@@ -22,9 +22,11 @@ Minimal erwartete JWT Claims (aus `JwtStrategy`):
 {
   "sub": 123,
   "username": "alice",
-  "roles": ["admin"]
+  "scope": "customers:read"
 }
 ```
+
+Rollen werden **nicht** aus dem Token gelesen. Ein `roles`- oder `role`-Claim wird ignoriert. Die Middleware lädt die Rollen des Benutzers bei jeder Anfrage aus `user_roles` in NocoDB (mit kurzem Cache). Endpunkte mit Rollenprüfung (`/api/users`, `/api/meta/tables`) verlangen also, dass dem Benutzer die Rolle `admin` in der Datenbank zugewiesen ist, z. B. über den Bootstrap-Endpoint oder `POST /api/admin/permissions/user-roles/assign`. Eine IdP-Rolle mit dem Namen `admin` gewährt keine Rechte.
 
 ### 2. Bootstrap-Token für Initial-Admin
 
@@ -139,7 +141,7 @@ curl -X POST http://localhost:3000/api/admin/permissions/user-roles/assign \
 ### Tabellenkatalog (Admin)
 
 - `GET /api/meta/tables`
-- Auth: JWT + Rolle `admin`
+- Auth: JWT + Rolle `admin` (in `user_roles` zugewiesen)
 
 ```bash
 curl http://localhost:3000/api/meta/tables \

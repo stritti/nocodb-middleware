@@ -19,11 +19,13 @@ import { LocalNocodbIdentityProviderService } from './identity/local-nocodb-iden
 import { ExternalJwtIdentityProviderService } from './identity/external-jwt-identity-provider.service';
 import { IDENTITY_PROVIDER } from './identity/identity-provider.constants';
 import { NocoDBModule } from '../nocodb/nocodb.module';
+import { PermissionsCoreModule } from '../permissions/permissions-core.module';
 
 @Module({
   imports: [
     ConfigModule,
     NocoDBModule,
+    PermissionsCoreModule,
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
