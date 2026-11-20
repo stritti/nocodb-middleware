@@ -32,10 +32,17 @@ jobs:
       - name: Install dependencies
         run: npm ci || npm install
 
-      - name: Run npm audit
-        run: |
-          npm audit --audit-level=high
-        continue-on-error: true  # advisory only; fails the PR visibly
+      # Blocking: high/critical findings in runtime dependencies ship in the
+      # production image, so they must fail the check.
+      - name: Run npm audit (production dependencies)
+        run: npm audit --omit=dev --audit-level=high
+
+      # Advisory: dev-only findings (build, test, docs tooling) are reported
+      # but do not block; Dependabot keeps them up to date.
+      - name: Run npm audit (all dependencies, advisory)
+        if: always()
+        run: npm audit --audit-level=high
+        continue-on-error: true
 
   dependency-review:
     name: Dependency Review
