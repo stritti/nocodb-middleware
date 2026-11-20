@@ -53,6 +53,9 @@ Ist NocoDB direkt erreichbar, lassen sich Login-Seite und API von NocoDB nutzen 
 | `BOOTSTRAP_ADMIN_PASSWORD`    | Initialpasswort für Seed-Admin |
 | `CORS_ORIGINS`                | erlaubte Browser-Origin-Liste  |
 | `PORT`                        | Port der Middleware            |
+| `TRUST_PROXY`                 | Proxy-Hops oder vertrauenswürdige Netze für `req.ip` |
+| `RATE_LIMIT_*`                | Rate Limits, siehe unten       |
+| `NOCODB_MAX_REQUESTS_PER_SECOND` | Durchsatz zur NocoDB Data API (Default 5) |
 | `LOG_DIR`                     | Ziel für Log-Dateien           |
 | `OTEL_ENABLED`                | Tracing an oder aus            |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP-Ziel für Spans            |
@@ -80,7 +83,18 @@ Siehe auch `src/config/cors.config.ts` für die vollständige Validierungslogik.
 3. Token-Claims (`sub`, `scope`) und die Rollenzuweisungen in `user_roles` gegen RBAC-Guard-Entscheidungen verifizieren. Ein `roles`-Claim des IdP wird ignoriert.
 4. Bei Problemen auf vorherigen Provider zurückschalten und Deployment neu starten.
 
+## Rate Limiting
+
+Die Middleware begrenzt Anfragen in zwei Stufen:
+
+1. **Vor der Authentifizierung pro Client-Netz** (IPv4-Adresse oder IPv6-/56-Netz): Gezählt werden nur fehlgeschlagene Anfragen (Status ab 400), Default 100 pro 15 Minuten (`RATE_LIMIT_IP_MAX`). Das bremst Token-Raten und Scans, ohne dass sich viele Nutzer hinter einem NAT ein Kontingent teilen.
+2. **Nach der Authentifizierung pro Benutzer**: Default 200 Anfragen pro 15 Minuten, für Benutzer mit der Rolle `admin` 1000 (`RATE_LIMIT_USER_MAX`, `RATE_LIMIT_ADMIN_MAX`).
+
+Das Zeitfenster setzt `RATE_LIMIT_WINDOW_MS`. Bei Überschreitung antwortet die API mit `429`.
+
 ## Reverse Proxy
+
+Hinter einem Reverse Proxy oder Load Balancer muss `TRUST_PROXY` gesetzt sein, sonst ist `req.ip` die Adresse des Proxys und alle Clients teilen sich ein Rate-Limit-Kontingent. Am sichersten ist die Anzahl der Proxy-Hops (z. B. `TRUST_PROXY=1`) oder eine Liste vertrauenswürdiger Netze (`TRUST_PROXY=loopback,10.0.0.0/8`). `TRUST_PROXY=true` vertraut jedem `X-Forwarded-For`-Header, damit können Clients ihre Adresse fälschen.
 
 Für produktive Deployments ist ein Reverse Proxy vor der Middleware sinnvoll.
 

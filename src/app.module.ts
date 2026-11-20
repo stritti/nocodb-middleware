@@ -10,6 +10,7 @@ import { HealthModule } from './health/health.module';
 import { PermissionsModule } from './permissions/permissions.module';
 import { DataModule } from './data/data.module';
 import { TelemetryModule } from './tracing/telemetry.module';
+import { UserRateLimitGuard } from './nocodb/middleware/rate-limit.middleware';
 
 @Module({
   imports: [
@@ -46,6 +47,8 @@ import { TelemetryModule } from './tracing/telemetry.module';
   providers: [
     // Every route requires a valid JWT unless marked with @Public().
     { provide: APP_GUARD, useClass: JwtAuthGuard },
+    // Per-user rate limit; must come after JwtAuthGuard so request.user is set.
+    { provide: APP_GUARD, useFactory: () => new UserRateLimitGuard() },
   ],
 })
 export class AppModule {}
