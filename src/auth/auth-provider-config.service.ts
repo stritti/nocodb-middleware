@@ -1,5 +1,10 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import {
+  assertStrongHmacSecret,
+  resolveExternalJwtAlgorithms,
+  usesHmac,
+} from './jwt-config.util';
 
 @Injectable()
 export class AuthProviderConfigService implements OnModuleInit {
@@ -9,16 +14,27 @@ export class AuthProviderConfigService implements OnModuleInit {
     const provider = this.getProvider();
 
     if (provider === 'local') {
-      if (!this.configService.get<string>('JWT_SECRET')) {
+      const secret = this.configService.get<string>('JWT_SECRET');
+      if (!secret) {
         throw new Error('JWT_SECRET is required when AUTH_PROVIDER=local');
       }
+      assertStrongHmacSecret('JWT_SECRET', secret);
       return;
     }
 
-    if (!this.configService.get<string>('EXTERNAL_JWT_SECRET')) {
+    const externalKey = this.configService.get<string>('EXTERNAL_JWT_SECRET');
+    if (!externalKey) {
       throw new Error(
         'EXTERNAL_JWT_SECRET is required when AUTH_PROVIDER=external',
       );
+    }
+
+    const algorithms = resolveExternalJwtAlgorithms(
+      this.configService.get<string>('EXTERNAL_JWT_ALGORITHMS'),
+      externalKey,
+    );
+    if (usesHmac(algorithms)) {
+      assertStrongHmacSecret('EXTERNAL_JWT_SECRET', externalKey);
     }
 
     if (!this.configService.get<string>('EXTERNAL_JWT_ISSUER')) {

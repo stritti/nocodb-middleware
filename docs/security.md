@@ -15,6 +15,13 @@ Ein externer Identity Provider oder Auth-Service ist erforderlich.
 
 Zusatz: Die Middleware kann mit `AUTH_PROVIDER=local|external` zwischen lokalem und externem JWT-Validierungsmodus umschalten. Bei `external` gilt fail-closed: ohne `EXTERNAL_JWT_SECRET` startet die Anwendung nicht.
 
+#### Schlüssel und Algorithmen
+
+- HMAC-Secrets (`JWT_SECRET`, `EXTERNAL_JWT_SECRET` bei `HS*`) müssen mindestens 32 Byte lang sein. Bekannte Platzhalter wie `your_jwt_secret_here` werden abgelehnt; die Anwendung startet dann nicht. Wer das Secret kennt, kann beliebige `sub`- und `scope`-Claims ausstellen, es ist also ein Generalschlüssel.
+- Im External-Modus wird der Algorithmus aus dem Schlüssel abgeleitet: RSA-Public-Key ergibt `RS256`, EC-Public-Key `ES256`, sonst `HS256`. Eine explizite Liste in `EXTERNAL_JWT_ALGORITHMS` darf `HS*` nicht mit `RS*`/`PS*`/`ES*` mischen.
+- Lokale Tokens werden gegen `JWT_ISSUER` und `JWT_AUDIENCE` geprüft, wenn diese gesetzt sind.
+- JWKS (automatische Schlüsselrotation beim IdP) wird noch nicht unterstützt. Bei einer Rotation muss `EXTERNAL_JWT_SECRET` aktualisiert und die Middleware neu gestartet werden.
+
 #### Kontoverknüpfung im External-Modus
 
 Externe Identitäten werden über `auth_provider` und `external_subject` (`sub`) einem Benutzer zugeordnet. Gibt es dazu noch keinen Benutzer, aber einen mit derselben E-Mail-Adresse, wird dieser nur dann automatisch verknüpft, wenn alle Bedingungen erfüllt sind:

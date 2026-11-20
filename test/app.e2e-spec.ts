@@ -13,7 +13,7 @@ describe('AppController (e2e)', () => {
   let validToken: string;
 
   beforeAll(() => {
-    process.env.JWT_SECRET ??= 'test-jwt-secret';
+    process.env.JWT_SECRET ??= 'test-jwt-secret-for-app-e2e-tests-2026';
     process.env.NOCODB_API_URL ??= 'http://localhost:8080';
     process.env.NOCODB_API_TOKEN ??= 'test-nocodb-token';
     process.env.NOCODB_BASE_ID ??= 'test-base-id';
