@@ -24,9 +24,19 @@ docker compose up --build
 Danach:
 
 - Middleware auf `http://localhost:3000`
-- NocoDB auf `http://localhost:8080`
+- NocoDB auf `http://localhost:8080` (nur vom Docker-Host aus, siehe unten)
 - Swagger UI auf `http://localhost:3000/api/docs`
 - Health Probe auf `http://localhost:3000/api/health`
+
+### NocoDB nie direkt exponieren
+
+Die Middleware schützt NocoDB nur, wenn sie der **einzige** Weg zu NocoDB ist.
+Ist NocoDB direkt erreichbar, lassen sich Login-Seite und API von NocoDB nutzen und alle Rechteprüfungen der Middleware umgehen.
+
+- `docker-compose.yml` bindet Port `8080` deshalb nur an `127.0.0.1`. So kannst du NocoDB für die Ersteinrichtung (Base anlegen, API-Token erzeugen) vom Docker-Host aus öffnen, aber nicht über das Netzwerk.
+- Nach der Einrichtung den `ports`-Eintrag von `nocodb` entfernen. Die Middleware erreicht NocoDB über das interne Netz `nocodb-network`.
+- Auf Servern ohne lokalen Browser die Einrichtung per SSH-Tunnel erledigen (`ssh -L 8080:127.0.0.1:8080 <host>`), statt den Port zu öffnen.
+- `NOCODB_API_TOKEN` sollte ein dedizierter Token mit minimalen Rechten sein, der nur auf die verwendete Base zugreift.
 
 ## Wichtige Umgebungsvariablen
 
@@ -86,6 +96,8 @@ Ziele:
 
 ### Netzwerk und Exposure
 
+- [ ] NocoDB ist **nicht** öffentlich erreichbar (kein veröffentlichter Port, nur internes Netz)
+- [ ] `NOCODB_API_TOKEN` ist ein dedizierter Token mit minimalen Rechten
 - [ ] Middleware nicht unnötig direkt öffentlich exponieren
 - [ ] `/api` nur bewusst öffentlich oder intern bereitstellen
 - [ ] Admin-Endpunkte separat absichern
