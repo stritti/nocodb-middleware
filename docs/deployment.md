@@ -112,6 +112,7 @@ Für mehrere Instanzen gilt:
 
 - Cache ist nicht geteilt
 - Rate Limits sind pro Instanz
+- Rechte werden pro Instanz bis zu `PERMISSIONS_CACHE_TTL_SECONDS` (Default 60 Sekunden) gecacht. Änderungen über die Admin-API leeren nur den Cache der eigenen Instanz; Änderungen direkt in NocoDB oder über eine andere Instanz greifen spätestens nach dieser Zeit. `0` schaltet den Cache ab (mehr Last auf NocoDB).
 - Sticky Sessions lösen das Grundproblem nicht
 
 Für horizontale Skalierung ist mittelfristig Redis oder ein vergleichbarer zentraler Cache sinnvoll.
