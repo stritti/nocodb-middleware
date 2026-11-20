@@ -15,6 +15,19 @@ import {
  * validation and the global `/api` prefix.
  */
 export function configureApp(app: INestApplication): void {
+  // Reverse proxy support: without this, req.ip is the proxy address and all
+  // clients share one rate-limit bucket.
+  const trustProxy = parseTrustProxy(process.env.TRUST_PROXY);
+  if (trustProxy !== undefined) {
+    const instance: unknown = app.getHttpAdapter().getInstance();
+    if (instance && typeof (instance as { set?: unknown }).set === 'function') {
+      (instance as { set(key: string, value: unknown): void }).set(
+        'trust proxy',
+        trustProxy,
+      );
+    }
+  }
+
   // Security headers with strict CSP
   app.use(
     helmet({
@@ -65,8 +78,8 @@ export function configureApp(app: INestApplication): void {
   const sanitizeMiddleware = new SanitizeMiddleware();
   app.use(sanitizeMiddleware.use.bind(sanitizeMiddleware));
 
-  // Global rate limiting middleware (must be after CORS and sanitization)
-  // This ensures req.user is available from JWT authentication
+  // Pre-auth rate limiting per client network (counts failed requests only).
+  // Per-user limits are enforced after authentication by UserRateLimitGuard.
   const rateLimitMiddleware = new RateLimitMiddleware();
   app.use(rateLimitMiddleware.use.bind(rateLimitMiddleware));
 
@@ -78,4 +91,29 @@ export function configureApp(app: INestApplication): void {
 
   // Global Prefix
   app.setGlobalPrefix('api');
+}
+
+/**
+ * Parses `TRUST_PROXY` into a value for Express' `trust proxy` setting:
+ * `true`/`false`, a number of proxy hops (e.g. `1`), or a comma-separated
+ * list of addresses/subnets (e.g. `loopback, 10.0.0.0/8`). Unset or empty
+ * leaves the Express default (no proxy trusted).
+ */
+export function parseTrustProxy(
+  value: string | undefined,
+): boolean | number | string | undefined {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  if (trimmed === 'true') {
+    return true;
+  }
+  if (trimmed === 'false') {
+    return false;
+  }
+  if (/^\d+$/.test(trimmed)) {
+    return Number(trimmed);
+  }
+  return trimmed;
 }

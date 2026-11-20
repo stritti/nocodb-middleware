@@ -1,11 +1,12 @@
 import {
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { NocoDBService } from '../nocodb/nocodb.service';
 import { SYSTEM_TABLE_NAMES } from '../common/system-table-names';
-import { andFilters, filterEq } from '../nocodb/nocodb-filter.util';
+import { andFilters, filterEq, filterIn } from '../nocodb/nocodb-filter.util';
 import {
   NormalizedIdentityClaims,
   ResolvedIdentity,
@@ -19,10 +20,24 @@ import {
   NocoUserRecord,
 } from '../common/utils/nocodb-utils';
 
+/** Role that is never linked to an external identity automatically. */
+const ADMIN_ROLE_NAME = 'admin';
+
 @Injectable()
 export class UserProvisioningService {
+  private readonly logger = new Logger(UserProvisioningService.name);
+
   constructor(private readonly nocoDBService: NocoDBService) {}
 
+  /**
+   * Maps an external identity to a user record.
+   *
+   * Users are matched by `(auth_provider, external_subject)`. An existing
+   * account is linked by e-mail only if the token proves the address
+   * (`email_verified: true`), the account is not linked to another external
+   * identity yet, and it does not hold the admin role. Otherwise anyone who
+   * can register that e-mail address at the IdP would take over the account.
+   */
   async upsertIdentityUser(
     claims: NormalizedIdentityClaims,
   ): Promise<ResolvedIdentity> {
@@ -51,20 +66,29 @@ export class UserProvisioningService {
     }
 
     if (bySubject) {
-      const existingId = extractNumericId(bySubject);
+      const changes: Record<string, unknown> = {};
+      if (claims.email && claims.email !== bySubject.email) {
+        changes.email = claims.email;
+      }
+      if (claims.username && claims.username !== bySubject.username) {
+        changes.username = claims.username;
+      }
+      // Avoid a NocoDB write on every authenticated request.
+      if (Object.keys(changes).length === 0) {
+        return this.toResolvedIdentity(bySubject, claims.roles);
+      }
+
       const updated = await this.nocoDBService.update(
         usersTable.id,
-        existingId,
-        {
-          email: claims.email ?? bySubject.email,
-          username: claims.username ?? bySubject.username,
-        },
+        extractNumericId(bySubject),
+        changes,
       );
       return this.toResolvedIdentity(asUserRecord(updated), claims.roles);
     }
 
     if (byEmail) {
       const existingId = extractNumericId(byEmail);
+      await this.assertEmailLinkAllowed(byEmail, existingId, claims);
       const updated = await this.nocoDBService.update(
         usersTable.id,
         existingId,
@@ -148,6 +172,64 @@ export class UserProvisioningService {
     });
 
     return this.toResolvedIdentity(asUserRecord(updated), []);
+  }
+
+  private async assertEmailLinkAllowed(
+    user: NocoUserRecord,
+    userId: number,
+    claims: NormalizedIdentityClaims,
+  ): Promise<void> {
+    let reason: string | undefined;
+
+    if (claims.emailVerified !== true) {
+      reason = 'email_not_verified';
+    } else if (user.auth_provider === claims.provider) {
+      // Already linked to a different subject of this provider.
+      reason = 'already_linked';
+    } else if (await this.hasRole(userId, ADMIN_ROLE_NAME)) {
+      reason = 'admin_account';
+    }
+
+    if (reason) {
+      this.logger.warn({
+        event: 'identity_link_denied',
+        reason,
+        userId,
+        provider: claims.provider,
+      });
+      throw new ConflictException(
+        'An account with this email already exists and cannot be linked automatically',
+      );
+    }
+  }
+
+  private async hasRole(userId: number, roleName: string): Promise<boolean> {
+    const userRolesTable = assertTableRef(
+      await this.nocoDBService.getTableByName(SYSTEM_TABLE_NAMES.USER_ROLES),
+    );
+    const assignments = await this.nocoDBService.listAll(userRolesTable.id, {
+      where: filterEq('user_id', userId),
+      fields: ['role_id'],
+    });
+    const roleIds = [
+      ...new Set(
+        assignments
+          .map((assignment) => Number(assignment.role_id))
+          .filter((id) => Number.isInteger(id) && id > 0),
+      ),
+    ];
+    if (roleIds.length === 0) {
+      return false;
+    }
+
+    const rolesTable = assertTableRef(
+      await this.nocoDBService.getTableByName(SYSTEM_TABLE_NAMES.ROLES),
+    );
+    const role = await this.nocoDBService.findOne(
+      rolesTable.id,
+      andFilters(filterIn('id', roleIds), filterEq('role_name', roleName)),
+    );
+    return role !== null;
   }
 
   private async findBySubject(

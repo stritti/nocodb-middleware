@@ -4,6 +4,7 @@ import { NormalizedIdentityClaims } from './identity-provider.port';
 interface TokenPayload {
   sub?: unknown;
   email?: unknown;
+  email_verified?: unknown;
   username?: unknown;
   preferred_username?: unknown;
   roles?: unknown;
@@ -32,6 +33,8 @@ export class IdentityClaimsNormalizerService {
       subject,
       provider,
       email: this.coerceString(payload.email),
+      emailVerified:
+        payload.email_verified === true || payload.email_verified === 'true',
       username,
       roles: this.parseStringList(payload.roles ?? payload.role, /[\s,]+/),
       scope: this.parseStringList(payload.scope ?? payload.scp, /\s+/),

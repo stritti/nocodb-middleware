@@ -22,6 +22,16 @@ Zusatz: Die Middleware kann mit `AUTH_PROVIDER=local|external` zwischen lokalem 
 - Lokale Tokens werden gegen `JWT_ISSUER` und `JWT_AUDIENCE` geprüft, wenn diese gesetzt sind.
 - JWKS (automatische Schlüsselrotation beim IdP) wird noch nicht unterstützt. Bei einer Rotation muss `EXTERNAL_JWT_SECRET` aktualisiert und die Middleware neu gestartet werden.
 
+#### Kontoverknüpfung im External-Modus
+
+Externe Identitäten werden über `auth_provider` und `external_subject` (`sub`) einem Benutzer zugeordnet. Gibt es dazu noch keinen Benutzer, aber einen mit derselben E-Mail-Adresse, wird dieser nur dann automatisch verknüpft, wenn alle Bedingungen erfüllt sind:
+
+- Das Token enthält `email_verified: true`.
+- Der Benutzer ist noch mit keiner anderen Identität desselben Providers verknüpft.
+- Der Benutzer hat nicht die Rolle `admin`.
+
+Sonst wird die Anfrage mit `409` abgelehnt und als `identity_link_denied` geloggt. So kann niemand ein fremdes Konto übernehmen, indem er beim IdP die E-Mail-Adresse dieses Kontos verwendet. Admins im External-Modus erhalten ihre Rolle deshalb erst nach der ersten Anmeldung über den IdP, z. B. per Bootstrap-Endpoint oder `POST /api/admin/permissions/user-roles/assign`.
+
 ### 2. Token-Speicherung im Frontend
 
 Für diese Middleware ist die Frage nicht nur, **ob** ein Token sicher gespeichert wird, sondern auch **wie** es zur Middleware gelangt.
