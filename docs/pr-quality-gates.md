@@ -92,10 +92,10 @@ npm run generate:openapi
 ---
 
 ### 8. **npm Audit**
-No critical vulnerabilities in production dependencies.
+No high or critical vulnerabilities in production dependencies (blocking in the `Security Audit` workflow). Findings in dev dependencies are reported but do not block.
 
 ```bash
-npm audit --production
+npm audit --omit=dev --audit-level=high
 ```
 
 ---
@@ -262,7 +262,7 @@ npm run generate:openapi
 | Tests | `npm run test` | All pass | ✅ Yes |
 | Coverage | `npm run test:cov` | ≥80% statements, ≥70% branches | ✅ Yes |
 | OpenAPI | `npm run generate:openapi` | Success | ✅ Yes |
-| npm Audit | `npm audit --production` | No critical issues | ⚠️ No |
+| npm Audit | `npm audit --omit=dev --audit-level=high` | No high/critical issues in production deps | ✅ Yes |
 
 ---
 
