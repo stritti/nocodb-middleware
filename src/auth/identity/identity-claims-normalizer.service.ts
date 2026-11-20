@@ -33,8 +33,8 @@ export class IdentityClaimsNormalizerService {
       provider,
       email: this.coerceString(payload.email),
       username,
-      roles: this.parseRoles(payload.roles ?? payload.role),
-      scope: this.parseScope(payload.scope ?? payload.scp),
+      roles: this.parseStringList(payload.roles ?? payload.role, /[\s,]+/),
+      scope: this.parseStringList(payload.scope ?? payload.scp, /\s+/),
     };
   }
 
@@ -51,7 +51,8 @@ export class IdentityClaimsNormalizerService {
     return undefined;
   }
 
-  private parseRoles(value: unknown): string[] {
+  /** Accepts an array of strings or a separator-delimited string. */
+  private parseStringList(value: unknown, separator: RegExp): string[] {
     if (Array.isArray(value)) {
       return value
         .map((entry) => (typeof entry === 'string' ? entry.trim() : ''))
@@ -60,24 +61,7 @@ export class IdentityClaimsNormalizerService {
 
     if (typeof value === 'string') {
       return value
-        .split(/[\s,]+/)
-        .map((entry) => entry.trim())
-        .filter((entry) => entry.length > 0);
-    }
-
-    return [];
-  }
-
-  private parseScope(value: unknown): string[] {
-    if (Array.isArray(value)) {
-      return value
-        .map((entry) => (typeof entry === 'string' ? entry.trim() : ''))
-        .filter((entry) => entry.length > 0);
-    }
-
-    if (typeof value === 'string') {
-      return value
-        .split(/\s+/)
+        .split(separator)
         .map((entry) => entry.trim())
         .filter((entry) => entry.length > 0);
     }

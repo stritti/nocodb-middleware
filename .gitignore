@@ -152,3 +152,6 @@ client/.pkg-check-*
 .slim/
 .opencode/
 .specify/
+
+# Local scratch directory (e.g. eslint reports)
+.tmp/

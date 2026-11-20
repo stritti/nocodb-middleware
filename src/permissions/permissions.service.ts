@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { NocoDBService } from '../nocodb/nocodb.service';
 import { andFilters, filterEq, filterIn } from '../nocodb/nocodb-filter.util';
 import { CrudAction } from './enums/crud-action.enum';
@@ -21,7 +21,6 @@ export class PermissionsService {
     number,
     { value: UserPermissions; expiresAt: number }
   >();
-  private readonly CACHE_TTL = PERMISSIONS_CACHE_TTL_MS;
 
   constructor(private nocoDBService: NocoDBService) {}
 
@@ -182,7 +181,7 @@ export class PermissionsService {
     }
     this.permissionsCache.set(userId, {
       value,
-      expiresAt: now + this.CACHE_TTL,
+      expiresAt: now + PERMISSIONS_CACHE_TTL_MS,
     });
   }
 
@@ -206,20 +205,21 @@ export class PermissionsService {
   }
 
   /**
-   * Set permissions for a role on a table
+   * Set permissions for a role on a table (upsert) and return the stored
+   * record. Clears the permission cache because grants may have changed.
    */
   async setTablePermissions(
     roleId: number,
     tableName: string,
     permissions: Partial<Record<CrudAction, boolean>>,
-  ): Promise<void> {
+  ): Promise<unknown> {
     try {
       const permissionsTable = await this.nocoDBService.getTableByName(
         SYSTEM_TABLE_NAMES.TABLE_PERMISSIONS,
       );
 
       if (!permissionsTable) {
-        throw new Error('Table_permissions table not found');
+        throw new NotFoundException('Table_permissions table not found');
       }
 
       const existing = await this.nocoDBService.findOne(
@@ -239,21 +239,21 @@ export class PermissionsService {
         can_delete: permissions[CrudAction.DELETE] ?? false,
       };
 
-      if (existing) {
-        await this.nocoDBService.update(
-          permissionsTable.id,
-          extractNumericId(existing),
-          permissionData,
-        );
-      } else {
-        await this.nocoDBService.create(permissionsTable.id, permissionData);
-      }
+      const result = existing
+        ? await this.nocoDBService.update(
+            permissionsTable.id,
+            extractNumericId(existing),
+            permissionData,
+          )
+        : await this.nocoDBService.create(permissionsTable.id, permissionData);
 
       this.logger.log(
         `Permissions set for role ${roleId} on table ${tableName}`,
       );
 
       this.permissionsCache.clear();
+
+      return result;
     } catch (error) {
       this.logger.error('Error setting table permissions:', error);
       throw error;

@@ -63,5 +63,3 @@ if (isEnabled) {
   process.once('SIGTERM', shutdown);
   process.once('SIGINT', shutdown);
 }
-
-export { sdk };

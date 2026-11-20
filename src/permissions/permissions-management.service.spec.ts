@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { PermissionsManagementService } from './permissions-management.service';
 import { NocoDBService } from '../nocodb/nocodb.service';
 import { PermissionsService } from './permissions.service';
-import { Logger } from '@nestjs/common';
+import { Logger, NotFoundException } from '@nestjs/common';
 
 describe('PermissionsManagementService', () => {
   let service: PermissionsManagementService;
@@ -29,6 +29,7 @@ describe('PermissionsManagementService', () => {
           provide: PermissionsService,
           useValue: {
             clearCache: jest.fn(),
+            setTablePermissions: jest.fn(),
           },
         },
       ],
@@ -62,46 +63,19 @@ describe('PermissionsManagementService', () => {
       canDelete: false,
     };
 
-    it('should update existing permissions', async () => {
-      (nocoDBService.getTableByName as jest.Mock).mockResolvedValue({
-        id: 'perm_table_id',
+    it('should delegate the upsert to PermissionsService', async () => {
+      (permissionsService.setTablePermissions as jest.Mock).mockResolvedValue({
+        id: 123,
       });
-      (nocoDBService.findOne as jest.Mock).mockResolvedValue({ id: 123 });
-      (nocoDBService.update as jest.Mock).mockResolvedValue({ id: 123 });
 
-      await service.setTablePermissions(dto);
+      const result = await service.setTablePermissions(dto);
 
-      expect(nocoDBService.findOne).toHaveBeenCalledWith(
-        'perm_table_id',
-        `(role_id,eq,${dto.roleId})~and(table_name,eq,"${dto.tableName}")`,
+      expect(permissionsService.setTablePermissions).toHaveBeenCalledWith(
+        dto.roleId,
+        dto.tableName,
+        { create: true, read: true, update: false, delete: false },
       );
-      expect(nocoDBService.update).toHaveBeenCalledWith(
-        'perm_table_id',
-        123,
-        expect.objectContaining({
-          role_id: dto.roleId,
-          can_create: dto.canCreate,
-        }),
-      );
-      expect(permissionsService.clearCache).toHaveBeenCalled();
-    });
-
-    it('should create new permissions if not found', async () => {
-      (nocoDBService.getTableByName as jest.Mock).mockResolvedValue({
-        id: 'perm_table_id',
-      });
-      (nocoDBService.findOne as jest.Mock).mockResolvedValue(null);
-      (nocoDBService.create as jest.Mock).mockResolvedValue({ id: 'new_id' });
-
-      await service.setTablePermissions(dto);
-
-      expect(nocoDBService.create).toHaveBeenCalledWith(
-        'perm_table_id',
-        expect.objectContaining({
-          role_id: dto.roleId,
-          table_name: dto.tableName,
-        }),
-      );
+      expect(result).toEqual({ id: 123 });
     });
   });
 
@@ -157,11 +131,9 @@ describe('PermissionsManagementService', () => {
 
   describe('batchSetPermissions', () => {
     it('should set permissions for multiple tables', async () => {
-      (nocoDBService.getTableByName as jest.Mock).mockResolvedValue({
-        id: 'perm_table_id',
+      (permissionsService.setTablePermissions as jest.Mock).mockResolvedValue({
+        id: 1,
       });
-      (nocoDBService.findOne as jest.Mock).mockResolvedValue(null);
-      (nocoDBService.create as jest.Mock).mockResolvedValue({ id: 1 });
 
       const dto = {
         roleId: 1,
@@ -186,7 +158,17 @@ describe('PermissionsManagementService', () => {
       const result = await service.batchSetPermissions(dto);
       expect(result.success).toBe(true);
       expect(result.count).toBe(2);
-      expect(nocoDBService.create).toHaveBeenCalledTimes(2);
+      expect(permissionsService.setTablePermissions).toHaveBeenCalledTimes(2);
+      expect(permissionsService.setTablePermissions).toHaveBeenCalledWith(
+        1,
+        'users',
+        { create: true, read: true, update: false, delete: false },
+      );
+      expect(permissionsService.setTablePermissions).toHaveBeenCalledWith(
+        1,
+        'orders',
+        { create: false, read: true, update: false, delete: false },
+      );
     });
   });
 
@@ -205,8 +187,9 @@ describe('PermissionsManagementService', () => {
           can_delete: false,
         },
       ]);
-      (nocoDBService.findOne as jest.Mock).mockResolvedValue(null);
-      (nocoDBService.create as jest.Mock).mockResolvedValue({ id: 2 });
+      (permissionsService.setTablePermissions as jest.Mock).mockResolvedValue({
+        id: 2,
+      });
 
       const result = await service.copyPermissions(1, 2);
       expect(result.success).toBe(true);
@@ -222,9 +205,11 @@ describe('PermissionsManagementService', () => {
     });
   });
 
-  describe('setTablePermissions - NotFoundException', () => {
-    it('should throw NotFoundException when table_permissions not found', async () => {
-      (nocoDBService.getTableByName as jest.Mock).mockResolvedValue(null);
+  describe('setTablePermissions - error propagation', () => {
+    it('should propagate errors from PermissionsService', async () => {
+      (permissionsService.setTablePermissions as jest.Mock).mockRejectedValue(
+        new NotFoundException('Table_permissions table not found'),
+      );
 
       await expect(
         service.setTablePermissions({

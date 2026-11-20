@@ -8,8 +8,8 @@ import {
 import { NocoDBService } from '../nocodb/nocodb.service';
 import { SYSTEM_TABLE_NAMES } from '../common/system-table-names';
 import { PageOptionsDto } from '../nocodb/dto/page-options.dto';
-import { PageMetaDto } from '../nocodb/dto/page-meta.dto';
 import { PageDto } from '../nocodb/dto/page.dto';
+import { emptyPage, pagedOptions, pageMeta } from '../nocodb/page.util';
 import { filterEq } from '../nocodb/nocodb-filter.util';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { PermissionsService } from '../permissions/permissions.service';
@@ -92,34 +92,20 @@ export class RolesService {
         SYSTEM_TABLE_NAMES.ROLES,
       );
       if (!rolesTable) {
-        return new PageDto(
-          [],
-          new PageMetaDto({
-            pageOptionsDto: pageOptionsDto || new PageOptionsDto(),
-            itemCount: 0,
-          }),
-        );
+        return emptyPage(pageOptionsDto);
       }
-
-      const limit = pageOptionsDto?.take ?? 10;
-      const offset = pageOptionsDto?.skip ?? 0;
 
       const response = await this.nocoDBService.list(rolesTable.id, {
         sort: 'id',
-        limit,
-        offset,
-        withCount: true,
+        ...pagedOptions(pageOptionsDto),
       });
 
       const data = response.list || [];
-      const totalRows = response.pageInfo?.totalRows ?? data.length;
 
-      const meta = new PageMetaDto({
-        pageOptionsDto: pageOptionsDto || new PageOptionsDto(),
-        itemCount: pageOptionsDto ? totalRows : data.length,
-      });
-
-      return new PageDto(data, meta);
+      return new PageDto(
+        data,
+        pageMeta(pageOptionsDto, response.pageInfo, data.length),
+      );
     } catch (error) {
       this.logger.error('Error fetching roles:', error);
       throw error;
