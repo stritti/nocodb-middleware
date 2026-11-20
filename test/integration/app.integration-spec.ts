@@ -11,7 +11,7 @@ import { filterEq } from '../../src/nocodb/nocodb-filter.util';
  * Boots the complete middleware (production HTTP pipeline, schema
  * initialization, auth, RBAC) against a real NocoDB in a fresh base.
  */
-const JWT_SECRET = 'integration-test-jwt-secret';
+const JWT_SECRET = 'integration-test-jwt-secret-at-least-32-bytes';
 const BOOTSTRAP_TOKEN = 'integration-test-bootstrap-token';
 const ADMIN_PASSWORD = 'Integration-Admin-Pw-2026!';
 

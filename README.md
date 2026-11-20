@@ -65,6 +65,8 @@ npm install
 
 Use `.env.example` as the source of truth.
 
+`JWT_SECRET` must be at least 32 bytes of random data (`openssl rand -base64 48`); the app refuses to start with a shorter secret or a known placeholder.
+
 ```env
 NOCODB_API_URL=http://localhost:8080
 NOCODB_API_TOKEN=your_api_token_here

@@ -35,9 +35,11 @@ Danach:
 | `NOCODB_API_URL`              | URL der NocoDB-Instanz         |
 | `NOCODB_API_TOKEN`            | Backend-Secret für NocoDB      |
 | `NOCODB_BASE_ID`              | Base ID für Meta API v3        |
-| `JWT_SECRET`                  | Secret zur JWT-Validierung     |
+| `JWT_SECRET`                  | Secret zur JWT-Validierung, mindestens 32 Byte |
+| `JWT_ISSUER` / `JWT_AUDIENCE` | optional: erwarteter `iss`/`aud` lokaler Tokens |
 | `AUTH_PROVIDER`               | `local` oder `external`        |
-| `EXTERNAL_JWT_SECRET`         | JWT Secret für externen IdP    |
+| `EXTERNAL_JWT_SECRET`         | PEM Public Key des IdP oder HMAC-Secret (mind. 32 Byte) |
+| `EXTERNAL_JWT_ALGORITHMS`     | optional: erlaubte Algorithmen, Default aus dem Schlüsseltyp |
 | `EXTERNAL_JWT_ISSUER`         | erwarteter JWT Issuer          |
 | `EXTERNAL_JWT_AUDIENCE`       | erwartete JWT Audience         |
 | `BOOTSTRAP_ADMIN_PASSWORD`    | Initialpasswort für Seed-Admin |

@@ -16,7 +16,7 @@ describe('Production HTTP pipeline (e2e)', () => {
   let app: INestApplication;
 
   beforeAll(async () => {
-    process.env.JWT_SECRET = 'test-jwt-secret-for-setup-e2e';
+    process.env.JWT_SECRET = 'test-jwt-secret-for-setup-e2e-tests-2026';
     process.env.NODE_ENV = 'test';
     process.env.NOCODB_API_URL = 'http://localhost:8080';
     process.env.NOCODB_API_TOKEN = 'test-token';

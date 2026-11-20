@@ -7,6 +7,8 @@ export default registerAs('auth', () => ({
   externalJwtSecret: process.env.EXTERNAL_JWT_SECRET,
   externalJwtIssuer: process.env.EXTERNAL_JWT_ISSUER,
   externalJwtAudience: process.env.EXTERNAL_JWT_AUDIENCE,
-  externalJwtAlgorithms:
-    process.env.EXTERNAL_JWT_ALGORITHMS || 'RS256,ES256,HS256',
+  jwtIssuer: process.env.JWT_ISSUER,
+  jwtAudience: process.env.JWT_AUDIENCE,
+  // Unset: derived from EXTERNAL_JWT_SECRET (see resolveExternalJwtAlgorithms)
+  externalJwtAlgorithms: process.env.EXTERNAL_JWT_ALGORITHMS,
 }));

@@ -9,6 +9,7 @@ import { IDENTITY_PROVIDER } from '../identity/identity-provider.constants';
 import { AuthProviderConfigService } from '../auth-provider-config.service';
 import { NocoDBService } from '../../nocodb/nocodb.service';
 import { SYSTEM_TABLE_NAMES } from '../../common/system-table-names';
+import { resolveExternalJwtAlgorithms } from '../jwt-config.util';
 
 interface JwtPayload {
   sub?: string | number;
@@ -43,12 +44,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
     const algorithms: Algorithm[] =
       provider === 'external'
-        ? (
-            configService.get<string>('EXTERNAL_JWT_ALGORITHMS') ||
-            'RS256,ES256,HS256'
+        ? resolveExternalJwtAlgorithms(
+            configService.get<string>('EXTERNAL_JWT_ALGORITHMS'),
+            jwtSecret,
           )
-            .split(',')
-            .map((a) => a.trim() as Algorithm)
         : ['HS256'];
 
     super({
@@ -56,14 +55,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       ignoreExpiration: false,
       secretOrKey: jwtSecret,
       algorithms,
+      // Local tokens are checked against JWT_ISSUER / JWT_AUDIENCE when set.
       issuer:
-        provider === 'external'
+        (provider === 'external'
           ? configService.get<string>('EXTERNAL_JWT_ISSUER')
-          : undefined,
+          : configService.get<string>('JWT_ISSUER')) || undefined,
       audience:
-        provider === 'external'
+        (provider === 'external'
           ? configService.get<string>('EXTERNAL_JWT_AUDIENCE')
-          : undefined,
+          : configService.get<string>('JWT_AUDIENCE')) || undefined,
     });
   }
 
