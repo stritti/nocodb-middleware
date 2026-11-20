@@ -9,6 +9,7 @@ import { IDENTITY_PROVIDER } from '../identity/identity-provider.constants';
 import { AuthProviderConfigService } from '../auth-provider-config.service';
 import { NocoDBService } from '../../nocodb/nocodb.service';
 import { SYSTEM_TABLE_NAMES } from '../../common/system-table-names';
+import { PermissionsService } from '../../permissions/permissions.service';
 import { resolveExternalJwtAlgorithms } from '../jwt-config.util';
 
 interface JwtPayload {
@@ -31,6 +32,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     @Inject(IDENTITY_PROVIDER)
     private readonly identityProvider: IdentityProviderPort,
     private readonly nocoDBService: NocoDBService,
+    private readonly permissionsService: PermissionsService,
   ) {
     const provider = authProviderConfig.getProvider();
     const jwtSecret =
@@ -67,6 +69,15 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
+  /**
+   * Maps a verified token to `request.user`.
+   *
+   * `roles` always come from the user's role assignments in NocoDB
+   * (`user_roles`), never from the token's `roles`/`role` claim. This keeps a
+   * single authorization model: revoking a role in the database takes effect
+   * for `@Roles()` endpoints, and an IdP role that happens to be called
+   * `admin` grants nothing.
+   */
   async validate(payload: JwtPayload) {
     const provider = this.authProviderConfig.getProvider();
     const claims = this.claimsNormalizer.normalize(payload, provider);
@@ -94,7 +105,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         userId,
         username: user.username ?? claims.username ?? 'unknown',
         email: user.email ?? claims.email,
-        roles: claims.roles,
+        roles: await this.loadRoles(userId),
         scope: claims.scope,
       };
     }
@@ -109,8 +120,14 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       userId: identity.userId,
       username: identity.username,
       email: identity.email,
-      roles: identity.roles,
+      roles: await this.loadRoles(identity.userId),
       scope: claims.scope,
     };
+  }
+
+  private async loadRoles(userId: number): Promise<string[]> {
+    const permissions =
+      await this.permissionsService.getUserPermissions(userId);
+    return permissions.roles;
   }
 }

@@ -44,11 +44,6 @@ export interface NocoFieldDefinition {
   options?: Record<string, unknown>;
 }
 
-export interface NocoTableListResponse {
-  list: NocoTableMeta[];
-  pageInfo?: NocoPageInfo;
-}
-
 export interface NocoPageInfo {
   totalRows: number;
   page?: number;
@@ -77,10 +72,4 @@ export interface NocoRecordListResponse {
 export interface NocoRecordResponse {
   id?: number | string;
   [key: string]: unknown;
-}
-
-// ── Permalink types for nested includes ─────────────────────────────────────
-
-export interface NestedIncludes {
-  [field: string]: { fields: string[] };
 }

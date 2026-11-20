@@ -3,6 +3,7 @@ import { Request, Response, NextFunction } from 'express';
 import { ParamsDictionary } from 'express-serve-static-core';
 import { ParsedQs } from 'qs';
 import sanitizeHtml from 'sanitize-html';
+import { STRIP_ALL_HTML } from '../sanitize-html.options';
 
 /**
  * Default sanitize-html options that strip ALL HTML tags.
@@ -10,8 +11,7 @@ import sanitizeHtml from 'sanitize-html';
  * Text content within tags is preserved.
  */
 const STRIP_ALL: sanitizeHtml.IOptions = {
-  allowedTags: [],
-  allowedAttributes: {},
+  ...STRIP_ALL_HTML,
   // Also strip all content from script/style tags
   nonTextTags: [
     'script',
@@ -239,13 +239,4 @@ export class SanitizeMiddleware implements NestMiddleware {
 
     return skipPaths.some((path) => req.path.startsWith(path));
   }
-}
-
-/**
- * Factory function to create sanitization middleware with custom options
- */
-export function createSanitizeMiddleware(
-  options: SanitizeOptions = {},
-): SanitizeMiddleware {
-  return new SanitizeMiddleware(options);
 }

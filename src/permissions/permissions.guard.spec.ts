@@ -68,6 +68,29 @@ describe('PermissionsGuard', () => {
     await expect(guard.canActivate(ctx)).rejects.toThrow(ForbiddenException);
   });
 
+  it('does not let a wildcard scope reach admin system tables', async () => {
+    reflector.getAllAndOverride.mockReturnValue([
+      { table: 'user_roles', action: CrudAction.CREATE },
+    ]);
+    permissionsService.canUserPerformAction.mockResolvedValue(false);
+    const ctx = makeContext({ userId: 5, scope: ['*:*', '*:create'] });
+    await expect(guard.canActivate(ctx)).rejects.toThrow(ForbiddenException);
+    expect(permissionsService.canUserPerformAction).toHaveBeenCalledWith(
+      5,
+      'user_roles',
+      CrudAction.CREATE,
+    );
+  });
+
+  it('allows an explicit system table scope', async () => {
+    reflector.getAllAndOverride.mockReturnValue([
+      { table: 'user_roles', action: CrudAction.CREATE },
+    ]);
+    const ctx = makeContext({ userId: 5, scope: ['user_roles:create'] });
+    await expect(guard.canActivate(ctx)).resolves.toBe(true);
+    expect(permissionsService.canUserPerformAction).not.toHaveBeenCalled();
+  });
+
   it('should allow when user has required permission', async () => {
     reflector.getAllAndOverride.mockReturnValue([
       { table: 'users', action: CrudAction.READ },

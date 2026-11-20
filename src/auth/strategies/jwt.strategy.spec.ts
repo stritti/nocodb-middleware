@@ -5,6 +5,7 @@ import { AuthProviderConfigService } from '../auth-provider-config.service';
 import { IdentityClaimsNormalizerService } from '../identity/identity-claims-normalizer.service';
 import { IDENTITY_PROVIDER } from '../identity/identity-provider.constants';
 import { NocoDBService } from '../../nocodb/nocodb.service';
+import { PermissionsService } from '../../permissions/permissions.service';
 
 describe('JwtStrategy', () => {
   let strategy: JwtStrategy;
@@ -21,7 +22,18 @@ describe('JwtStrategy', () => {
     }),
   };
 
+  const mockPermissionsService = {
+    getUserPermissions: jest.fn(),
+  };
+
   beforeEach(async () => {
+    mockPermissionsService.getUserPermissions.mockReset();
+    mockPermissionsService.getUserPermissions.mockResolvedValue({
+      userId: 1,
+      username: 'testuser',
+      roles: ['admin'],
+      permissions: new Map(),
+    });
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         JwtStrategy,
@@ -43,6 +55,10 @@ describe('JwtStrategy', () => {
         {
           provide: NocoDBService,
           useValue: mockNocoDBService,
+        },
+        {
+          provide: PermissionsService,
+          useValue: mockPermissionsService,
         },
       ],
     }).compile();
@@ -68,6 +84,7 @@ describe('JwtStrategy', () => {
             normalizer,
             { resolveIdentity: jest.fn() },
             mockNocoDBService as unknown as NocoDBService,
+            mockPermissionsService as unknown as PermissionsService,
           ),
       ).toThrow('JWT_SECRET is required');
     });
@@ -90,6 +107,7 @@ describe('JwtStrategy', () => {
         normalizer,
         { resolveIdentity: jest.fn() },
         mockNocoDBService as unknown as NocoDBService,
+        mockPermissionsService as unknown as PermissionsService,
       );
 
       expect(strategy).toBeDefined();
@@ -107,6 +125,33 @@ describe('JwtStrategy', () => {
         roles: ['admin'],
         scope: [],
       });
+    });
+
+    it('takes roles from the database, not from the token claim', async () => {
+      mockPermissionsService.getUserPermissions.mockResolvedValueOnce({
+        userId: 1,
+        username: 'testuser',
+        roles: ['viewer'],
+        permissions: new Map(),
+      });
+
+      const result = await strategy.validate({ sub: 1, roles: ['admin'] });
+
+      expect(result.roles).toEqual(['viewer']);
+      expect(mockPermissionsService.getUserPermissions).toHaveBeenCalledWith(1);
+    });
+
+    it('ignores the role claim when the user has no role in the database', async () => {
+      mockPermissionsService.getUserPermissions.mockResolvedValueOnce({
+        userId: 1,
+        username: 'testuser',
+        roles: [],
+        permissions: new Map(),
+      });
+
+      const result = await strategy.validate({ sub: 1, role: 'admin' });
+
+      expect(result.roles).toEqual([]);
     });
 
     it('should pass OAuth scopes from a space-separated scope claim to the request user', async () => {
@@ -139,6 +184,29 @@ describe('JwtStrategy', () => {
       });
 
       expect(result.scope).toEqual(['roles:read']);
+    });
+
+    it('takes roles for the external provider from the database', async () => {
+      mockAuthProviderConfig.getProvider.mockReturnValueOnce('external');
+      const identityProvider = (strategy as any).identityProvider;
+      identityProvider.resolveIdentity.mockResolvedValueOnce({
+        userId: 7,
+        username: 'ext-user',
+        email: 'ext@example.com',
+        roles: ['admin'],
+        active: true,
+      });
+      mockPermissionsService.getUserPermissions.mockResolvedValueOnce({
+        userId: 7,
+        username: 'ext-user',
+        roles: [],
+        permissions: new Map(),
+      });
+
+      const result = await strategy.validate({ sub: 'ext-7', roles: 'admin' });
+
+      expect(result.roles).toEqual([]);
+      expect(mockPermissionsService.getUserPermissions).toHaveBeenCalledWith(7);
     });
   });
 });

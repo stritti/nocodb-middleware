@@ -25,7 +25,7 @@ describe('TelemetryService', () => {
     }).compile();
 
     service = module.get<TelemetryService>(TelemetryService);
-    tracer = service.getTracer();
+    tracer = (service as unknown as { tracer: Tracer }).tracer;
 
     // Replace the internal tracer startSpan with a stub
     jest.spyOn(tracer, 'startSpan').mockReturnValue(spanStub);
@@ -33,10 +33,6 @@ describe('TelemetryService', () => {
 
   it('should be defined', () => {
     expect(service).toBeDefined();
-  });
-
-  it('getTracer() returns the internal tracer instance', () => {
-    expect(service.getTracer()).toBeDefined();
   });
 
   describe('withSpan()', () => {

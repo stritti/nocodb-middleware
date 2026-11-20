@@ -9,5 +9,7 @@ export const SYSTEM_TABLE_NAMES = {
   TABLE_PERMISSIONS: 'table_permissions',
 } as const;
 
-export type SystemTableName =
-  (typeof SYSTEM_TABLE_NAMES)[keyof typeof SYSTEM_TABLE_NAMES];
+/** Internal tables of the middleware; never reachable via the data API. */
+export const SYSTEM_TABLES: ReadonlySet<string> = new Set(
+  Object.values(SYSTEM_TABLE_NAMES),
+);

@@ -74,7 +74,7 @@ Geeignet für öffentliche produktive Systeme.
 
 - [ ] Swagger- und Admin-Endpunkte bewusst freigegeben oder geschützt (`/api/docs`, `/api/admin/*`)
 - [ ] RBAC-Rollen und Tabellenrechte geprüft
-- [ ] Claim-Schema (`sub`, `roles`, `scope`) mit IdP abgestimmt
+- [ ] Claim-Schema (`sub`, `scope`) mit IdP abgestimmt; Rollen werden nur in `user_roles` gepflegt, ein `roles`-Claim wird ignoriert
 - [ ] Rate Limits an erwartete Last angepasst
 - [ ] Logging aktiviert
 - [ ] `/api/health` in Monitoring eingebunden
