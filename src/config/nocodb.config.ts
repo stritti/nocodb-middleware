@@ -26,4 +26,5 @@ export default registerAs('nocodb', () => ({
   projectId: process.env.NOCODB_PROJECT_ID,
   baseId: process.env.NOCODB_BASE_ID,
   tablePrefix: process.env.NOCODB_TABLE_PREFIX || '',
+  maxRequestsPerSecond: process.env.NOCODB_MAX_REQUESTS_PER_SECOND,
 }));

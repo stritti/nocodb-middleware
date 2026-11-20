@@ -98,6 +98,12 @@ function isNotFound(error: unknown): boolean {
  * NestJS convention of one service per external system boundary.  Previously
  * these responsibilities were split between NocoDBService and NocoDBV3Service.
  */
+/** Default throughput towards the NocoDB Data API. */
+const DEFAULT_MAX_REQUESTS_PER_SECOND = 5;
+
+/** How long the table list is reused by {@link NocoDBService.getTableByName}. */
+export const TABLE_LIST_CACHE_TTL_MS = 10_000;
+
 @Injectable()
 export class NocoDBService implements OnModuleInit {
   private readonly logger = new Logger(NocoDBService.name);
@@ -106,10 +112,19 @@ export class NocoDBService implements OnModuleInit {
   private readonly baseId: string;
   private readonly tablePrefix: string;
 
-  // Rate limiting for Data API calls
-  private readonly rateLimit = 5; // requests per second
-  private readonly minRequestInterval = 1000 / this.rateLimit;
+  // Rate limiting for Data API calls (NOCODB_MAX_REQUESTS_PER_SECOND, default 5)
+  private readonly minRequestInterval: number;
   private rateLimitChain: Promise<void> = Promise.resolve();
+
+  /**
+   * Short-lived cache of the base's table list. getTableByName is called
+   * several times per request (JWT strategy, permissions, data service);
+   * without the cache each call fetched the complete table list.
+   */
+  private tableListCache?: {
+    expiresAt: number;
+    tables: Promise<NocoTableMeta[]>;
+  };
 
   constructor(
     private readonly configService: ConfigService,
@@ -117,6 +132,14 @@ export class NocoDBService implements OnModuleInit {
   ) {
     this.baseId = this.configService.get<string>('nocodb.baseId') || '';
     this.tablePrefix = this.configService.get<string>('nocodb.tablePrefix', '');
+    const maxPerSecond = Number(
+      this.configService.get<string | number>('nocodb.maxRequestsPerSecond'),
+    );
+    this.minRequestInterval =
+      1000 /
+      (Number.isFinite(maxPerSecond) && maxPerSecond > 0
+        ? maxPerSecond
+        : DEFAULT_MAX_REQUESTS_PER_SECOND);
   }
 
   onModuleInit() {
@@ -276,6 +299,32 @@ export class NocoDBService implements OnModuleInit {
   }
 
   /**
+   * Table list for lookups, shared for {@link TABLE_LIST_CACHE_TTL_MS}.
+   * Concurrent callers share one in-flight request; failures are not cached.
+   */
+  private listTablesCached(): Promise<NocoTableMeta[]> {
+    const now = Date.now();
+    if (this.tableListCache && this.tableListCache.expiresAt > now) {
+      return this.tableListCache.tables;
+    }
+
+    const tables = this.listTables();
+    const entry = { expiresAt: now + TABLE_LIST_CACHE_TTL_MS, tables };
+    this.tableListCache = entry;
+    tables.catch(() => {
+      if (this.tableListCache === entry) {
+        this.tableListCache = undefined;
+      }
+    });
+    return tables;
+  }
+
+  /** Drops the cached table list, e.g. after creating a table. */
+  invalidateTableListCache(): void {
+    this.tableListCache = undefined;
+  }
+
+  /**
    * Check if a table exists in the base.
    */
   async tableExists(tableName: string): Promise<boolean> {
@@ -290,7 +339,7 @@ export class NocoDBService implements OnModuleInit {
   async getTableByName(tableName: string): Promise<NocoTableMeta | null> {
     const prefixedName = this.getPrefixedTableName(tableName);
     try {
-      const tables = await this.listTables();
+      const tables = await this.listTablesCached();
       const table =
         tables.find((t) => t.title === prefixedName) ??
         tables.find((t) => t.table_name === prefixedName) ??
@@ -322,6 +371,7 @@ export class NocoDBService implements OnModuleInit {
         description: title !== tableName ? title : undefined,
         fields,
       });
+      this.invalidateTableListCache();
       this.logger.log(`Table ${prefixedName} created successfully`);
       return response.data as NocoTableMeta;
     } catch (error) {

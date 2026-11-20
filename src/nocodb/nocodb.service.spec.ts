@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
-import { NocoDBService } from './nocodb.service';
+import { NocoDBService, TABLE_LIST_CACHE_TTL_MS } from './nocodb.service';
 import { Logger } from '@nestjs/common';
 import { AxiosError } from 'axios';
 import { NocoDBException } from './exceptions/nocodb.exception';
@@ -341,6 +341,49 @@ describe('NocoDBService', () => {
           title: 'email',
           type: 'Email',
         },
+      );
+    });
+
+    it('reuses the table list for lookups within the cache TTL', async () => {
+      mockHttpClient.get.mockResolvedValue({
+        data: { list: [{ id: 't1', title: 'nc_users' }] },
+      });
+
+      await service.getTableByName('users');
+      await service.getTableByName('roles');
+      await Promise.all([
+        service.getTableByName('users'),
+        service.getTableByName('users'),
+      ]);
+
+      expect(mockHttpClient.get).toHaveBeenCalledTimes(1);
+    });
+
+    it('reloads the table list after the TTL and after creating a table', async () => {
+      const now = jest.spyOn(Date, 'now').mockReturnValue(1_000);
+      mockHttpClient.get.mockResolvedValue({ data: { list: [] } });
+      mockHttpClient.post.mockResolvedValue({ data: { id: 'new' } });
+
+      await service.getTableByName('users');
+      now.mockReturnValue(1_000 + TABLE_LIST_CACHE_TTL_MS + 1);
+      await service.getTableByName('users');
+      expect(mockHttpClient.get).toHaveBeenCalledTimes(2);
+
+      await service.createTable('users', 'Users');
+      await service.getTableByName('users');
+      expect(mockHttpClient.get).toHaveBeenCalledTimes(3);
+    });
+
+    it('does not cache a failed table list request', async () => {
+      mockHttpClient.get
+        .mockRejectedValueOnce(new Error('boom'))
+        .mockResolvedValueOnce({
+          data: { list: [{ id: 't1', title: 'nc_users' }] },
+        });
+
+      await expect(service.getTableByName('users')).rejects.toThrow('boom');
+      await expect(service.getTableByName('users')).resolves.toEqual(
+        expect.objectContaining({ id: 't1' }),
       );
     });
 
