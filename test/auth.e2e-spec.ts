@@ -42,11 +42,9 @@ const mockNocoDBService = {
   listAll: jest.fn().mockResolvedValue([]),
   read: jest.fn().mockResolvedValue({ id: 1 }),
   delete: jest.fn().mockResolvedValue(undefined),
-  exists: jest.fn().mockResolvedValue(false),
   getHttpClient: jest.fn().mockReturnValue(mockHttpClient),
   getBaseId: jest.fn().mockReturnValue('mock-base-id'),
   getTablePrefix: jest.fn().mockReturnValue(''),
-  getClient: jest.fn().mockReturnValue({}),
   listTables: jest.fn().mockResolvedValue([
     { id: 't1', title: 'customers' },
     { id: 't2', title: 'users' },
@@ -267,8 +265,22 @@ describe('Auth Flow (e2e)', () => {
         .expect(200);
     });
 
-    it('GET /api/meta/tables returns 200 with valid admin token', () => {
-      const token = createAuthToken({ roles: ['admin'] });
+    it('GET /api/meta/tables returns 403 for an admin role claim without admin role in the database', () => {
+      // roles are resolved from user_roles; the token claim alone grants nothing
+      const token = createAuthToken({ sub: 2, roles: ['admin'] });
+      return request(app.getHttpServer())
+        .get('/api/meta/tables')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(403);
+    });
+
+    it('GET /api/meta/tables returns 200 for a user with the admin role in the database', () => {
+      // user_roles -> roles -> table_permissions
+      mockNocoDBService.listAll
+        .mockResolvedValueOnce([{ role_id: 1 }])
+        .mockResolvedValueOnce([{ id: 1, role_name: 'admin' }])
+        .mockResolvedValueOnce([]);
+      const token = createAuthToken({ sub: 3, roles: [] });
       return request(app.getHttpServer())
         .get('/api/meta/tables')
         .set('Authorization', `Bearer ${token}`)

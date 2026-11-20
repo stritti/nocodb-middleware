@@ -1,24 +1,4 @@
 import { registerAs } from '@nestjs/config';
-import { IsString, IsUrl, IsOptional } from 'class-validator';
-
-export class NocoDBConfig {
-  @IsUrl()
-  apiUrl: string;
-
-  @IsString()
-  apiToken: string;
-
-  @IsString()
-  @IsOptional()
-  projectId?: string;
-
-  @IsString()
-  baseId: string;
-
-  @IsString()
-  @IsOptional()
-  tablePrefix?: string;
-}
 
 export default registerAs('nocodb', () => ({
   apiUrl: process.env.NOCODB_API_URL,

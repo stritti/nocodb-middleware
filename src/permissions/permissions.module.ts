@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { PermissionsService } from './permissions.service';
+import { PermissionsCoreModule } from './permissions-core.module';
 import { PermissionsManagementService } from './permissions-management.service';
 import { PermissionsManagementController } from './permissions-management.controller';
 import { PermissionsGuard } from './permissions.guard';
@@ -9,15 +9,14 @@ import { NocoDBModule } from '../nocodb/nocodb.module';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [NocoDBModule, AuthModule],
+  imports: [NocoDBModule, AuthModule, PermissionsCoreModule],
   providers: [
-    PermissionsService,
     PermissionsManagementService,
     PermissionsGuard,
     RolesService,
     UserRolesService,
   ],
   controllers: [PermissionsManagementController],
-  exports: [PermissionsService, PermissionsGuard],
+  exports: [PermissionsCoreModule, PermissionsGuard],
 })
 export class PermissionsModule {}

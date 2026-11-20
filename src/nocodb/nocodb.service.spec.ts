@@ -64,10 +64,6 @@ describe('NocoDBService', () => {
     expect(configService.get).toHaveBeenCalledWith('nocodb.apiToken');
   });
 
-  it('should provide a client', () => {
-    expect(service.getClient()).toBeDefined();
-  });
-
   it('should return correct base ID', () => {
     expect(service.getBaseId()).toBe('test-base-id');
   });
@@ -254,7 +250,7 @@ describe('NocoDBService', () => {
     });
   });
 
-  describe('findOne / exists', () => {
+  describe('findOne', () => {
     it('returns the first record or null', async () => {
       mockHttpClient.get
         .mockResolvedValueOnce({ data: { records: [{ id: 7, fields: {} }] } })
@@ -263,7 +259,7 @@ describe('NocoDBService', () => {
       await expect(service.findOne('t1', '(a,eq,1)')).resolves.toEqual({
         id: 7,
       });
-      await expect(service.exists('t1', '(a,eq,2)')).resolves.toBe(false);
+      await expect(service.findOne('t1', '(a,eq,2)')).resolves.toBeNull();
     });
   });
 
@@ -348,31 +344,6 @@ describe('NocoDBService', () => {
       mockHttpClient.get.mockRejectedValue(new Error('boom'));
 
       await expect(service.getTableByName('users')).rejects.toThrow('boom');
-    });
-  });
-
-  describe('batch operations', () => {
-    it('collects errors per record', async () => {
-      mockHttpClient.post
-        .mockResolvedValueOnce({ data: { records: [{ id: 1, fields: {} }] } })
-        .mockRejectedValueOnce(new Error('fail'));
-
-      const results = await service.batchCreate('t1', [{ a: 1 }, { a: 2 }]);
-
-      expect(results).toEqual([{ id: 1 }, { error: 'fail' }]);
-    });
-
-    it('collects update errors per record', async () => {
-      mockHttpClient.patch
-        .mockResolvedValueOnce({ data: { records: [{ id: 1, fields: {} }] } })
-        .mockRejectedValueOnce(new Error('fail'));
-
-      const results = await service.batchUpdate('t1', [
-        { id: 1, data: {} },
-        { id: 2, data: {} },
-      ]);
-
-      expect(results).toEqual([{ id: 1 }, { id: 2, error: 'fail' }]);
     });
   });
 

@@ -22,9 +22,11 @@ Minimal erwartete JWT Claims (aus `JwtStrategy`):
 {
   "sub": 123,
   "username": "alice",
-  "roles": ["admin"]
+  "scope": "customers:read"
 }
 ```
+
+Rollen werden **nicht** aus dem Token gelesen. Ein `roles`- oder `role`-Claim wird ignoriert. Die Middleware lädt die Rollen des Benutzers bei jeder Anfrage aus `user_roles` in NocoDB (mit kurzem Cache). Endpunkte mit Rollenprüfung (`/api/users`, `/api/meta/tables`) verlangen also, dass dem Benutzer die Rolle `admin` in der Datenbank zugewiesen ist, z. B. über den Bootstrap-Endpoint oder `POST /api/admin/permissions/user-roles/assign`. Eine IdP-Rolle mit dem Namen `admin` gewährt keine Rechte.
 
 ### 2. Bootstrap-Token für Initial-Admin
 
@@ -86,6 +88,10 @@ Beispielantwort:
 
 Basispfad: `/api/admin/permissions`
 
+Die Admin-Endpunkte prüfen Rechte auf die Systemtabellen `roles`, `user_roles` und `table_permissions` (z. B. `POST /user-roles/assign` verlangt `create` auf `user_roles`). Erlaubt ist ein Request, wenn eine Rolle des Benutzers dieses Recht in `table_permissions` hat oder der JWT einen Scope enthält, der die Systemtabelle **ausdrücklich** nennt (z. B. `user_roles:create` oder `roles:*`). Wildcard-Scopes wie `*:*` oder `*:create` gelten nur für Datentabellen, nie für Systemtabellen. So kann ein Token mit breitem Datenzugriff sich nicht selbst Admin-Rechte geben.
+
+Wer Rechte auf `table_permissions` oder `user_roles` hat, kann damit weitere Rechte vergeben, auch auf Systemtabellen. Diese Rechte entsprechen daher Admin-Rechten und sollten nur Admin-Rollen erhalten.
+
 - `POST /roles`
 - `GET /roles`
 - `DELETE /roles/:roleId`
@@ -139,7 +145,7 @@ curl -X POST http://localhost:3000/api/admin/permissions/user-roles/assign \
 ### Tabellenkatalog (Admin)
 
 - `GET /api/meta/tables`
-- Auth: JWT + Rolle `admin`
+- Auth: JWT + Rolle `admin` (in `user_roles` zugewiesen)
 
 ```bash
 curl http://localhost:3000/api/meta/tables \
@@ -169,7 +175,7 @@ Query-Parameter für die Liste: `where` (NocoDB-Filter, z. B. `(Name,eq,Alice)`)
 
 **Autorisierung pro Tabelle und Aktion**, sonst `403`. Erlaubt ist ein Request, wenn eins von beiden zutrifft:
 
-- Der JWT enthält einen passenden Scope: `customers:read`, `customers:*`, `*:read` oder `*:*`.
+- Der JWT enthält einen passenden Scope: `customers:read`, `customers:*`, `*:read` oder `*:*`. Wildcards gelten nie für Systemtabellen (siehe RBAC oben).
 - Eine Rolle des Benutzers hat das Recht in `table_permissions` (siehe RBAC oben).
 
 Die Systemtabellen `users`, `roles`, `user_roles` und `table_permissions` sind über diese API nicht erreichbar und liefern `404`, ebenso unbekannte Tabellen und ungültige Namen. Ein fehlender Datensatz liefert bei `GET`, `PATCH` und `DELETE` ebenfalls `404`.

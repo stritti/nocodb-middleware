@@ -8,15 +8,12 @@ import {
 } from '@nestjs/common';
 import { PermissionsService } from '../permissions/permissions.service';
 import { CrudAction } from '../permissions/enums/crud-action.enum';
-import { hasScopePermission } from '../permissions/scope-permission.util';
-import { logPermissionDenied } from '../permissions/permission-audit';
+import {
+  assertTableAction,
+  PermissionUser,
+} from '../permissions/permission-check.util';
 import { isValidTableName } from '../common/validation/table-name';
-import { SYSTEM_TABLE_NAMES } from '../common/system-table-names';
-
-/** Internal tables of the middleware; never reachable via the data API. */
-export const SYSTEM_TABLES: ReadonlySet<string> = new Set(
-  Object.values(SYSTEM_TABLE_NAMES),
-);
+import { SYSTEM_TABLES } from '../common/system-table-names';
 
 const METHOD_ACTIONS: Readonly<Record<string, CrudAction>> = {
   GET: CrudAction.READ,
@@ -28,7 +25,7 @@ const METHOD_ACTIONS: Readonly<Record<string, CrudAction>> = {
 interface DataRequest {
   method: string;
   params: { table?: string };
-  user?: { userId?: number | string; scope?: string[] };
+  user?: PermissionUser;
 }
 
 /**
@@ -60,18 +57,13 @@ export class TablePermissionsGuard implements CanActivate {
       throw new ForbiddenException('Access denied');
     }
 
-    const allowed =
-      hasScopePermission(user.scope, table, action) ||
-      (await this.permissionsService.canUserPerformAction(
-        Number(user.userId),
-        table,
-        action,
-      ));
-
-    if (!allowed) {
-      logPermissionDenied(this.logger, user.userId, action, table);
-      throw new ForbiddenException(`Missing permission: ${action} on ${table}`);
-    }
+    await assertTableAction(
+      this.permissionsService,
+      this.logger,
+      user,
+      table,
+      action,
+    );
 
     return true;
   }

@@ -6,7 +6,6 @@ import {
   Optional,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Api } from 'nocodb-sdk';
 import axios, { AxiosInstance, AxiosError, isAxiosError } from 'axios';
 import axiosRetry from 'axios-retry';
 import { shouldRetryNocoDBRequest } from './nocodb-retry.util';
@@ -101,7 +100,6 @@ function isNotFound(error: unknown): boolean {
 @Injectable()
 export class NocoDBService implements OnModuleInit {
   private readonly logger = new Logger(NocoDBService.name);
-  private client: Api<unknown>;
   private httpClient: AxiosInstance;
   private readonly baseId: string;
   private readonly tablePrefix: string;
@@ -134,14 +132,6 @@ export class NocoDBService implements OnModuleInit {
       this.logger.error('NocoDB BASE_ID is required for Meta API operations');
       throw new Error('NocoDB BASE_ID missing');
     }
-
-    // SDK client (kept for backwards compatibility)
-    this.client = new Api({
-      baseURL: apiUrl,
-      headers: {
-        'xc-auth': apiToken,
-      },
-    });
 
     // Shared HTTP client used by both Meta and Data API calls
     this.httpClient = axios.create({
@@ -197,13 +187,6 @@ export class NocoDBService implements OnModuleInit {
   }
 
   // ── Accessor helpers ──────────────────────────────────────────────────────
-
-  /**
-   * Get the NocoDB SDK client for data operations
-   */
-  getClient(): Api<unknown> {
-    return this.client;
-  }
 
   /**
    * Get the configured base ID
@@ -623,55 +606,5 @@ export class NocoDBService implements OnModuleInit {
   async findOne(tableId: string, where: string): Promise<NocoRecord | null> {
     const result = await this.list(tableId, { where, limit: 1 });
     return result.list.length > 0 ? result.list[0] : null;
-  }
-
-  /**
-   * Check if a record matching the filter exists.
-   */
-  async exists(tableId: string, where: string): Promise<boolean> {
-    return (await this.findOne(tableId, where)) !== null;
-  }
-
-  /**
-   * Batch-create multiple records.
-   */
-  async batchCreate(
-    tableId: string,
-    records: Record<string, unknown>[],
-  ): Promise<NocoRecordResponse[]> {
-    const results: NocoRecordResponse[] = [];
-    for (const record of records) {
-      try {
-        results.push(await this.create(tableId, record));
-      } catch (error) {
-        this.logger.error('Error in batch create for record:', error);
-        results.push({
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
-    }
-    return results;
-  }
-
-  /**
-   * Batch-update multiple records.
-   */
-  async batchUpdate(
-    tableId: string,
-    updates: Array<{ id: number; data: Record<string, unknown> }>,
-  ): Promise<NocoRecordResponse[]> {
-    const results: NocoRecordResponse[] = [];
-    for (const upd of updates) {
-      try {
-        results.push(await this.update(tableId, upd.id, upd.data));
-      } catch (error) {
-        this.logger.error(`Error in batch update for record ${upd.id}:`, error);
-        results.push({
-          id: upd.id,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
-    }
-    return results;
   }
 }

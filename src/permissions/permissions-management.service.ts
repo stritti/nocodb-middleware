@@ -2,9 +2,10 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { NocoDBService } from '../nocodb/nocodb.service';
 import { SYSTEM_TABLE_NAMES } from '../common/system-table-names';
 import { PageOptionsDto } from '../nocodb/dto/page-options.dto';
-import { PageMetaDto } from '../nocodb/dto/page-meta.dto';
 import { PageDto } from '../nocodb/dto/page.dto';
-import { andFilters, filterEq } from '../nocodb/nocodb-filter.util';
+import { emptyPage, pagedOptions, pageMeta } from '../nocodb/page.util';
+import { filterEq } from '../nocodb/nocodb-filter.util';
+import { CrudAction } from './enums/crud-action.enum';
 import { SetTablePermissionsDto } from './dto/set-table-permissions.dto';
 import { BatchSetPermissionsDto } from './dto/batch-permissions.dto';
 import { PermissionsService } from './permissions.service';
@@ -20,64 +21,25 @@ export class PermissionsManagementService {
   ) {}
 
   /**
-   * Set permissions for a single table
+   * Set permissions for a single table. The upsert itself lives in
+   * {@link PermissionsService.setTablePermissions}, which also clears the
+   * permission cache.
    */
   async setTablePermissions(dto: SetTablePermissionsDto): Promise<unknown> {
-    try {
-      const permissionsTable = await this.nocoDBService.getTableByName(
-        SYSTEM_TABLE_NAMES.TABLE_PERMISSIONS,
-      );
-      if (!permissionsTable) {
-        throw new NotFoundException('Table_permissions table not found');
-      }
+    this.logger.log(
+      `Setting permissions: Role ${dto.roleId} -> Table ${dto.tableName}`,
+    );
 
-      const existing = await this.nocoDBService.findOne(
-        permissionsTable.id,
-        andFilters(
-          filterEq('role_id', dto.roleId),
-          filterEq('table_name', dto.tableName),
-        ),
-      );
-
-      const permissionData = {
-        role_id: dto.roleId,
-        table_name: dto.tableName,
-        can_create: dto.canCreate,
-        can_read: dto.canRead,
-        can_update: dto.canUpdate,
-        can_delete: dto.canDelete,
-      };
-
-      let result: unknown;
-
-      if (existing) {
-        result = await this.nocoDBService.update(
-          permissionsTable.id,
-          extractNumericId(existing),
-          permissionData,
-        );
-
-        this.logger.log(
-          `Permission updated: Role ${dto.roleId} -> Table ${dto.tableName}`,
-        );
-      } else {
-        result = await this.nocoDBService.create(
-          permissionsTable.id,
-          permissionData,
-        );
-
-        this.logger.log(
-          `Permission created: Role ${dto.roleId} -> Table ${dto.tableName}`,
-        );
-      }
-
-      this.permissionsService.clearCache();
-
-      return result;
-    } catch (error) {
-      this.logger.error('Error setting table permissions:', error);
-      throw error;
-    }
+    return this.permissionsService.setTablePermissions(
+      dto.roleId,
+      dto.tableName,
+      {
+        [CrudAction.CREATE]: dto.canCreate,
+        [CrudAction.READ]: dto.canRead,
+        [CrudAction.UPDATE]: dto.canUpdate,
+        [CrudAction.DELETE]: dto.canDelete,
+      },
+    );
   }
 
   /**
@@ -205,35 +167,21 @@ export class PermissionsManagementService {
         SYSTEM_TABLE_NAMES.TABLE_PERMISSIONS,
       );
       if (!permissionsTable) {
-        return new PageDto(
-          [],
-          new PageMetaDto({
-            pageOptionsDto: pageOptionsDto || new PageOptionsDto(),
-            itemCount: 0,
-          }),
-        );
+        return emptyPage(pageOptionsDto);
       }
-
-      const limit = pageOptionsDto?.take ?? 10;
-      const offset = pageOptionsDto?.skip ?? 0;
 
       const result = await this.nocoDBService.list(permissionsTable.id, {
         where: filterEq('role_id', roleId),
         sort: 'table_name',
-        limit,
-        offset,
-        withCount: true,
+        ...pagedOptions(pageOptionsDto),
       });
 
       const data = result.list;
-      const totalRows = result.pageInfo?.totalRows ?? data.length;
 
-      const meta = new PageMetaDto({
-        pageOptionsDto: pageOptionsDto || new PageOptionsDto(),
-        itemCount: pageOptionsDto ? totalRows : data.length,
-      });
-
-      return new PageDto(data, meta);
+      return new PageDto(
+        data,
+        pageMeta(pageOptionsDto, result.pageInfo, data.length),
+      );
     } catch (error) {
       this.logger.error('Error fetching role permissions:', error);
       throw error;
