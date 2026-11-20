@@ -12,7 +12,7 @@ import {
   NocoRecordResponse,
 } from '../nocodb/nocodb.types';
 
-export const DEFAULT_PAGE_SIZE = 25;
+const DEFAULT_PAGE_SIZE = 25;
 export const TABLE_CACHE_TTL_MS = 60_000;
 const REJECTED_VALUES = 'NocoDB rejected the record values';
 

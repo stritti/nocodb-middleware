@@ -1,13 +1,13 @@
 import { Transform } from 'class-transformer';
 import sanitizeHtml from 'sanitize-html';
+import { STRIP_ALL_HTML } from '../sanitize-html.options';
 
 /**
  * Default sanitize-html options that strip ALL HTML tags.
  * Only plain text is allowed.
  */
 const STRIP_ALL: sanitizeHtml.IOptions = {
-  allowedTags: [],
-  allowedAttributes: {},
+  ...STRIP_ALL_HTML,
   allowedSchemes: [],
   disallowedTagsMode: 'discard',
 };

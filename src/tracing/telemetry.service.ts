@@ -70,9 +70,4 @@ export class TelemetryService {
       }
     });
   }
-
-  /** Returns the underlying OTel {@link Tracer} for advanced use-cases. */
-  getTracer(): Tracer {
-    return this.tracer;
-  }
 }

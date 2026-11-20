@@ -8,19 +8,13 @@ import {
 import { Reflector } from '@nestjs/core';
 import { PermissionsService } from './permissions.service';
 import { CrudAction } from './enums/crud-action.enum';
-import { hasScopePermission } from './scope-permission.util';
-import { logPermissionDenied } from './permission-audit';
+import { assertTableAction, PermissionUser } from './permission-check.util';
 
 export const REQUIRE_PERMISSIONS_KEY = 'requirePermissions';
 
 export interface RequiredPermission {
   table: string;
   action: CrudAction;
-}
-
-interface RequestUser {
-  userId?: number | string;
-  scope?: string[];
 }
 
 @Injectable()
@@ -43,7 +37,7 @@ export class PermissionsGuard implements CanActivate {
     }
 
     const request = context.switchToHttp().getRequest();
-    const user = request.user as RequestUser | undefined;
+    const user = request.user as PermissionUser | undefined;
 
     if (!user || !user.userId) {
       this.logger.warn('User not authenticated');
@@ -52,25 +46,13 @@ export class PermissionsGuard implements CanActivate {
 
     // Check all required permissions
     for (const permission of requiredPermissions) {
-      const hasPermission =
-        hasScopePermission(user.scope, permission.table, permission.action) ||
-        (await this.permissionsService.canUserPerformAction(
-          Number(user.userId),
-          permission.table,
-          permission.action,
-        ));
-
-      if (!hasPermission) {
-        logPermissionDenied(
-          this.logger,
-          user.userId,
-          permission.action,
-          permission.table,
-        );
-        throw new ForbiddenException(
-          `Missing permission: ${permission.action} on ${permission.table}`,
-        );
-      }
+      await assertTableAction(
+        this.permissionsService,
+        this.logger,
+        user,
+        permission.table,
+        permission.action,
+      );
     }
 
     // All permissions satisfied

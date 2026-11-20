@@ -42,11 +42,9 @@ const mockNocoDBService = {
   listAll: jest.fn().mockResolvedValue([]),
   read: jest.fn().mockResolvedValue({ id: 1 }),
   delete: jest.fn().mockResolvedValue(undefined),
-  exists: jest.fn().mockResolvedValue(false),
   getHttpClient: jest.fn().mockReturnValue(mockHttpClient),
   getBaseId: jest.fn().mockReturnValue('mock-base-id'),
   getTablePrefix: jest.fn().mockReturnValue(''),
-  getClient: jest.fn().mockReturnValue({}),
   listTables: jest.fn().mockResolvedValue([
     { id: 't1', title: 'customers' },
     { id: 't2', title: 'users' },
