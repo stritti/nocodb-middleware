@@ -63,7 +63,7 @@ Geeignet für öffentliche produktive Systeme.
 
 - [ ] `JWT_SECRET` nicht im Repo
 - [ ] `NOCODB_API_TOKEN` nicht im Frontend
-- [ ] `BOOTSTRAP_ADMIN_TOKEN` nur kurzzeitig und kontrolliert genutzt
+- [ ] `BOOTSTRAP_ADMIN_TOKEN` nur kurzzeitig und kontrolliert genutzt und nach dem Bootstrap entfernt (der Endpoint sperrt sich zusätzlich selbst, sobald ein Admin existiert)
 - [ ] Secrets in Secret Store oder sicherem CI/CD-Mechanismus hinterlegt
 
 ### Transport und Browser
@@ -162,7 +162,7 @@ Aktuell öffentlich (alle Routen liegen unter dem globalen Präfix `/api`):
 |---|---|
 | `GET /api` | API-Info |
 | `GET /api/health` | Health Checks von Load Balancer und Container |
-| `POST /api/bootstrap/admin` | Kein JWT, stattdessen über den Header `x-bootstrap-token` geschützt |
+| `POST /api/bootstrap/admin` | Kein JWT, stattdessen über den Header `x-bootstrap-token` geschützt; gesperrt, sobald ein Admin existiert; 5 Versuche pro 15 Minuten |
 
 Autorisierung kommt zusätzlich per Controller-Guard dazu. Globale Guards laufen zuerst, `req.user` ist also gesetzt:
 

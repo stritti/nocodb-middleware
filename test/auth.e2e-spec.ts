@@ -195,6 +195,24 @@ describe('Auth Flow (e2e)', () => {
           expect(status).not.toBe(401);
         });
     });
+
+    it('POST /api/bootstrap/admin is rate limited per client', async () => {
+      const statuses: number[] = [];
+      for (let i = 0; i < 6; i++) {
+        const { status } = await request(app.getHttpServer())
+          .post('/api/bootstrap/admin')
+          .set('x-bootstrap-token', 'wrong-token')
+          .send({
+            username: 'admin',
+            email: 'admin@test.com',
+            password: TEST_PASSWORD,
+          });
+        statuses.push(status);
+      }
+      expect(statuses).toContain(429);
+      // the limit is per route: other endpoints stay reachable
+      await request(app.getHttpServer()).get('/api/health').expect(200);
+    });
   });
 
   // ── Invalid token ────────────────────────────────────────────────────────

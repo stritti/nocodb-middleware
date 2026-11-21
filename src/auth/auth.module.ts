@@ -1,4 +1,9 @@
-import { Module } from '@nestjs/common';
+import {
+  MiddlewareConsumer,
+  Module,
+  NestModule,
+  RequestMethod,
+} from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -11,6 +16,7 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { BootstrapAdminService } from './bootstrap-admin.service';
 import { BootstrapAdminController } from './bootstrap-admin.controller';
+import { BootstrapRateLimitMiddleware } from './bootstrap-rate-limit.middleware';
 import { UserProvisioningController } from './user-provisioning.controller';
 import { UserProvisioningService } from './user-provisioning.service';
 import { AuthProviderConfigService } from './auth-provider-config.service';
@@ -69,4 +75,10 @@ import { PermissionsCoreModule } from '../permissions/permissions-core.module';
   ],
   exports: [JwtAuthGuard, RolesGuard, JwtModule, UserProvisioningService],
 })
-export class AuthModule {}
+export class AuthModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(BootstrapRateLimitMiddleware)
+      .forRoutes({ path: 'bootstrap/admin', method: RequestMethod.POST });
+  }
+}
