@@ -18,6 +18,7 @@ import {
   NocoRecordListResponse,
   NocoRecordResponse,
 } from './nocodb.types';
+import { installAxiosErrorRedaction } from './axios-redaction.util';
 
 // ─── NocoDB v3 API paths ────────────────────────────────────────────────────
 // https://nocodb.com/apis/v3/meta and https://nocodb.com/apis/v3/data
@@ -196,6 +197,13 @@ export class NocoDBService implements OnModuleInit {
         );
       },
     });
+
+    // Must come after axiosRetry: retries need the original headers, but the
+    // final error must not carry the API token into logs.
+    installAxiosErrorRedaction(this.httpClient);
+    if (this.client.instance) {
+      installAxiosErrorRedaction(this.client.instance);
+    }
 
     this.logger.log(
       `HTTP client retry configured: ${retryCount} attempts, base delay ${retryBaseDelay}ms`,
