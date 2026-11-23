@@ -54,7 +54,7 @@
     "class-validator": "^0.15.1",
     "express-rate-limit": "^8.7.4",
     "helmet": "^8.3.0",
-    "nestjs-pino": "^5.3.1",
+    "nestjs-pino": "^5.3.2",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "pino-http": "^11.0.0",
