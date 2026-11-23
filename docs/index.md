@@ -62,6 +62,7 @@ features:
 - [Middleware](./middleware.md)
 - [Error Handling](./error-handling.md)
 - [Caching](./caching.md)
+- [Logging](./logging.md)
 - [Testing](./testing.md)
 - [Example: Books Application](./example.md)
 - [Product Readiness](./product-readiness.md)
